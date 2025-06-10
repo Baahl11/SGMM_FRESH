@@ -2,7 +2,7 @@ from datetime import timedelta
 from typing import List
 from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi import Form
 from sqlmodel import Session
 
 from . import crud, models, schemas
@@ -20,6 +20,7 @@ app = FastAPI(title="Consultorio Médico API")
 origins = [
     "http://localhost:3000",  # Next.js development server
     "http://localhost:8000",  # FastAPI development server
+    "https://l3q53h-8000.csb.app" # Frontend origin
 ]
 
 app.add_middleware(
@@ -38,10 +39,11 @@ def on_startup():
 # Authentication endpoints
 @app.post("/token", response_model=schemas.Token)
 async def login_for_access_token(
-    form_data: OAuth2PasswordRequestForm = Depends(),
+    username: str = Form(...),
+    password: str = Form(...),
     session: Session = Depends(get_session)
 ):
-    user = authenticate_user(form_data.username, form_data.password, session)
+    user = authenticate_user(username, password, session)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

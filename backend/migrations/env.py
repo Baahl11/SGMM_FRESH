@@ -18,8 +18,11 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # Import all models for Alembic to detect
-from app.models import SQLModel
+import sys
+sys.path.append('/project/sandbox/user-workspace/backend')
+from app import models
 from app.database import DATABASE_URL
+from app.models import SQLModel
 
 # Set the database URL in the alembic.ini file
 config.set_main_option("sqlalchemy.url", DATABASE_URL)

@@ -1,6 +1,6 @@
 import AuthService from './auth-service';
 
-const API_URL = "http://localhost:8000";
+const API_URL = "http://localhost:8000/api";
 
 interface ApiResponse<T> {
   data?: T;

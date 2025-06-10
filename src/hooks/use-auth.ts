@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import AuthService from '@/lib/auth-service';
+import AuthService from '../lib/auth-service';
 
 export function useAuth() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -50,3 +50,4 @@ export function useAuth() {
     logout,
   };
 }
+

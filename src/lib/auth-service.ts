@@ -1,7 +1,7 @@
 import { jwtDecode } from "jwt-decode";
 import Cookies from "js-cookie";
 
-const API_URL = "http://localhost:8000";
+const API_URL = "http://localhost:8000/api";
 
 interface LoginResponse {
   access_token: string;
@@ -18,26 +18,27 @@ class AuthService {
 
   static async login(email: string, password: string): Promise<boolean> {
     try {
-      const formData = new URLSearchParams();
-      formData.append("username", email);
-      formData.append("password", password);
+      const requestBody = {
+        username: email,
+        password: password,
+      };
 
       const response = await fetch(`${API_URL}/token`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
+          "Content-Type": "application/json",
         },
-        body: formData,
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
         throw new Error("Login failed");
       }
 
-      const data: LoginResponse = await response.json();
+      const responseData: LoginResponse = await response.json();
       // Store token in both localStorage and cookies
-      localStorage.setItem(this.TOKEN_KEY, data.access_token);
-      Cookies.set(this.TOKEN_KEY, data.access_token, {
+      localStorage.setItem(this.TOKEN_KEY, responseData.access_token);
+      Cookies.set(this.TOKEN_KEY, responseData.access_token, {
         expires: 1, // 1 day
         secure: process.env.NODE_ENV === "production",
         sameSite: "strict"
