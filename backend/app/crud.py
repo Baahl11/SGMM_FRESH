@@ -2,19 +2,6 @@ from datetime import datetime
 from typing import List, Optional
 from fastapi import HTTPException, UploadFile
 from sqlmodel import Session, select, or_
-import logging
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('backend_debug.log'),
-        logging.StreamHandler()
-    ]
-)
-logger = logging.getLogger(__name__)
-
 from . import models, schemas
 from .auth import get_password_hash
 
@@ -110,63 +97,11 @@ def create_treatment(
     session: Session, 
     treatment: schemas.TreatmentCreate
 ) -> models.Treatment:
-    """Create a new treatment and optionally its inventory item."""
-    # Crear el tratamiento
-    treatment_data = treatment.dict()
-    
-    # Remover campos que no pertenecen al modelo Treatment
-    inventory_fields = {
-        'crear_inventario': treatment_data.pop('crear_inventario', False),
-        'stock_inicial': treatment_data.pop('stock_inicial', None),
-        'stock_minimo': treatment_data.pop('stock_minimo', None),
-        'stock_maximo': treatment_data.pop('stock_maximo', None),
-        'unidad_medida': treatment_data.pop('unidad_medida', None),
-        'proveedor': treatment_data.pop('proveedor', None),
-        'codigo_producto': treatment_data.pop('codigo_producto', None),
-        'ubicacion': treatment_data.pop('ubicacion', None),
-    }
-    
-    db_treatment = models.Treatment(**treatment_data)
+    """Create a new treatment."""
+    db_treatment = models.Treatment(**treatment.dict())
     session.add(db_treatment)
     session.commit()
     session.refresh(db_treatment)
-    
-    # Si se debe crear inventario, crear el item automáticamente
-    if inventory_fields['crear_inventario']:
-        logger.info(f"Creating inventory item for treatment: {db_treatment.nombre}")
-        
-        inventory_item = models.InventoryItem(
-            nombre=db_treatment.nombre,
-            descripcion=f"Producto para tratamiento {db_treatment.nombre}",
-            unidad_medida=inventory_fields['unidad_medida'] or 'unidad',
-            stock_actual=inventory_fields['stock_inicial'] or 0,
-            stock_minimo=inventory_fields['stock_minimo'] or 5,
-            stock_maximo=inventory_fields['stock_maximo'] or 100,
-            costo_unitario=db_treatment.costo_unitario,
-            proveedor=inventory_fields['proveedor'],
-            codigo_producto=inventory_fields['codigo_producto'],
-            ubicacion=inventory_fields['ubicacion'],
-            activo=True,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
-        )
-        
-        session.add(inventory_item)
-        session.commit()
-        session.refresh(inventory_item)
-        
-        # Crear la configuración automática para que el tratamiento consuma su propio producto
-        treatment_inventory = models.TreatmentInventoryItem(
-            treatment_id=db_treatment.id,
-            inventory_item_id=inventory_item.id,
-            cantidad_requerida=1
-        )
-        
-        session.add(treatment_inventory)
-        session.commit()
-        
-        logger.info(f"Created inventory item ID {inventory_item.id} for treatment ID {db_treatment.id}")
-    
     return db_treatment
 
 def get_treatment(session: Session, treatment_id: int) -> models.Treatment:
@@ -206,38 +141,14 @@ def update_treatment(
     return db_treatment
 
 def delete_treatment(session: Session, treatment_id: int) -> None:
-    """Delete a treatment and all its dependencies."""
-    from sqlmodel import select
-    from . import models
-    
-    # Get the treatment first
+    """Delete a treatment."""
     treatment = get_treatment(session, treatment_id)
-    
-    # Check for dependent records
-    records = session.exec(select(models.Record).where(models.Record.treatment_id == treatment_id)).all()
-    if records:
-        raise HTTPException(
-            status_code=400, 
-            detail=f"Cannot delete treatment. It has {len(records)} associated records. Please delete those records first."
-        )
-    
-    # Delete associated inventory items first
-    inventory_items = session.exec(
-        select(models.TreatmentInventoryItem).where(models.TreatmentInventoryItem.treatment_id == treatment_id)
-    ).all()
-    
-    for item in inventory_items:
-        session.delete(item)
-    
-    # Now delete the treatment
     session.delete(treatment)
     session.commit()
 
 # Record operations
 def create_record(session: Session, record: schemas.RecordCreate) -> models.Record:
     """Create a new record."""
-    logger.info(f"Creating record for patient {record.patient_id} with treatment {record.treatment_id}")
-    
     # Verify that patient and treatment exist
     get_patient(session, record.patient_id)
     treatment = get_treatment(session, record.treatment_id)
@@ -246,7 +157,6 @@ def create_record(session: Session, record: schemas.RecordCreate) -> models.Reco
     session.add(db_record)
     session.commit()
     session.refresh(db_record)
-    logger.info(f"Record created with ID: {db_record.id}")
     
     # Consumir inventario automáticamente si el tratamiento tiene costo unitario > 0
     if treatment.costo_unitario > 0:
@@ -258,18 +168,12 @@ def create_record(session: Session, record: schemas.RecordCreate) -> models.Reco
                 user_id=None  # Podríamos pasar el user_id si está disponible
             )
             if movements:
-                logger.info(f"Inventario consumido para tratamiento {treatment.nombre}: {len(movements)} movimientos")
+                print(f"Inventario consumido para tratamiento {treatment.nombre}: {len(movements)} movimientos")
         except Exception as e:
-            logger.error(f"Error al consumir inventario para tratamiento {treatment.nombre}: {e}")
+            print(f"Error al consumir inventario para tratamiento {treatment.nombre}: {e}")
             # No fallar la creación del record si hay error en inventario
     
-    # Re-fetch the record to ensure all fields are populated for serialization
-    fresh_record = session.get(models.Record, db_record.id)
-    if not fresh_record:
-        logger.error(f"Could not re-fetch record with ID {db_record.id}")
-        raise HTTPException(status_code=500, detail="Error retrieving created record")
-    
-    return fresh_record
+    return db_record
 
 def get_record(session: Session, record_id: int) -> models.Record:
     """Get a record by ID."""
@@ -807,8 +711,7 @@ def get_inventory_movements(
 
 def get_inventory_health_status(session: Session) -> dict:
     """Get overall inventory health status."""
-    query = select(models.InventoryItem).where(models.InventoryItem.activo == True)
-    items = session.exec(query).all()
+    items = session.exec(select(models.InventoryItem).where(models.InventoryItem.activo == True)).all()
     
     total_items = len(items)
     high_stock = 0

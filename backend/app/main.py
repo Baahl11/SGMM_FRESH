@@ -795,6 +795,15 @@ def create_inventory_item(
     result["percentage"] = round(percentage, 1)
     return result
 
+@app.get("/inventory/health")
+def get_inventory_health(
+    session: Session = Depends(get_session),
+    current_user: models.User = Depends(get_current_active_user)
+):
+    """Get overall inventory health status"""
+    health_status = crud.get_inventory_health_status(session)
+    return health_status
+
 @app.get("/inventory/{item_id}", response_model=schemas.InventoryItemRead)
 def get_inventory_item(
     item_id: int,
@@ -890,15 +899,6 @@ def create_inventory_movement(
     item = crud.get_inventory_item(session, movement.item_id)
     result["item_name"] = item.nombre
     return result
-
-@app.get("/inventory/health", response_model=schemas.InventoryHealthStatus)
-def get_inventory_health(
-    session: Session = Depends(get_session),
-    current_user: models.User = Depends(get_current_active_user)
-):
-    """Get overall inventory health status"""
-    health_status = crud.get_inventory_health_status(session)
-    return health_status
 
 # Treatment-Inventory relationship endpoints
 @app.get("/treatments/{treatment_id}/inventory", response_model=List[schemas.TreatmentInventoryItemRead])
