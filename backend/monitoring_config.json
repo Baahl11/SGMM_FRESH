@@ -1,0 +1,203 @@
+{
+  "_description": "Configuración del Monitor de Calidad de Datos - SGMM",
+  "_version": "1.0.0",
+  "_last_updated": "2024-12-15",
+  
+  "email": {
+    "_description": "Configuración de alertas por email",
+    "enabled": false,
+    "smtp_server": "smtp.gmail.com",
+    "smtp_port": 587,
+    "username": "your-email@gmail.com",
+    "password": "your-app-password",
+    "recipients": [
+      "admin@consultorio.com",
+      "gmelgarejom@gmail.com"
+    ],
+    "send_summary": true,
+    "send_on_warning": false,
+    "send_on_error": true
+  },
+  
+  "thresholds": {
+    "_description": "Umbrales de calidad de datos (porcentajes)",
+    "data_completeness_min": 95.0,
+    "financial_consistency_min": 99.0,
+    "referential_integrity_min": 100.0,
+    "duplicate_rate_max": 2.0,
+    "error_rate_max": 1.0,
+    "patient_age_max": 120,
+    "future_date_tolerance_days": 0
+  },
+  
+  "monitoring": {
+    "_description": "Configuración de frecuencias de monitoreo",
+    "interval_seconds": 3600,
+    "alert_cooldown_seconds": 7200,
+    "continuous_mode": false,
+    "max_consecutive_errors": 3,
+    "health_check_interval": 300
+  },
+  
+  "data_retention": {
+    "_description": "Políticas de retención de datos de monitoreo",
+    "metrics_history_days": 30,
+    "alert_history_days": 90,
+    "log_retention_days": 7,
+    "backup_metrics": true
+  },
+  
+  "business_rules": {
+    "_description": "Reglas de negocio específicas del consultorio",
+    "working_hours": {
+      "start": "08:00",
+      "end": "18:00",
+      "days": ["monday", "tuesday", "wednesday", "thursday", "friday"]
+    },
+    "financial_limits": {
+      "min_treatment_cost": 50.0,
+      "max_treatment_cost": 10000.0,
+      "min_payment_amount": 0.0,
+      "max_payment_amount": 50000.0
+    },
+    "commission_validation": {
+      "bbva_rates": {
+        "0_msi": 3.5,
+        "3_msi": 3.95,
+        "6_msi": 6.5,
+        "9_msi": 9.0,
+        "12_msi": 12.0
+      },
+      "openpay_rates_with_iva": {
+        "0_msi": 3.364,
+        "3_msi": 8.932,
+        "6_msi": 12.412,
+        "9_msi": 15.892,
+        "12_msi": 19.372
+      }
+    }
+  },
+  
+  "reporting": {
+    "_description": "Configuración de reportes automáticos",
+    "daily_summary": {
+      "enabled": true,
+      "time": "08:00",
+      "include_metrics": true,
+      "include_trends": true
+    },
+    "weekly_report": {
+      "enabled": true,
+      "day": "monday",
+      "time": "09:00",
+      "detailed": true,
+      "include_recommendations": true
+    },
+    "monthly_analysis": {
+      "enabled": true,
+      "day": 1,
+      "time": "10:00",
+      "executive_summary": true,
+      "export_format": "pdf"
+    }
+  },
+  
+  "integrations": {
+    "_description": "Integraciones con sistemas externos",
+    "webhook": {
+      "enabled": false,
+      "url": "https://your-webhook-url.com/sgmm-alerts",
+      "secret": "your-webhook-secret",
+      "retry_attempts": 3
+    },
+    "slack": {
+      "enabled": false,
+      "webhook_url": "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK",
+      "channel": "#sgmm-alerts",
+      "mention_on_critical": "@channel"
+    },
+    "sms": {
+      "enabled": false,
+      "provider": "twilio",
+      "account_sid": "your-twilio-sid",
+      "auth_token": "your-twilio-token",
+      "from_number": "+1234567890",
+      "to_numbers": ["+1234567890"]
+    }
+  },
+  
+  "performance": {
+    "_description": "Configuración de rendimiento y optimización",
+    "max_records_per_check": 10000,
+    "parallel_processing": false,
+    "cache_duration_minutes": 15,
+    "query_timeout_seconds": 30
+  },
+  
+  "logging": {
+    "_description": "Configuración de logs del sistema",
+    "level": "INFO",
+    "file": "logs/data_quality_monitor.log",
+    "max_file_size_mb": 10,
+    "backup_count": 5,
+    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  },
+  
+  "alerts": {
+    "_description": "Configuración de tipos de alertas",
+    "categories": {
+      "DATA_COMPLETENESS": {
+        "enabled": true,
+        "severity": "WARNING",
+        "auto_fix": false
+      },
+      "FINANCIAL_CONSISTENCY": {
+        "enabled": true,
+        "severity": "ERROR",
+        "auto_fix": true
+      },
+      "REFERENTIAL_INTEGRITY": {
+        "enabled": true,
+        "severity": "ERROR",
+        "auto_fix": false
+      },
+      "DATA_DUPLICATES": {
+        "enabled": true,
+        "severity": "WARNING",
+        "auto_fix": false
+      },
+      "DATA_VALIDATION": {
+        "enabled": true,
+        "severity": "ERROR",
+        "auto_fix": false
+      }
+    },
+    "escalation": {
+      "warning_threshold": 5,
+      "error_threshold": 1,
+      "critical_threshold": 3
+    }
+  },
+  
+  "maintenance": {
+    "_description": "Configuración de mantenimiento automático",
+    "auto_cleanup": {
+      "enabled": true,
+      "schedule": "0 2 * * 0",
+      "clean_temp_files": true,
+      "optimize_database": true
+    },
+    "auto_backup": {
+      "enabled": true,
+      "schedule": "0 3 * * *",
+      "compress": true,
+      "retention_days": 30
+    },
+    "health_checks": {
+      "database_connection": true,
+      "disk_space": true,
+      "memory_usage": true,
+      "api_endpoints": true
+    }
+  }
+}

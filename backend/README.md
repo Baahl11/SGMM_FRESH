@@ -64,6 +64,8 @@ Una vez que el servidor esté corriendo, puedes acceder a:
 
 ### Autenticación
 - POST /token - Obtener token de acceso
+- POST /register - Registrar nuevo usuario
+- POST /auth/login - Endpoint alternativo de login
 
 ### Pacientes
 - GET /patients/ - Listar pacientes

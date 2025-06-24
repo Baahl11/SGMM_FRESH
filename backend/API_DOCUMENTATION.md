@@ -7,6 +7,19 @@
 POST /token
 Content-Type: application/x-www-form-urlencoded
 Body: username=admin@consultorio.com&password=admin123
+
+# Register new user
+POST /register
+Content-Type: application/json
+{
+    "email": "user@example.com",
+    "password": "securepassword"
+}
+
+# Alternative login endpoint
+POST /auth/login
+Content-Type: application/x-www-form-urlencoded
+Body: username=user@example.com&password=securepassword
 ```
 
 ## Patients

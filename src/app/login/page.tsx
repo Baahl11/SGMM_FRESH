@@ -5,13 +5,13 @@ import { useAuthContext } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Link from "next/link";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const { login, isLoading } = useAuthContext();
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -19,7 +19,10 @@ export default function LoginPage() {
     try {
       const success = await login(email, password);
       if (!success) {
-        setError("Credenciales inválidas");
+        setError("Credenciales inválidas");      } else {
+        // Debug: Manual check and redirect
+        console.log("Login successful, attempting redirect...");
+        window.location.href = "/dashboard";
       }
     } catch (err) {
       setError("Ocurrió un error durante el inicio de sesión");
@@ -39,8 +42,7 @@ export default function LoginPage() {
             <div className="space-y-2">
               <label htmlFor="email" className="text-sm font-medium">
                 Email
-              </label>
-              <Input
+              </label>              <Input
                 id="email"
                 type="email"
                 value={email}
@@ -48,13 +50,13 @@ export default function LoginPage() {
                 required
                 placeholder="admin@consultorio.com"
                 className="w-full"
+                autoComplete="email"
               />
             </div>
             <div className="space-y-2">
               <label htmlFor="password" className="text-sm font-medium">
                 Contraseña
-              </label>
-              <Input
+              </label>              <Input
                 id="password"
                 type="password"
                 value={password}
@@ -62,6 +64,7 @@ export default function LoginPage() {
                 required
                 placeholder="••••••••"
                 className="w-full"
+                autoComplete="current-password"
               />
             </div>
             {error && (
@@ -75,6 +78,14 @@ export default function LoginPage() {
               {isLoading ? "Iniciando sesión..." : "Iniciar Sesión"}
             </Button>
           </form>
+          <div className="mt-4 text-center">
+            <Link 
+              href="/register" 
+              className="text-sm text-blue-600 hover:text-blue-800"
+            >
+              ¿No tienes cuenta? Registrarse
+            </Link>
+          </div>
         </CardContent>
       </Card>
     </div>

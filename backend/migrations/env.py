@@ -19,7 +19,8 @@ if config.config_file_name is not None:
 
 # Import all models for Alembic to detect
 import sys
-sys.path.append('/project/sandbox/user-workspace/backend')
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from app import models
 from app.database import DATABASE_URL
 from app.models import SQLModel

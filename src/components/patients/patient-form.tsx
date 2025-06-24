@@ -62,30 +62,29 @@ export function PatientForm({ initialData, onSubmit }: PatientFormProps) {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="nombre">Nombre Completo</Label>
-              <Input
+              <Label htmlFor="nombre">Nombre Completo</Label>              <Input
                 id="nombre"
                 name="nombre"
                 placeholder="Nombre del paciente"
                 value={formData.nombre}
                 onChange={handleChange}
                 required
+                autoComplete="name"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="fecha_nacimiento">Fecha de Nacimiento</Label>
-              <Input
+              <Label htmlFor="fecha_nacimiento">Fecha de Nacimiento</Label>              <Input
                 id="fecha_nacimiento"
                 name="fecha_nacimiento"
                 type="date"
                 value={formData.fecha_nacimiento}
                 onChange={handleChange}
                 required
+                autoComplete="bday"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="telefono">Teléfono</Label>
-              <Input
+              <Label htmlFor="telefono">Teléfono</Label>              <Input
                 id="telefono"
                 name="telefono"
                 type="tel"
@@ -93,27 +92,28 @@ export function PatientForm({ initialData, onSubmit }: PatientFormProps) {
                 value={formData.telefono}
                 onChange={handleChange}
                 required
+                autoComplete="tel"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Correo Electrónico</Label>
-              <Input
+              <Label htmlFor="email">Correo Electrónico</Label>              <Input
                 id="email"
                 name="email"
                 type="email"
                 placeholder="correo@ejemplo.com"
                 value={formData.email}
                 onChange={handleChange}
+                autoComplete="email"
               />
             </div>
             <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="direccion">Dirección</Label>
-              <Input
+              <Label htmlFor="direccion">Dirección</Label>              <Input
                 id="direccion"
                 name="direccion"
                 placeholder="Dirección del paciente"
                 value={formData.direccion}
                 onChange={handleChange}
+                autoComplete="street-address"
               />
             </div>
             <div className="flex items-center space-x-2 md:col-span-2">

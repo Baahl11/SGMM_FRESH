@@ -1,7 +1,7 @@
 import { jwtDecode } from "jwt-decode";
 import Cookies from "js-cookie";
 
-const API_URL = "http://localhost:8000/api";
+const API_URL = "http://localhost:8000";
 
 interface LoginResponse {
   access_token: string;
@@ -15,20 +15,18 @@ interface DecodedToken {
 
 class AuthService {
   private static TOKEN_KEY = "auth_token";
-
   static async login(email: string, password: string): Promise<boolean> {
     try {
-      const requestBody = {
-        username: email,
-        password: password,
-      };
+      const formData = new URLSearchParams();
+      formData.append('username', email);
+      formData.append('password', password);
 
       const response = await fetch(`${API_URL}/token`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
+          "Content-Type": "application/x-www-form-urlencoded",
         },
-        body: JSON.stringify(requestBody),
+        body: formData,
       });
 
       if (!response.ok) {
@@ -43,10 +41,46 @@ class AuthService {
         secure: process.env.NODE_ENV === "production",
         sameSite: "strict"
       });
+      
+      // Debug: verify token was stored
+      console.log("Token stored successfully:", !!this.getToken());
+      console.log("User authenticated:", this.isAuthenticated());
+      
       return true;
     } catch (error) {
       console.error("Login error:", error);
       return false;
+    }
+  }
+
+  static async register(email: string, password: string): Promise<{ success: boolean; message?: string }> {
+    try {
+      const response = await fetch(`${API_URL}/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          password
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        return { 
+          success: false, 
+          message: errorData.detail || "Registration failed" 
+        };
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error("Registration error:", error);
+      return { 
+        success: false, 
+        message: "Error de conexión. Intente nuevamente." 
+      };
     }
   }
 
@@ -72,7 +106,6 @@ class AuthService {
       return false;
     }
   }
-
   static getUserEmail(): string | null {
     const token = this.getToken();
     if (!token) return null;
@@ -87,3 +120,23 @@ class AuthService {
 }
 
 export default AuthService;
+
+// Helper function for authenticated API calls
+export async function authenticatedFetch(url: string, options: RequestInit = {}): Promise<Response> {
+  const token = AuthService.getToken();
+  
+  if (!token) {
+    throw new Error('No authentication token available');
+  }
+
+  const headers = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`,
+    ...options.headers,
+  };
+
+  return fetch(url, {
+    ...options,
+    headers,
+  });
+}

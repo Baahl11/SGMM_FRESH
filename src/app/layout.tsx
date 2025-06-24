@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { MainNav } from "@/components/layout/main-nav";
+import { Toaster } from "@/components/ui/sonner";
 
 const outfit = Outfit({ 
   subsets: ["latin"],
@@ -59,6 +60,7 @@ export default function RootLayout({
                 </div>
               </footer>
             </div>
+            <Toaster />
           </AuthProvider>
         </ThemeProvider>
       </body>

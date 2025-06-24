@@ -8,9 +8,12 @@ import { Button } from "@/components/ui/button";
 
 export function MainNav() {
   const pathname = usePathname();
-  const { userEmail, logout } = useAuth();
-
-  const routes = [
+  const { userEmail, logout } = useAuth();  const routes = [
+    {
+      href: "/dashboard",
+      label: "Dashboard",
+      active: pathname === "/dashboard",
+    },
     {
       href: "/patients",
       label: "Pacientes",
@@ -19,17 +22,30 @@ export function MainNav() {
     {
       href: "/treatments",
       label: "Tratamientos",
-      active: pathname === "/treatments",
-    },
+      active: pathname === "/treatments",    },
     {
-      href: "/records",
-      label: "Registros",
-      active: pathname === "/records",
+      href: "/inventory",
+      label: "Inventario",
+      active: pathname === "/inventory",
     },
     {
       href: "/reports",
       label: "Reportes",
       active: pathname === "/reports",
+    },
+    {
+      href: "/gastos-fijos",
+      label: "Gastos Fijos",
+      active: pathname === "/gastos-fijos",
+    },    {
+      href: "/settings/messaging",
+      label: "Mensajería",
+      active: pathname === "/settings/messaging",
+    },
+    {
+      href: "/about",
+      label: "Acerca de",
+      active: pathname === "/about",
     },
   ];
 

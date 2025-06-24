@@ -1,11 +1,32 @@
 "use client"
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuthContext } from "@/components/providers/auth-provider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { Users, Stethoscope, DollarSign, UserPlus, FileText, Settings, PieChart } from "lucide-react"
 
 export default function Home() {
+  const router = useRouter();
+  const { isAuthenticated, isLoading } = useAuthContext();
+
+  useEffect(() => {
+    // Redirect authenticated users to dashboard
+    if (!isLoading && isAuthenticated) {
+      router.push("/dashboard");
+    }
+  }, [isAuthenticated, isLoading, router]);
+
+  // Don't render anything if user is authenticated (will redirect)
+  if (isAuthenticated) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
   return (
     <div>
       {/* Header */}
@@ -70,10 +91,9 @@ export default function Home() {
             <div className="text-4xl font-bold mb-2">$0.00</div>
             <p className="text-sm text-muted-foreground mb-4">
               Total de ingresos del mes
-            </p>
-            <Button asChild className="w-full bg-brand-300 hover:bg-brand-400 text-gray-800">
-              <Link href="/records" className="flex items-center justify-center space-x-2">
-                <span>Ver todos los registros</span>
+            </p>            <Button asChild className="w-full bg-brand-300 hover:bg-brand-400 text-gray-800">
+              <Link href="/reports" className="flex items-center justify-center space-x-2">
+                <span>Ver reportes financieros</span>
                 <span className="sr-only">→</span>
               </Link>
             </Button>

@@ -17,21 +17,35 @@ export function useAuth() {
     setIsAuthenticated(authenticated);
     setUserEmail(AuthService.getUserEmail());
     setIsLoading(false);
-  };
-
-  const login = async (email: string, password: string) => {
+  };  const login = async (email: string, password: string) => {
     try {
       const success = await AuthService.login(email, password);
       if (success) {
         setIsAuthenticated(true);
         setUserEmail(AuthService.getUserEmail());
-        router.push('/patients');
+        // Small delay to ensure cookies are set before redirect
+        setTimeout(() => {
+          router.push('/dashboard');
+        }, 100);
         return true;
       }
       return false;
     } catch (error) {
       console.error('Login error:', error);
       return false;
+    }
+  };
+
+  const register = async (email: string, password: string) => {
+    try {
+      const result = await AuthService.register(email, password);
+      return result;
+    } catch (error) {
+      console.error('Registration error:', error);
+      return { 
+        success: false, 
+        message: "Error durante el registro. Intente nuevamente." 
+      };
     }
   };
 
@@ -47,6 +61,7 @@ export function useAuth() {
     isLoading,
     userEmail,
     login,
+    register,
     logout,
   };
 }
