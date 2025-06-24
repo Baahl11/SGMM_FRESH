@@ -106,7 +106,6 @@ class ApiService {
       return { error: error instanceof Error ? error.message : "Unknown error" };
     }
   }
-
   // Patient Images
   static async uploadPatientImage(patientId: number, file: File): Promise<ApiResponse<any>> {
     try {
@@ -118,6 +117,8 @@ class ApiService {
       const formData = new FormData();
       formData.append('file', file);
 
+      console.log(`Uploading image for patient ${patientId}:`, file.name, file.size, file.type);
+
       const response = await fetch(`${API_URL}/patients/${patientId}/upload-image`, {
         method: "POST",
         headers: {
@@ -126,10 +127,30 @@ class ApiService {
         body: formData,
       });
 
-      if (!response.ok) throw new Error("Failed to upload image");
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        
+        try {
+          const errorData = JSON.parse(errorText);
+          if (errorData.detail) {
+            errorMessage = errorData.detail;
+          }
+        } catch {
+          // If can't parse as JSON, use the text as is
+          if (errorText) {
+            errorMessage = errorText;
+          }
+        }
+        
+        throw new Error(errorMessage);
+      }
+      
       const data = await response.json();
+      console.log('Upload successful:', data);
       return { data };
     } catch (error) {
+      console.error('Upload error:', error);
       return { error: error instanceof Error ? error.message : "Unknown error" };
     }
   }

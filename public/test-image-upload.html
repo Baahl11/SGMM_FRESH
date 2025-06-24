@@ -1,0 +1,112 @@
+// Frontend Image Upload Test Script
+// Para probar desde la consola del navegador
+
+console.log('🧪 Testing Frontend Image Upload...');
+
+async function testFrontendUpload() {
+  try {
+    // 1. Test login first
+    console.log('1. Testing login...');
+    const loginResponse = await fetch('http://localhost:8000/auth/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: 'username=admin@consultorio.com&password=admin123'
+    });
+
+    if (!loginResponse.ok) {
+      console.error('❌ Login failed:', loginResponse.status);
+      return;
+    }
+
+    const loginData = await loginResponse.json();
+    const token = loginData.access_token;
+    console.log('✅ Login successful');
+
+    // 2. Get patients
+    console.log('2. Getting patients...');
+    const patientsResponse = await fetch('http://localhost:8000/patients?skip=0&limit=1', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!patientsResponse.ok) {
+      console.error('❌ Failed to get patients:', patientsResponse.status);
+      return;
+    }
+
+    const patients = await patientsResponse.json();
+    if (patients.length === 0) {
+      console.error('❌ No patients found');
+      return;
+    }
+
+    const patientId = patients[0].id;
+    console.log(`✅ Found patient ID: ${patientId}`);
+
+    // 3. Create a test image file
+    console.log('3. Creating test image...');
+    const canvas = document.createElement('canvas');
+    canvas.width = 100;
+    canvas.height = 100;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#FF0000';
+    ctx.fillRect(0, 0, 100, 100);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '12px Arial';
+    ctx.fillText('TEST', 35, 55);
+
+    // Convert canvas to blob
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.8));
+    const file = new File([blob], 'test-image.jpg', { type: 'image/jpeg' });
+    console.log(`✅ Created test image: ${file.name} (${file.size} bytes)`);
+
+    // 4. Test upload
+    console.log('4. Testing upload...');
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const uploadResponse = await fetch(`http://localhost:8000/patients/${patientId}/upload-image`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      body: formData
+    });
+
+    if (!uploadResponse.ok) {
+      const errorText = await uploadResponse.text();
+      console.error('❌ Upload failed:', uploadResponse.status, errorText);
+      return;
+    }
+
+    const uploadResult = await uploadResponse.json();
+    console.log('✅ Upload successful:', uploadResult);
+
+    // 5. Test get images
+    console.log('5. Testing get images...');
+    const imagesResponse = await fetch(`http://localhost:8000/patients/${patientId}/images`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!imagesResponse.ok) {
+      console.error('❌ Failed to get images:', imagesResponse.status);
+      return;
+    }
+
+    const imagesData = await imagesResponse.json();
+    console.log('✅ Images retrieved:', imagesData);
+
+    console.log('🎉 All tests passed! Image upload is working correctly.');
+
+  } catch (error) {
+    console.error('❌ Test failed:', error);
+  }
+}
+
+// Auto-run the test
+testFrontendUpload();

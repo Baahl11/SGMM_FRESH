@@ -5,18 +5,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi import Form
 from sqlmodel import Session, select
-import logging
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('backend_debug.log'),
-        logging.StreamHandler()
-    ]
-)
-logger = logging.getLogger(__name__)
 
 from . import crud, models, schemas
 from .auth import (
@@ -222,54 +210,66 @@ async def upload_patient_image(
     import uuid
     from pathlib import Path
     
-    # Verify patient exists
-    patient = crud.get_patient(session=session, patient_id=patient_id)
-    
-    # Create uploads directory if it doesn't exist
-    upload_dir = Path("uploads/patients")
-    upload_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Generate unique filename
-    file_extension = file.filename.split(".")[-1] if file.filename else "jpg"
-    unique_filename = f"{patient_id}_{uuid.uuid4()}.{file_extension}"
-    file_path = upload_dir / unique_filename
-    
-    # Save file
-    with open(file_path, "wb") as buffer:
+    try:
+        # Verify patient exists
+        patient = crud.get_patient(session=session, patient_id=patient_id)
+        if not patient:
+            raise HTTPException(status_code=404, detail="Patient not found")
+        
+        # Validate file type
+        if not file.content_type or not file.content_type.startswith('image/'):
+            raise HTTPException(status_code=400, detail="File must be an image")
+        
+        # Validate file size (5MB max)
         content = await file.read()
-        buffer.write(content)
-    
-    # Update patient's fotos list
-    current_fotos = patient.fotos or []
-    current_fotos.append(str(file_path))
-    
-    # Update patient in database
-    patient_update = schemas.PatientUpdate(
-        nombre=patient.nombre,
-        fecha_nacimiento=patient.fecha_nacimiento,
-        telefono=patient.telefono,
-        email=patient.email,
-        direccion=patient.direccion,
-        requiere_factura=patient.requiere_factura
-    )
-    
-    updated_patient = crud.update_patient(
-        session=session,
-        patient_id=patient_id,
-        patient_update=patient_update
-    )
-    
-    # Manually update fotos since it's not in the schema
-    updated_patient.fotos = current_fotos
-    session.add(updated_patient)
-    session.commit()
-    session.refresh(updated_patient)
-    
-    return {
-        "message": "Image uploaded successfully",
-        "filename": unique_filename,
-        "path": str(file_path)
-    }
+        if len(content) > 5 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="File too large. Maximum 5MB allowed")
+        
+        # Reset file pointer
+        await file.seek(0)
+        
+        # Create uploads directory if it doesn't exist
+        upload_dir = Path("uploads/patients")
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Generate unique filename
+        file_extension = file.filename.split(".")[-1] if file.filename and "." in file.filename else "jpg"
+        unique_filename = f"{patient_id}_{uuid.uuid4()}.{file_extension}"
+        file_path = upload_dir / unique_filename
+        
+        # Save file
+        with open(file_path, "wb") as buffer:
+            content = await file.read()
+            buffer.write(content)
+        
+        # Update patient's fotos list
+        current_fotos = patient.fotos or []
+        if isinstance(current_fotos, str):
+            try:
+                import json
+                current_fotos = json.loads(current_fotos)
+            except:
+                current_fotos = []
+        
+        current_fotos.append(str(file_path))
+        
+        # Update patient fotos directly
+        patient.fotos = current_fotos
+        session.add(patient)
+        session.commit()
+        session.refresh(patient)
+        
+        return {
+            "message": "Image uploaded successfully",
+            "filename": unique_filename,
+            "path": str(file_path)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error uploading image: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to upload image: {str(e)}")
 
 @app.get("/patients/{patient_id}/images")
 def get_patient_images(
@@ -384,15 +384,8 @@ def delete_treatment(
     session: Session = Depends(get_session),
     current_user: models.User = Depends(get_current_active_user)
 ):
-    try:
-        crud.delete_treatment(session=session, treatment_id=treatment_id)
-        return {"message": "Treatment deleted successfully"}
-    except HTTPException as e:
-        # Re-raise HTTP exceptions (like 404 or 400)
-        raise e
-    except Exception as e:
-        logger.error(f"Unexpected error deleting treatment {treatment_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+    crud.delete_treatment(session=session, treatment_id=treatment_id)
+    return {"message": "Treatment deleted successfully"}
 
 # Record endpoints
 @app.post("/records/", response_model=schemas.RecordRead)
@@ -401,14 +394,7 @@ def create_record(
     session: Session = Depends(get_session),
     current_user: models.User = Depends(get_current_active_user)
 ):
-    try:
-        logger.info(f"Creating record for user {current_user.email}")
-        result = crud.create_record(session=session, record=record)
-        return result
-        
-    except Exception as e:
-        logger.error(f"Error creating record: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error creating record: {str(e)}")
+    return crud.create_record(session=session, record=record)
 
 @app.get("/records/", response_model=List[schemas.RecordRead])
 def read_records(
@@ -809,20 +795,6 @@ def create_inventory_item(
     result["percentage"] = round(percentage, 1)
     return result
 
-# Health endpoint must come before {item_id} endpoint to avoid route conflicts
-@app.get("/inventory/health", response_model=schemas.InventoryHealthStatus)
-def get_inventory_health(
-    session: Session = Depends(get_session),
-    current_user: models.User = Depends(get_current_active_user)
-):
-    """Get overall inventory health status"""
-    try:
-        health_status = crud.get_inventory_health_status(session)
-        return health_status
-    except Exception as e:
-        print(f"Error in get_inventory_health: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting inventory health: {str(e)}")
-
 @app.get("/inventory/{item_id}", response_model=schemas.InventoryItemRead)
 def get_inventory_item(
     item_id: int,
@@ -913,10 +885,20 @@ def create_inventory_movement(
     """Create an inventory movement (entrada/salida)"""
     db_movement = crud.create_inventory_movement(session, movement, current_user.id)
     result = db_movement.dict()
-      # Get item name
+    
+    # Get item name
     item = crud.get_inventory_item(session, movement.item_id)
     result["item_name"] = item.nombre
     return result
+
+@app.get("/inventory/health", response_model=schemas.InventoryHealthStatus)
+def get_inventory_health(
+    session: Session = Depends(get_session),
+    current_user: models.User = Depends(get_current_active_user)
+):
+    """Get overall inventory health status"""
+    health_status = crud.get_inventory_health_status(session)
+    return health_status
 
 # Treatment-Inventory relationship endpoints
 @app.get("/treatments/{treatment_id}/inventory", response_model=List[schemas.TreatmentInventoryItemRead])
@@ -1000,12 +982,3 @@ def remove_treatment_inventory_item(
     session.delete(treatment_inventory)
     session.commit()
     return {"message": "Relación eliminada exitosamente"}
-
-@app.get("/debug/inventory/health")
-def debug_inventory_health(session: Session = Depends(get_session)):
-    """Debug endpoint for inventory health (no auth required)"""
-    try:
-        health_status = crud.get_inventory_health_status(session)
-        return {"success": True, "data": health_status}
-    except Exception as e:
-        return {"success": False, "error": str(e), "type": str(type(e))}

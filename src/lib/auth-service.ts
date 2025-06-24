@@ -21,7 +21,7 @@ class AuthService {
       formData.append('username', email);
       formData.append('password', password);
 
-      const response = await fetch(`${API_URL}/token`, {
+      const response = await fetch(`${API_URL}/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",

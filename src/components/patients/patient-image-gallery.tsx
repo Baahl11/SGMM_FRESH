@@ -18,13 +18,12 @@ export function PatientImageGallery({ patientId, images, onImagesChange }: Patie
   const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<string>("")
   const fileInputRef = useRef<HTMLInputElement>(null)
-
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files
     if (!files || files.length === 0) return
 
     setIsUploading(true)
-    setUploadProgress("Subiendo imagen...")
+    setUploadProgress("Preparando archivos...")
 
     try {
       for (let i = 0; i < files.length; i++) {
@@ -42,12 +41,16 @@ export function PatientImageGallery({ patientId, images, onImagesChange }: Patie
           continue
         }
 
-        setUploadProgress(`Subiendo ${file.name}...`)
+        setUploadProgress(`Subiendo ${file.name}... (${i + 1}/${files.length})`)
+        
         const response = await ApiService.uploadPatientImage(patientId, file)
         
         if (response.error) {
-          throw new Error(response.error)
+          console.error(`Error uploading ${file.name}:`, response.error)
+          throw new Error(`Error al subir ${file.name}: ${response.error}`)
         }
+        
+        console.log(`Successfully uploaded ${file.name}:`, response.data)
       }
 
       setUploadProgress("¡Imágenes subidas exitosamente!")
@@ -61,8 +64,9 @@ export function PatientImageGallery({ patientId, images, onImagesChange }: Patie
       setTimeout(() => setUploadProgress(""), 2000)
     } catch (error) {
       console.error("Error uploading images:", error)
-      setUploadProgress(`Error: ${error instanceof Error ? error.message : "Error desconocido"}`)
-      setTimeout(() => setUploadProgress(""), 3000)
+      const errorMessage = error instanceof Error ? error.message : "Error desconocido al subir imágenes"
+      setUploadProgress(`Error: ${errorMessage}`)
+      setTimeout(() => setUploadProgress(""), 5000)
     } finally {
       setIsUploading(false)
     }
