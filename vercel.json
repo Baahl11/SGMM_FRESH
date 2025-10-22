@@ -1,0 +1,7 @@
+{
+  "buildCommand": "cd vercel-migration && npm run build",
+  "devCommand": "cd vercel-migration && npm run dev",
+  "installCommand": "cd vercel-migration && npm install",
+  "framework": null,
+  "outputDirectory": "vercel-migration/.next"
+}
