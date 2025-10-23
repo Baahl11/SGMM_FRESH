@@ -1,3 +1,4 @@
 {
-  "version": 2
+  "buildCommand": "cd $VERCEL_PROJECT_ROOT && npm run build",
+  "outputDirectory": ".next"
 }
