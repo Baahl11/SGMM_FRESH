@@ -1,4 +1,15 @@
 {
-  "buildCommand": "cd $VERCEL_PROJECT_ROOT && npm run build",
-  "outputDirectory": ".next"
+  "version": 2,
+  "builds": [
+    {
+      "src": "vercel-migration/package.json",
+      "use": "@vercel/next"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "vercel-migration/$1"
+    }
+  ]
 }
