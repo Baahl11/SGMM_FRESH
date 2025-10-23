@@ -5,8 +5,10 @@ import AuthService from "@/lib/auth-service";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
+type DebugInfo = Record<string, string | boolean | null>;
+
 export default function AuthDebugPage() {
-  const [debugInfo, setDebugInfo] = useState<any>({});
+  const [debugInfo, setDebugInfo] = useState<DebugInfo>({});
 
   const checkAuth = () => {
     const token = AuthService.getToken();
@@ -25,7 +27,7 @@ export default function AuthDebugPage() {
   const doLogin = async () => {
     try {
       const success = await AuthService.login("admin@consultorio.com", "admin123");
-      setDebugInfo(prev => ({
+      setDebugInfo((prev) => ({
         ...prev,
         loginResult: success ? "Success" : "Failed"
       }));
@@ -34,7 +36,7 @@ export default function AuthDebugPage() {
         setTimeout(checkAuth, 1000);
       }
     } catch (error) {
-      setDebugInfo(prev => ({
+      setDebugInfo((prev) => ({
         ...prev,
         loginResult: "Error: " + error
       }));

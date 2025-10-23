@@ -32,7 +32,7 @@ export function GoogleCalendarSetup({ onConfigurationChange }: GoogleCalendarSet
     
     if (configured) {
       const config = googleCalendarService.getConfig()
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         calendarId: config.calendarId
       }))

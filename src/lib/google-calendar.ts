@@ -13,12 +13,16 @@ interface CalendarEvent {
 interface CalendarConfig {
   enabled: boolean;
   doctorEmail: string;
+  calendarId: string;
+  serviceAccountKey?: string;
 }
 
 class SimpleCalendarService {
   private config: CalendarConfig = {
     enabled: false,
     doctorEmail: '',
+    calendarId: 'primary',
+    serviceAccountKey: undefined,
   };
 
   constructor() {
@@ -29,8 +33,25 @@ class SimpleCalendarService {
     if (typeof window !== 'undefined') {
       const savedConfig = localStorage.getItem('calendar_config');
       if (savedConfig) {
-        this.config = JSON.parse(savedConfig);
+        const parsed = JSON.parse(savedConfig) as Partial<CalendarConfig>;
+        this.config = {
+          ...this.config,
+          ...parsed,
+        };
       }
+    }
+  }
+
+  async initialize(serviceAccountKey: string, calendarId: string) {
+    this.config = {
+      ...this.config,
+      enabled: true,
+      calendarId,
+      serviceAccountKey,
+    };
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('calendar_config', JSON.stringify(this.config));
     }
   }
 
@@ -38,6 +59,8 @@ class SimpleCalendarService {
     this.config = {
       enabled: true,
       doctorEmail,
+      calendarId: this.config.calendarId,
+      serviceAccountKey: this.config.serviceAccountKey,
     };
 
     if (typeof window !== 'undefined') {
@@ -85,7 +108,7 @@ class SimpleCalendarService {
   }
 
   isConfigured(): boolean {
-    return this.config.enabled && !!this.config.doctorEmail;
+    return this.config.enabled && (!!this.config.doctorEmail || !!this.config.serviceAccountKey);
   }
 
   getConfig(): CalendarConfig {
@@ -96,6 +119,8 @@ class SimpleCalendarService {
     this.config = {
       enabled: false,
       doctorEmail: '',
+      calendarId: 'primary',
+      serviceAccountKey: undefined,
     };
 
     if (typeof window !== 'undefined') {
