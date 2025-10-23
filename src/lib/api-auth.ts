@@ -17,7 +17,25 @@ export async function authenticateRequest(request: NextRequest): Promise<AuthRes
       }
     }
 
-    // Try to get token from cookies
+    // Try to get Supabase access token from cookies
+    // Supabase stores the token in a cookie with the project ref
+    const cookies = request.cookies.getAll();
+    for (const cookie of cookies) {
+      // Look for cookies that match Supabase pattern: sb-<project-ref>-auth-token
+      if (cookie.name.startsWith('sb-') && cookie.name.includes('-auth-token')) {
+        try {
+          const authData = JSON.parse(cookie.value);
+          if (authData && authData.access_token) {
+            return { success: true, token: authData.access_token };
+          }
+        } catch (e) {
+          // Try next cookie if JSON parse fails
+          continue;
+        }
+      }
+    }
+
+    // Fallback: try old token cookie
     const tokenFromCookie = request.cookies.get('token')?.value;
     if (tokenFromCookie && tokenFromCookie.trim() !== '') {
       return { success: true, token: tokenFromCookie };
