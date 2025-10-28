@@ -189,25 +189,21 @@ export default function MessagingPage() {  const [config, setConfig] = useState<
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-blue-900 dark:to-indigo-900">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
-              <MessageSquare className="h-8 w-8" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold">Panel de Mensajería</h1>
-              <p className="text-indigo-100 mt-1">
-                Configura recordatorios automáticos por email y WhatsApp
-              </p>
-            </div>
-          </div>
+      <div className="flex items-center gap-4">
+        <div className="p-3 bg-primary/10 rounded-xl">
+          <MessageSquare className="h-8 w-8 text-primary" />
+        </div>
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Panel de Mensajería</h1>
+          <p className="text-muted-foreground mt-1">
+            Configura recordatorios automáticos por email y WhatsApp
+          </p>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div>
         <Tabs defaultValue="configuration" className="space-y-6">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="configuration" className="flex items-center gap-2">
@@ -222,8 +218,8 @@ export default function MessagingPage() {  const [config, setConfig] = useState<
 
           <TabsContent value="configuration" className="space-y-6">
             {/* Configuración General */}
-            <Card className="shadow-lg border-0 bg-white/70 backdrop-blur-sm">
-              <CardHeader className="bg-gradient-to-r from-blue-500/10 to-indigo-500/10 rounded-t-lg">
+            <Card>
+              <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Bell className="h-5 w-5 text-blue-600" />
                   Configuración General
@@ -317,8 +313,8 @@ export default function MessagingPage() {  const [config, setConfig] = useState<
             </Card>
 
             {/* Templates de Mensajes */}
-            <Card className="shadow-lg border-0 bg-white/70 backdrop-blur-sm">
-              <CardHeader className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-t-lg">
+            <Card>
+              <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <MessageSquare className="h-5 w-5 text-purple-600" />
                   Templates de Mensajes
@@ -359,8 +355,8 @@ export default function MessagingPage() {  const [config, setConfig] = useState<
             </Card>
 
             {/* API Configuration */}
-            <Card className="shadow-lg border-0 bg-white/70 backdrop-blur-sm">
-              <CardHeader className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 rounded-t-lg">
+            <Card>
+              <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Key className="h-5 w-5 text-amber-600" />
                   Configuración de APIs
@@ -496,8 +492,8 @@ export default function MessagingPage() {  const [config, setConfig] = useState<
           </TabsContent>
 
           <TabsContent value="logs" className="space-y-6">
-            <Card className="shadow-lg border-0 bg-white/70 backdrop-blur-sm">
-              <CardHeader className="bg-gradient-to-r from-green-500/10 to-teal-500/10 rounded-t-lg">
+            <Card>
+              <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle className="flex items-center gap-2">
