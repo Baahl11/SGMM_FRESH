@@ -1,0 +1,120 @@
+-- =====================================================
+-- MIGRATION: Add Composite Indexes for Query Optimization
+-- Date: 2025-10-15
+-- Purpose: Optimize common queries for appointments, doctors, and consultorios
+-- =====================================================
+
+-- ====================
+-- APPOINTMENTS TABLE
+-- ====================
+
+-- Composite index for appointments filtering by doctor + date (common query)
+-- Used in: GET /api/appointments?doctor_id=X, agenda views
+CREATE INDEX IF NOT EXISTS idx_appointments_doctor_fecha 
+  ON appointments(doctor_id, fecha_hora) 
+  WHERE doctor_id IS NOT NULL;
+
+-- Composite index for appointments filtering by consultorio + date
+-- Used in: GET /api/appointments?consultorio_id=X, consultorio availability checks
+CREATE INDEX IF NOT EXISTS idx_appointments_consultorio_fecha 
+  ON appointments(consultorio_id, fecha_hora) 
+  WHERE consultorio_id IS NOT NULL;
+
+-- Composite index for appointments filtering by patient + date (duplicate detection)
+-- Used in: Conflict validation "patient already has appointment at this time"
+CREATE INDEX IF NOT EXISTS idx_appointments_patient_fecha 
+  ON appointments(patient_id, fecha_hora);
+
+-- Composite index for appointments by type + date
+-- Used in: GET /api/appointments?appointment_type_id=X, statistics
+CREATE INDEX IF NOT EXISTS idx_appointments_type_fecha 
+  ON appointments(appointment_type_id, fecha_hora) 
+  WHERE appointment_type_id IS NOT NULL;
+
+-- Composite index for appointments by status + date
+-- Used in: Dashboard queries, status filtering
+CREATE INDEX IF NOT EXISTS idx_appointments_status_fecha 
+  ON appointments(estado, fecha_hora);
+
+-- ====================
+-- DOCTORS TABLE
+-- ====================
+
+-- Composite index for active doctors by user (multi-tenancy + active filter)
+-- Used in: GET /api/doctors (most common query)
+CREATE INDEX IF NOT EXISTS idx_doctors_user_activo 
+  ON doctors(user_id, activo);
+
+-- ====================
+-- CONSULTORIOS TABLE
+-- ====================
+
+-- Composite index for active consultorios by user (multi-tenancy + active filter)
+-- Used in: GET /api/consultorios
+CREATE INDEX IF NOT EXISTS idx_consultorios_user_activo 
+  ON consultorios(user_id, activo);
+
+-- ====================
+-- APPOINTMENT_TYPES TABLE
+-- ====================
+
+-- Composite index for active appointment types by user
+-- Used in: GET /api/appointment-types
+CREATE INDEX IF NOT EXISTS idx_appointment_types_user_activo 
+  ON appointment_types(user_id, activo);
+
+-- ====================
+-- DOCTOR_SCHEDULES TABLE
+-- ====================
+
+-- Composite index for schedules by doctor + day + active
+-- Used in: Availability checks, scheduling validation
+CREATE INDEX IF NOT EXISTS idx_doctor_schedules_doctor_dia_activo 
+  ON doctor_schedules(doctor_id, dia_semana, activo);
+
+-- ====================
+-- DOCTOR_EXCEPTIONS TABLE
+-- ====================
+
+-- Composite index for exceptions by doctor + date range
+-- Used in: Availability checks for specific dates
+CREATE INDEX IF NOT EXISTS idx_doctor_exceptions_doctor_fechas 
+  ON doctor_exceptions(doctor_id, fecha_inicio, fecha_fin);
+
+-- ====================
+-- PARTIAL INDEXES
+-- ====================
+
+-- Partial index for only active appointments (most queries filter by active)
+-- Reduces index size by excluding cancelled appointments
+CREATE INDEX IF NOT EXISTS idx_appointments_active_fecha 
+  ON appointments(fecha_hora) 
+  WHERE estado != 'cancelada';
+
+-- ====================
+-- ANALYZE TABLES
+-- ====================
+
+-- Update statistics for query planner optimization
+ANALYZE appointments;
+ANALYZE doctors;
+ANALYZE consultorios;
+ANALYZE appointment_types;
+ANALYZE doctor_schedules;
+ANALYZE doctor_exceptions;
+
+-- ====================
+-- COMMENTS FOR DOCUMENTATION
+-- ====================
+
+COMMENT ON INDEX idx_appointments_doctor_fecha IS 'Optimizes queries filtering appointments by doctor and date';
+COMMENT ON INDEX idx_appointments_consultorio_fecha IS 'Optimizes queries filtering appointments by consultorio and date';
+COMMENT ON INDEX idx_appointments_patient_fecha IS 'Optimizes duplicate detection for same patient at same time';
+COMMENT ON INDEX idx_appointments_type_fecha IS 'Optimizes statistics and filtering by appointment type';
+COMMENT ON INDEX idx_appointments_status_fecha IS 'Optimizes dashboard queries filtering by appointment status';
+COMMENT ON INDEX idx_appointments_active_fecha IS 'Partial index for non-cancelled appointments (reduces index size)';
+COMMENT ON INDEX idx_doctors_user_activo IS 'Optimizes multi-tenancy queries for active doctors';
+COMMENT ON INDEX idx_consultorios_user_activo IS 'Optimizes multi-tenancy queries for active consultorios';
+COMMENT ON INDEX idx_appointment_types_user_activo IS 'Optimizes multi-tenancy queries for active appointment types';
+COMMENT ON INDEX idx_doctor_schedules_doctor_dia_activo IS 'Optimizes schedule lookup for availability checks';
+COMMENT ON INDEX idx_doctor_exceptions_doctor_fechas IS 'Optimizes exception lookup for availability checks';

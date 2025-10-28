@@ -1,0 +1,258 @@
+-- Migration: Add Multi-Doctor/Consultorio Support to Appointments
+-- Date: 2025-10-14
+-- Description: Agrega soporte para múltiples doctores, consultorios y tipos de cita
+-- Platform: Supabase (PostgreSQL)
+
+-- ============================================================================
+-- PASO 1: Crear nuevas tablas
+-- ============================================================================
+
+-- Tabla de Doctores
+CREATE TABLE IF NOT EXISTS doctors (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    nombre VARCHAR(255) NOT NULL,
+    especialidad VARCHAR(255),
+    cedula_profesional VARCHAR(100),
+    telefono VARCHAR(50),
+    email VARCHAR(255),
+    color VARCHAR(7) NOT NULL DEFAULT '#3b82f6',
+    activo BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    user_id UUID REFERENCES auth.users(id) -- Multi-tenancy
+);
+
+CREATE INDEX IF NOT EXISTS idx_doctors_nombre ON doctors(nombre);
+CREATE INDEX IF NOT EXISTS idx_doctors_activo ON doctors(activo);
+CREATE INDEX IF NOT EXISTS idx_doctors_user_id ON doctors(user_id);
+
+-- Tabla de Consultorios
+CREATE TABLE IF NOT EXISTS consultorios (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    nombre VARCHAR(255) NOT NULL,
+    ubicacion VARCHAR(255),
+    descripcion TEXT,
+    capacidad INTEGER NOT NULL DEFAULT 1,
+    activo BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    user_id UUID REFERENCES auth.users(id) -- Multi-tenancy
+);
+
+CREATE INDEX IF NOT EXISTS idx_consultorios_nombre ON consultorios(nombre);
+CREATE INDEX IF NOT EXISTS idx_consultorios_activo ON consultorios(activo);
+CREATE INDEX IF NOT EXISTS idx_consultorios_user_id ON consultorios(user_id);
+
+-- Tabla de Tipos de Cita
+CREATE TABLE IF NOT EXISTS appointment_types (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    nombre VARCHAR(255) NOT NULL,
+    descripcion TEXT,
+    duracion_minutos INTEGER NOT NULL DEFAULT 30,
+    color VARCHAR(7) NOT NULL DEFAULT '#10b981',
+    precio_default DECIMAL(10,2),
+    requiere_confirmacion BOOLEAN NOT NULL DEFAULT false,
+    activo BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    user_id UUID REFERENCES auth.users(id) -- Multi-tenancy
+);
+
+CREATE INDEX IF NOT EXISTS idx_appointment_types_nombre ON appointment_types(nombre);
+CREATE INDEX IF NOT EXISTS idx_appointment_types_activo ON appointment_types(activo);
+CREATE INDEX IF NOT EXISTS idx_appointment_types_user_id ON appointment_types(user_id);
+
+-- Tabla de Horarios de Doctores
+CREATE TABLE IF NOT EXISTS doctor_schedules (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    doctor_id UUID NOT NULL REFERENCES doctors(id) ON DELETE CASCADE,
+    consultorio_id UUID REFERENCES consultorios(id) ON DELETE SET NULL,
+    dia_semana INTEGER NOT NULL CHECK (dia_semana >= 0 AND dia_semana <= 6), -- 0=Lunes, 6=Domingo
+    hora_inicio TIME NOT NULL,
+    hora_fin TIME NOT NULL,
+    activo BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    user_id UUID REFERENCES auth.users(id), -- Multi-tenancy
+    CONSTRAINT valid_time_range CHECK (hora_fin > hora_inicio)
+);
+
+CREATE INDEX IF NOT EXISTS idx_doctor_schedules_doctor ON doctor_schedules(doctor_id);
+CREATE INDEX IF NOT EXISTS idx_doctor_schedules_dia ON doctor_schedules(dia_semana);
+CREATE INDEX IF NOT EXISTS idx_doctor_schedules_activo ON doctor_schedules(activo);
+CREATE INDEX IF NOT EXISTS idx_doctor_schedules_user_id ON doctor_schedules(user_id);
+
+-- Tabla de Excepciones de Horarios
+CREATE TABLE IF NOT EXISTS doctor_exceptions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    doctor_id UUID NOT NULL REFERENCES doctors(id) ON DELETE CASCADE,
+    fecha_inicio DATE NOT NULL,
+    fecha_fin DATE NOT NULL,
+    tipo VARCHAR(50) NOT NULL, -- 'vacaciones', 'congreso', 'bloqueo', 'festivo'
+    motivo TEXT,
+    todo_el_dia BOOLEAN NOT NULL DEFAULT true,
+    hora_inicio TIME,
+    hora_fin TIME,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    user_id UUID REFERENCES auth.users(id), -- Multi-tenancy
+    CONSTRAINT valid_date_range CHECK (fecha_fin >= fecha_inicio),
+    CONSTRAINT valid_exception_time CHECK (
+        (todo_el_dia = true) OR 
+        (todo_el_dia = false AND hora_inicio IS NOT NULL AND hora_fin IS NOT NULL AND hora_fin > hora_inicio)
+    )
+);
+
+CREATE INDEX IF NOT EXISTS idx_doctor_exceptions_doctor ON doctor_exceptions(doctor_id);
+CREATE INDEX IF NOT EXISTS idx_doctor_exceptions_fecha ON doctor_exceptions(fecha_inicio, fecha_fin);
+CREATE INDEX IF NOT EXISTS idx_doctor_exceptions_user_id ON doctor_exceptions(user_id);
+
+-- ============================================================================
+-- PASO 2: Agregar nuevas columnas a appointments
+-- ============================================================================
+
+ALTER TABLE appointments 
+ADD COLUMN IF NOT EXISTS doctor_id UUID REFERENCES doctors(id) ON DELETE SET NULL;
+
+ALTER TABLE appointments 
+ADD COLUMN IF NOT EXISTS consultorio_id UUID REFERENCES consultorios(id) ON DELETE SET NULL;
+
+ALTER TABLE appointments 
+ADD COLUMN IF NOT EXISTS appointment_type_id UUID REFERENCES appointment_types(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS idx_appointments_doctor ON appointments(doctor_id);
+CREATE INDEX IF NOT EXISTS idx_appointments_consultorio ON appointments(consultorio_id);
+CREATE INDEX IF NOT EXISTS idx_appointments_type ON appointments(appointment_type_id);
+
+-- ============================================================================
+-- PASO 3: Row Level Security (RLS) Policies
+-- ============================================================================
+
+-- Habilitar RLS en todas las tablas nuevas
+ALTER TABLE doctors ENABLE ROW LEVEL SECURITY;
+ALTER TABLE consultorios ENABLE ROW LEVEL SECURITY;
+ALTER TABLE appointment_types ENABLE ROW LEVEL SECURITY;
+ALTER TABLE doctor_schedules ENABLE ROW LEVEL SECURITY;
+ALTER TABLE doctor_exceptions ENABLE ROW LEVEL SECURITY;
+
+-- Policies para doctors
+CREATE POLICY "Users can view their own doctors"
+    ON doctors FOR SELECT
+    USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own doctors"
+    ON doctors FOR INSERT
+    WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own doctors"
+    ON doctors FOR UPDATE
+    USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own doctors"
+    ON doctors FOR DELETE
+    USING (auth.uid() = user_id);
+
+-- Policies para consultorios
+CREATE POLICY "Users can view their own consultorios"
+    ON consultorios FOR SELECT
+    USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own consultorios"
+    ON consultorios FOR INSERT
+    WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own consultorios"
+    ON consultorios FOR UPDATE
+    USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own consultorios"
+    ON consultorios FOR DELETE
+    USING (auth.uid() = user_id);
+
+-- Policies para appointment_types
+CREATE POLICY "Users can view their own appointment types"
+    ON appointment_types FOR SELECT
+    USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own appointment types"
+    ON appointment_types FOR INSERT
+    WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own appointment types"
+    ON appointment_types FOR UPDATE
+    USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own appointment types"
+    ON appointment_types FOR DELETE
+    USING (auth.uid() = user_id);
+
+-- Policies para doctor_schedules
+CREATE POLICY "Users can view their own doctor schedules"
+    ON doctor_schedules FOR SELECT
+    USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own doctor schedules"
+    ON doctor_schedules FOR INSERT
+    WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own doctor schedules"
+    ON doctor_schedules FOR UPDATE
+    USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own doctor schedules"
+    ON doctor_schedules FOR DELETE
+    USING (auth.uid() = user_id);
+
+-- Policies para doctor_exceptions
+CREATE POLICY "Users can view their own doctor exceptions"
+    ON doctor_exceptions FOR SELECT
+    USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own doctor exceptions"
+    ON doctor_exceptions FOR INSERT
+    WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own doctor exceptions"
+    ON doctor_exceptions FOR UPDATE
+    USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own doctor exceptions"
+    ON doctor_exceptions FOR DELETE
+    USING (auth.uid() = user_id);
+
+-- ============================================================================
+-- PASO 4: Triggers para updated_at automático
+-- ============================================================================
+
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+CREATE TRIGGER update_doctors_updated_at BEFORE UPDATE ON doctors
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_consultorios_updated_at BEFORE UPDATE ON consultorios
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_appointment_types_updated_at BEFORE UPDATE ON appointment_types
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_doctor_schedules_updated_at BEFORE UPDATE ON doctor_schedules
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================================================
+-- COMENTARIOS
+-- ============================================================================
+
+COMMENT ON TABLE doctors IS 'Doctores/profesionales que atienden en el consultorio';
+COMMENT ON TABLE consultorios IS 'Espacios físicos disponibles para citas';
+COMMENT ON TABLE appointment_types IS 'Tipos de citas con duración y precio específico';
+COMMENT ON TABLE doctor_schedules IS 'Horarios recurrentes de disponibilidad de doctores';
+COMMENT ON TABLE doctor_exceptions IS 'Excepciones a horarios (vacaciones, bloqueos, etc.)';
+
+COMMENT ON COLUMN doctor_schedules.dia_semana IS '0=Lunes, 1=Martes, ..., 6=Domingo';
+COMMENT ON COLUMN appointment_types.color IS 'Color hex para UI (ej: #10b981)';
+COMMENT ON COLUMN doctors.color IS 'Color hex para identificar doctor en agenda (ej: #3b82f6)';

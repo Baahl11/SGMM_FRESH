@@ -1,0 +1,15 @@
+-- Add missing fields to records table for multi-treatment support
+
+ALTER TABLE records 
+ADD COLUMN IF NOT EXISTS nombre_promocion VARCHAR(255),
+ADD COLUMN IF NOT EXISTS tiene_multiples_tratamientos BOOLEAN DEFAULT FALSE,
+ADD COLUMN IF NOT EXISTS pendiente_facturar BOOLEAN DEFAULT TRUE;
+
+-- Create index for quick filtering
+CREATE INDEX IF NOT EXISTS idx_records_tiene_multiples ON records(tiene_multiples_tratamientos);
+CREATE INDEX IF NOT EXISTS idx_records_pendiente_facturar ON records(pendiente_facturar);
+
+-- Add comment
+COMMENT ON COLUMN records.nombre_promocion IS 'Nombre del paquete o promoción si los tratamientos son parte de un bundle';
+COMMENT ON COLUMN records.tiene_multiples_tratamientos IS 'Indica si este registro es parte de una sesión con múltiples tratamientos';
+COMMENT ON COLUMN records.pendiente_facturar IS 'Indica si el tratamiento aún no ha sido facturado';

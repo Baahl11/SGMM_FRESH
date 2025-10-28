@@ -1,0 +1,1302 @@
+import AuthService from './auth-service';
+
+// -------------------------------------------------------------
+// 🔎 MSI / Tauri environment detection (local packaged runtime)
+// Criterios:
+//  - window.protocol === 'file:' (static export dentro de Tauri)
+//  - hostname 127.0.0.1 con puerto distinto a 3000/3001 (servidor interno random)
+//  - variable NEXT_PUBLIC_USE_DIRECT_BACKEND === '1' en server-side
+// -------------------------------------------------------------
+function isMSIMode(): boolean {
+  // Vercel/Supabase deployment: never MSI
+  return false;
+}
+
+// Conjunto de endpoints "colección" que en el backend fueron definidos con slash final (/resource/)
+// para POST/GET list. Mantener slash final para evitar redirecciones 307 innecesarias.
+const TRAILING_SLASH_COLLECTIONS = new Set([
+  'gastos-fijos',
+  'treatments',
+  'inventory',
+  'patients',
+  'records',
+  'ai/query',
+]);
+
+// Dynamic API URL configuration for Tauri compatibility
+const getApiUrl = () => "/api";
+
+const API_URL = getApiUrl();
+
+// 🔥 FUNCIÓN PÚBLICA PARA API ESTÁTICAS MSI-COMPATIBLE
+const API = "/api";
+
+function toApiUrl(input: string): string {
+  let raw = input.trim();
+  // Keep absolute URLs
+  if (/^https?:\/\//.test(raw)) return raw;
+  // Normalize proxy prefix
+  if (raw.startsWith('/api/proxy/')) raw = raw.replace('/api/proxy/', '/api/');
+  // Ensure /api prefix
+  if (!raw.startsWith('/')) raw = '/' + raw;
+  if (!raw.startsWith('/api/')) raw = '/api' + raw;
+  return raw;
+}
+
+export const fetchWithAuth = async (input: string, options: RequestInit = {}): Promise<Response> => {
+  const url = toApiUrl(input);
+  console.log(`🔥 fetchWithAuth MSI-COMPATIBLE: ${input} → ${url}`);
+  
+  // OBTENER TOKEN DE AUTENTICACIÓN
+  const token = AuthService.getToken();
+  console.log(`🔍 DEBUG TOKEN: token=${token ? `${token.substring(0,20)}...` : 'NULL'}`);
+  
+  const headers = new Headers(options.headers || {});
+  headers.set("x-sgmm-dev", "1"); // bypass dev
+  headers.set("Content-Type", "application/json");
+  
+  // INCLUIR TOKEN DE AUTENTICACIÓN (dev token como fallback)
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+    console.log(`🔐 fetchWithAuth: Token real incluido para ${url}`);
+  } else {
+    // OBTENER TOKEN MANUALMENTE COMO ÚLTIMO RECURSO
+    const manualToken = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+    console.log(`🔍 DEBUG MANUAL TOKEN: manualToken=${manualToken ? `${manualToken.substring(0,20)}...` : 'NULL'}`);
+    
+    if (manualToken) {
+      headers.set("Authorization", `Bearer ${manualToken}`);
+      console.log(`🔐 fetchWithAuth: Token manual incluido para ${url}`);
+    } else {
+      // USAR TOKEN DE DESARROLLO PARA BYPASS
+      headers.set("Authorization", "Bearer dev");
+      console.log(`🔓 fetchWithAuth: Token DEV incluido para ${url}`);
+    }
+  }
+
+  const response = await fetch(url, {
+    ...options,
+    headers,
+    credentials: "same-origin",
+  });
+  if (!token) {
+    console.warn(`⚠️ fetchWithAuth: usando token DEV para ${url} (posible causa de 401 si backend exige JWT válido)`);
+  }
+  console.log(`🔥 fetchWithAuth Response: ${response.status} for ${url}`);
+  if (!response.ok) {
+    try {
+      const clone = response.clone();
+      const txt = await clone.text();
+      console.warn(`❗ Body (${url}):`, txt.slice(0,500));
+    } catch (e) {
+      console.warn('No se pudo leer cuerpo de error:', e);
+    }
+  }
+  return response;
+};
+
+interface ApiResponse<T> {
+  data?: T;
+  error?: string;
+}
+
+class ApiService {
+  private static getAuthHeaders() {
+    const token = AuthService.getToken();
+    return {
+      "Content-Type": "application/json",
+      ...(token && { "Authorization": `Bearer ${token}` })
+    };
+  }
+
+  private static async fetchWithAuth(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<Response> {
+    // Usar la función pública blindada que normaliza cualquier URL
+    return fetchWithAuth(endpoint, options);
+  }
+  // Patients
+  static async getPatients(search?: string): Promise<ApiResponse<any[]>> {
+    try {
+      const url = search ? `/api/patients?search=${encodeURIComponent(search)}` : "/api/patients";
+      const response = await this.fetchWithAuth(url);
+      if (!response.ok) throw new Error("Failed to fetch patients");
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  static async getPatient(id: number): Promise<ApiResponse<any>> {
+    try {
+      const response = await this.fetchWithAuth(`/api/patients/${id}`);
+      if (!response.ok) throw new Error("Failed to fetch patient");
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  static async createPatient(patientData: any): Promise<ApiResponse<any>> {
+    try {
+      const response = await this.fetchWithAuth("/api/patients", {
+        method: "POST",
+        body: JSON.stringify(patientData),
+      });
+      if (!response.ok) throw new Error("Failed to create patient");
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  static async updatePatient(id: number, patientData: any): Promise<ApiResponse<any>> {
+    try {
+      const response = await this.fetchWithAuth(`/api/patients/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(patientData),
+      });
+      if (!response.ok) throw new Error("Failed to update patient");
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  static async deletePatient(id: number): Promise<ApiResponse<void>> {
+    try {
+      const response = await this.fetchWithAuth(`/api/patients/${id}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error("Failed to delete patient");
+      return {};
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  // Patient Images
+  static async uploadPatientImage(patientId: number, file: File): Promise<ApiResponse<any>> {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('patient_id', patientId.toString());
+
+      // ✅ FIXED: Use /api/simple-upload/ endpoint to avoid proxy conflicts
+      const response = await fetch(`/api/simple-upload/?patient_id=${patientId}`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) throw new Error("Failed to upload image");
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  static async getPatientImages(patientId: number): Promise<ApiResponse<any>> {
+    try {
+      // ✅ FIXED: Use /api/simple-upload/ endpoint to avoid proxy conflicts
+      const response = await fetch(`/api/simple-upload/?patient_id=${patientId}`, {
+        method: "GET",
+      });
+      if (!response.ok) throw new Error("Failed to fetch patient images");
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  static async updateImageComment(patientId: number, imageName: string, comment: string): Promise<ApiResponse<any>> {
+    try {
+      // ✅ FIXED: Use /api/simple-upload/ endpoint to avoid proxy conflicts
+      const response = await fetch(`/api/simple-upload/?patient_id=${patientId}&image=${encodeURIComponent(imageName)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ comment }),
+      });
+      if (!response.ok) throw new Error("Failed to update image comment");
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  static async deletePatientImage(patientId: number, imageName: string): Promise<ApiResponse<void>> {
+    try {
+      // ✅ FIXED: Use /api/simple-upload/ endpoint to avoid proxy conflicts
+      const response = await fetch(`/api/simple-upload/?patient_id=${patientId}&image=${encodeURIComponent(imageName)}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error("Failed to delete image");
+      return {};
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  // Helper method to convert file paths to URLs
+  static getImageUrl(filePath: string): string {
+    if (!filePath) return "";
+    
+    // Extract filename from path (handle both forward and backward slashes)
+    const fileName = filePath.split(/[/\\]/).pop();
+    if (!fileName) return "";
+    
+    // Return URL for Next.js image endpoint that we created
+    return `/api/images/${fileName}`;
+  }  // Treatments
+  static async getTreatments(): Promise<ApiResponse<any[]>> {
+    try {
+      const response = await fetchWithAuth("/api/treatments");
+      if (!response.ok) throw new Error("Failed to fetch treatments");
+      const result = await response.json();
+      
+      // The API returns { data: [...], error: null }
+      // Extract the data array directly
+      if (result.data && Array.isArray(result.data)) {
+        return { data: result.data };
+      } else if (Array.isArray(result)) {
+        // Fallback if API returns array directly
+        return { data: result };
+      } else {
+        return { data: [] };
+      }
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  static async getTreatment(id: number): Promise<ApiResponse<any>> {
+    try {
+      const response = await fetchWithAuth(`/api/treatments/${id}`);
+      if (!response.ok) throw new Error("Failed to fetch treatment");
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }  static async createTreatment(treatmentData: any): Promise<ApiResponse<any>> {
+    try {
+      const response = await fetchWithAuth("/api/treatments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(treatmentData),
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Failed to create treatment" }));
+        throw new Error(errorData.error || "Failed to create treatment");
+      }
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }  static async updateTreatment(id: number, treatmentData: any): Promise<ApiResponse<any>> {
+    try {
+      const response = await fetchWithAuth(`/api/treatments/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(treatmentData),
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Failed to update treatment" }));
+        throw new Error(errorData.error || "Failed to update treatment");
+      }
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }  static async deleteTreatment(id: number): Promise<ApiResponse<any>> {
+    try {
+      const response = await fetchWithAuth(`/api/treatments/${id}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: "Failed to delete treatment" }));
+        return { error: errorData.detail || errorData.error || "Failed to delete treatment" };
+      }
+      return { data: { success: true } };
+    } catch (error) {
+      console.error("Error deleting treatment:", error);
+      return { error: error instanceof Error ? error.message : "Failed to delete treatment" };
+    }
+  }
+
+
+
+  // Records
+  static async getRecords(patientId?: number): Promise<ApiResponse<any[]>> {
+    try {
+      const queryParams = patientId ? `?patient_id=${patientId}` : '';
+      const response = await this.fetchWithAuth(`/api/records${queryParams}`);
+      
+      if (!response.ok) throw new Error("Failed to fetch records");
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }static async getRecordsWithNames(patientId?: number): Promise<ApiResponse<any[]>> {
+    try {
+      const endpoint = patientId ? `/api/records/with-names?patient_id=${patientId}` : `/api/records/with-names`;
+      const response = await this.fetchWithAuth(endpoint);
+      if (!response.ok) throw new Error("Failed to fetch records with names");
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+  static async getRecord(id: number): Promise<ApiResponse<any>> {
+    try {
+      const response = await fetchWithAuth(`/api/records/${id}`);
+      if (!response.ok) throw new Error("Failed to fetch record");
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+  static async createRecord(recordData: any): Promise<ApiResponse<any>> {
+    try {
+      // For appointments (monto_pagado = 0), preserve the exact time without timezone conversion
+      // For completed treatments, set time to noon UTC to avoid timezone issues
+      const fecha = recordData.monto_pagado === 0
+        ? recordData.fecha // Keep exact local time string for appointments
+        : new Date(new Date(recordData.fecha).setHours(12, 0, 0, 0)).toISOString(); // Set to noon UTC for treatments
+
+      // Convertir datos del frontend al formato esperado por el backend
+      const backendData = {
+        patient_id: parseInt(recordData.patient_id.toString()),
+        treatment_id: parseInt(recordData.treatment_id.toString()),
+        fecha,
+        monto_pagado: parseFloat(recordData.monto_pagado.toString()),
+        monto_neto: parseFloat(recordData.monto_neto.toString()),
+        costo_unitario: parseFloat(recordData.costo_unitario.toString()),
+        ganancia: parseFloat(recordData.ganancia.toString()),
+        metodo_pago: recordData.metodo_pago,
+        tipo_tarjeta: recordData.tipo_tarjeta || null,
+        meses_sin_intereses: recordData.meses_sin_intereses ? parseInt(recordData.meses_sin_intereses.toString()) : null,
+        tasa_comision: recordData.tasa_comision ? parseFloat(recordData.tasa_comision.toString()) : null,
+        comision_monto: recordData.comision_monto ? parseFloat(recordData.comision_monto.toString()) : null,
+        notas: recordData.notas || null
+      };
+
+      console.log('Sending record data to API:', {
+        ...backendData,
+        originalDate: recordData.fecha,
+        processedDate: fecha,
+        isAppointment: recordData.monto_pagado === 0
+      });
+
+      // Obtener token para enviarlo en headers
+      const token = AuthService.getToken();
+      console.log('Token available:', !!token);
+      console.log('Token preview:', token ? `${token.substring(0, 20)}...` : 'No token');
+      
+      const headers: any = {
+        "Content-Type": "application/json",
+      };
+      
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      console.log('Request headers:', headers);
+
+      // Usar la ruta API de Next.js con token en headers
+      const response = await fetchWithAuth(`/api/records`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(backendData),
+      });      if (!response.ok) {
+        console.error('Response not OK:', response.status, response.statusText);
+        
+        let errorData;
+        try {
+          const text = await response.text();
+          console.log('Raw response text:', text);
+          
+          if (text) {
+            try {
+              errorData = JSON.parse(text);
+            } catch {
+              errorData = { error: text };
+            }
+          } else {
+            errorData = { error: `HTTP ${response.status}: ${response.statusText}` };
+          }
+        } catch (readError) {
+          console.error('Error reading response:', readError);
+          errorData = { error: `HTTP ${response.status}: ${response.statusText}` };
+        }
+        
+        console.error('API error details:', errorData);
+        
+        if (response.status === 422 && errorData.detail) {
+          // Error de validación - formatear los detalles
+          const validationErrors = Array.isArray(errorData.detail) 
+            ? errorData.detail.map((err: any) => `${err.loc?.[1] || err.loc?.[0]}: ${err.msg}`).join(', ')
+            : errorData.detail;
+          throw new Error(validationErrors);
+        }
+        
+        throw new Error(errorData.error || errorData.detail || errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+      }
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+  static async updateRecord(id: number, recordData: any): Promise<ApiResponse<any>> {
+    try {
+      // Convertir datos del frontend al formato esperado por el backend
+      const backendData = {
+        patient_id: parseInt(recordData.patient_id.toString()),
+        treatment_id: parseInt(recordData.treatment_id.toString()),
+        fecha: recordData.fecha.includes('T') ? recordData.fecha : `${recordData.fecha}T00:00:00`,
+        monto_pagado: parseFloat(recordData.monto_pagado.toString()),
+        monto_neto: parseFloat(recordData.monto_neto.toString()),
+        costo_unitario: parseFloat(recordData.costo_unitario.toString()),
+        ganancia: parseFloat(recordData.ganancia.toString()),
+        metodo_pago: recordData.metodo_pago,
+        tipo_tarjeta: recordData.tipo_tarjeta || null,
+        meses_sin_intereses: recordData.meses_sin_intereses ? parseInt(recordData.meses_sin_intereses.toString()) : null,
+        tasa_comision: recordData.tasa_comision ? parseFloat(recordData.tasa_comision.toString()) : null,
+        comision_monto: recordData.comision_monto ? parseFloat(recordData.comision_monto.toString()) : null,
+        notas: recordData.notas || null
+      };      const response = await fetchWithAuth(`/api/records/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(backendData),
+      });
+      if (!response.ok) throw new Error("Failed to update record");
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  static async deleteRecord(id: number): Promise<ApiResponse<void>> {
+    try {
+      const response = await fetchWithAuth(`/api/records/${id}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error("Failed to delete record");
+      return { data: undefined };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  // Gastos Fijos
+  static async getGastosFijos(): Promise<ApiResponse<any[]>> {
+    try {
+      const response = await this.fetchWithAuth("/api/gastos-fijos");
+      if (!response.ok) throw new Error("Failed to fetch gastos fijos");
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  static async getGastoFijo(id: number): Promise<ApiResponse<any>> {
+    try {
+      const response = await this.fetchWithAuth(`/api/gastos-fijos/${id}`);
+      if (!response.ok) throw new Error("Failed to fetch gasto fijo");
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  static async createGastoFijo(gastoFijoData: any): Promise<ApiResponse<any>> {
+    try {
+      const response = await this.fetchWithAuth("/api/gastos-fijos", {
+        method: "POST",
+        body: JSON.stringify(gastoFijoData),
+      });
+      if (!response.ok) throw new Error("Failed to create gasto fijo");
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  static async updateGastoFijo(id: number, gastoFijoData: any): Promise<ApiResponse<any>> {
+    try {
+      const response = await this.fetchWithAuth(`/api/gastos-fijos/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(gastoFijoData),
+      });
+      if (!response.ok) throw new Error("Failed to update gasto fijo");
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  static async deleteGastoFijo(id: number): Promise<ApiResponse<void>> {
+    try {
+      const response = await this.fetchWithAuth(`/api/gastos-fijos/${id}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error("Failed to delete gasto fijo");
+      return { data: undefined };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  // 🎉 NUEVAS FUNCIONES PARA MÚLTIPLES TRATAMIENTOS Y TARJETAS DE CRÉDITO
+
+  // Crear registro con múltiples tratamientos
+  static async createMultipleRecord(recordData: any): Promise<ApiResponse<any>> {
+    try {
+      const response = await this.fetchWithAuth("/api/records/multiple", {
+        method: "POST",
+        body: JSON.stringify(recordData),
+      });
+      if (!response.ok) throw new Error("Failed to create multiple record");
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  // Obtener registro con tratamientos múltiples
+  static async getRecordWithTreatments(recordId: number): Promise<ApiResponse<any>> {
+    try {
+      const response = await fetchWithAuth(`/api/records/${recordId}/with-treatments`);
+      if (!response.ok) throw new Error("Failed to fetch record with treatments");
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  // Actualizar registro con múltiples tratamientos
+  static async updateRecordWithTreatments(recordId: number, recordData: any): Promise<ApiResponse<any>> {
+    try {
+      const response = await fetchWithAuth(`/api/records/${recordId}/with-treatments`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(recordData),
+      });
+      if (!response.ok) throw new Error("Failed to update record with treatments");
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  // Obtener registros mejorados con nombres y múltiples tratamientos
+  static async getRecordsEnhanced(skip: number = 0, limit: number = 100, patientId?: number): Promise<ApiResponse<any[]>> {
+    try {
+      let endpoint = `/api/records/enhanced/with-names?skip=${skip}&limit=${limit}`;
+      if (patientId) {
+        endpoint += `&patient_id=${patientId}`;
+      }
+      
+      const response = await this.fetchWithAuth(endpoint);
+      if (!response.ok) throw new Error("Failed to fetch enhanced records");
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  // Obtener opciones de tarjetas de crédito
+  static async getCreditCardOptions(): Promise<ApiResponse<any>> {
+    try {
+      const response = await this.fetchWithAuth("/api/payment-methods/credit-cards");
+      if (!response.ok) throw new Error("Failed to fetch credit card options");
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  // Calcular comisión de tarjeta de crédito
+  static async calculateCommission(amount: number, commissionRate: number): Promise<ApiResponse<any>> {
+    try {
+      const response = await this.fetchWithAuth("/api/payment-methods/calculate-commission", {
+        method: "POST",
+        body: JSON.stringify({
+          amount,
+          commission_rate: commissionRate
+        }),
+      });
+      if (!response.ok) throw new Error("Failed to calculate commission");
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  // Payment Helper Functions
+  static getPaymentMethodDisplayName(method: string): string {
+    const methods: { [key: string]: string } = {
+      'efectivo': 'Efectivo',
+      'tarjeta_credito': 'Tarjeta de Crédito',
+      'tarjeta_debito': 'Tarjeta de Débito',
+      'transferencia': 'Transferencia'
+    };
+    return methods[method] || method;
+  }
+
+  static getCreditCardDisplayName(cardType: string): string {
+    const cards: { [key: string]: string } = {
+      'bbva': 'BBVA',
+      'openpay': 'OpenPay',
+      'santander': 'Santander',
+      'banamex': 'Banamex'
+    };
+    return cards[cardType] || cardType;
+  }
+
+  static formatCurrency(amount: number): string {
+    return new Intl.NumberFormat('es-MX', {
+      style: 'currency',
+      currency: 'MXN',
+    }).format(amount);
+  }
+
+  static formatCardNumber(cardNumber: string): string {
+    // Format as ****-****-****-1234
+    return `****-****-****-${cardNumber}`;
+  }
+
+  // Helper para crear datos de múltiples tratamientos
+  static createMultipleRecordData(
+    patientId: number,
+    fecha: string,
+    metodoPago: string,
+    nombrePromocion: string,
+    tratamientos: any[],
+    creditCardInfo?: {
+      tipoTarjeta?: string;
+      mesesSinIntereses?: number;
+      tasaComision?: number;
+      numeroAutorizacion?: string;
+      ultimos4Digitos?: string;
+    },
+    notas?: string,
+    montoPagado?: number  ) {
+    return {
+      patient_id: patientId,
+      fecha,
+      monto_pagado: montoPagado || tratamientos.reduce((sum, t) => sum + (t.precio_promocional || 0), 0),
+      metodo_pago: metodoPago,
+      nombre_promocion: nombrePromocion,
+      tratamientos,
+      tipo_tarjeta: creditCardInfo?.tipoTarjeta,
+      meses_sin_intereses: creditCardInfo?.mesesSinIntereses,
+      tasa_comision: creditCardInfo?.tasaComision,
+      numero_autorizacion: creditCardInfo?.numeroAutorizacion,
+      ultimos_4_digitos: creditCardInfo?.ultimos4Digitos,
+      notas
+    };
+  }
+  // Combined methods for specific workflows
+  static async createPatientWithTreatment(data: any): Promise<ApiResponse<any>> {
+    try {
+      const response = await this.fetchWithAuth("/api/patients/with-treatment", {
+        method: "POST",
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Failed to create patient with treatment");
+      }
+      const responseData = await response.json();
+      return { data: responseData };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+  static async createMultipleTreatmentRecord(patientId: number, data: any): Promise<ApiResponse<any>> {
+    try {
+      const response = await fetchWithAuth(`/api/records/multiple`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          patient_id: patientId,
+          ...data 
+        }),      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Failed to create multiple treatment record");
+      }
+      const responseData = await response.json();
+      return { data: responseData };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  // Dashboard estadísticas completas
+  static async getDashboardStats(): Promise<ApiResponse<any>> {
+    try {
+      const response = await this.fetchWithAuth("/api/dashboard/stats");
+      if (!response.ok) throw new Error("Failed to fetch dashboard stats");
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  // Inventory methods
+  static async getInventoryItems(): Promise<ApiResponse<any[]>> {
+    try {
+      const response = await this.fetchWithAuth("/api/inventory");
+      if (!response.ok) throw new Error("Failed to fetch inventory items");
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  static async createInventoryItem(itemData: any): Promise<ApiResponse<any>> {
+    try {
+      const response = await this.fetchWithAuth("/api/inventory", {
+        method: "POST",
+        body: JSON.stringify(itemData),
+      });
+      if (!response.ok) throw new Error("Failed to create inventory item");
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  static async getTreatmentInventory(treatmentId: number): Promise<ApiResponse<any[]>> {
+    try {
+      const response = await this.fetchWithAuth(`/api/treatments/${treatmentId}/inventory`);
+      if (!response.ok) throw new Error("Failed to fetch treatment inventory");
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  static async addTreatmentInventoryItem(treatmentId: number, inventoryItemId: number, cantidadRequerida: number): Promise<ApiResponse<any>> {
+    try {
+      const response = await this.fetchWithAuth(`/api/treatments/${treatmentId}/inventory`, {
+        method: "POST",
+        body: JSON.stringify({
+          inventory_item_id: inventoryItemId,
+          cantidad_requerida: cantidadRequerida
+        }),
+      });
+      if (!response.ok) throw new Error("Failed to add treatment inventory item");
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  static async removeTreatmentInventoryItem(treatmentId: number, itemId: number): Promise<ApiResponse<any>> {
+    try {
+      const response = await this.fetchWithAuth(`/api/treatments/${treatmentId}/inventory/${itemId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error("Failed to remove treatment inventory item");
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  // AI Assistant Methods
+  static async queryAI(query: string, includeHistory: boolean = true): Promise<ApiResponse<any>> {
+    try {
+      const response = await this.fetchWithAuth("/api/ai/query", {
+        method: "POST",
+        body: JSON.stringify({
+          query,
+          include_history: includeHistory
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Failed to query AI" }));
+        throw new Error(errorData.error || "Failed to query AI assistant");
+      }
+      
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  static async getAIStatus(): Promise<ApiResponse<any>> {
+    try {
+      const response = await this.fetchWithAuth("/api/ai/status");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Failed to get AI status" }));
+        throw new Error(errorData.error || "Failed to get AI status");
+      }
+      
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  // Appointments
+  static async getAppointments(params?: {
+    date_from?: string;
+    date_to?: string;
+    patient_id?: number;
+    status?: string;
+  }): Promise<ApiResponse<any[]>> {
+    try {
+      const searchParams = new URLSearchParams();
+      if (params?.date_from) searchParams.append('date_from', params.date_from);
+      if (params?.date_to) searchParams.append('date_to', params.date_to);
+      if (params?.patient_id) searchParams.append('patient_id', params.patient_id.toString());
+      if (params?.status) searchParams.append('status', params.status);
+
+      const url = `/api/appointments${searchParams.toString() ? `?${searchParams}` : ''}`;
+      const response = await this.fetchWithAuth(url);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Failed to fetch appointments" }));
+        throw new Error(errorData.error || "Failed to fetch appointments");
+      }
+      
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  static async getAppointmentsWithNames(params?: {
+    date_from?: string;
+    date_to?: string;
+    patient_id?: number;
+    status?: string;
+  }): Promise<ApiResponse<any[]>> {
+    try {
+      const searchParams = new URLSearchParams();
+      if (params?.date_from) searchParams.append('date_from', params.date_from);
+      if (params?.date_to) searchParams.append('date_to', params.date_to);
+      if (params?.patient_id) searchParams.append('patient_id', params.patient_id.toString());
+      if (params?.status) searchParams.append('status', params.status);
+
+      const url = `/api/appointments/with-names${searchParams.toString() ? `?${searchParams}` : ''}`;
+      const response = await this.fetchWithAuth(url);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Failed to fetch appointments" }));
+        throw new Error(errorData.error || "Failed to fetch appointments");
+      }
+      
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  static async createAppointment(appointmentData: {
+    patient_id: number;
+    appointment_date: string;
+    appointment_time: string;
+    duration_minutes?: number;
+    treatment_name?: string;
+    notes?: string;
+    status?: string;
+  }): Promise<ApiResponse<any>> {
+    try {
+      const response = await this.fetchWithAuth("/api/appointments", {
+        method: "POST",
+        body: JSON.stringify(appointmentData),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Failed to create appointment" }));
+        throw new Error(errorData.error || "Failed to create appointment");
+      }
+      
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  static async updateAppointment(id: number, appointmentData: any): Promise<ApiResponse<any>> {
+    try {
+      const response = await this.fetchWithAuth(`/api/appointments/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(appointmentData),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Failed to update appointment" }));
+        throw new Error(errorData.error || "Failed to update appointment");
+      }
+      
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  static async deleteAppointment(id: number): Promise<ApiResponse<any>> {
+    try {
+      const response = await this.fetchWithAuth(`/api/appointments/${id}`, {
+        method: "DELETE",
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Failed to delete appointment" }));
+        throw new Error(errorData.error || "Failed to delete appointment");
+      }
+      
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  static async getAIHelp(): Promise<ApiResponse<any>> {
+    try {
+      const response = await this.fetchWithAuth("/api/ai/help", { method: "POST" });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Failed to get AI help" }));
+        throw new Error(errorData.error || "Failed to get AI help");
+      }
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  // ==========================================
+  // BILLING / FACTURACIÓN METHODS
+  // ==========================================
+
+  // Billing Settings
+  static async getBillingSettings(): Promise<ApiResponse<any>> {
+    try {
+      const response = await this.fetchWithAuth("/billing/settings/");
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          return { data: null }; // No settings configured yet
+        }
+        throw new Error("Failed to fetch billing settings");
+      }
+      
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  static async createBillingSettings(settings: any): Promise<ApiResponse<any>> {
+    try {
+      const response = await this.fetchWithAuth("/api/billing/settings", {
+        method: "POST",
+        body: JSON.stringify(settings),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Failed to create billing settings" }));
+        throw new Error(errorData.error || "Failed to create billing settings");
+      }
+      
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  static async updateBillingSettings(settingsId: number, settings: any): Promise<ApiResponse<any>> {
+    try {
+      const response = await this.fetchWithAuth(`/api/billing/settings/${settingsId}`, {
+        method: "PUT",
+        body: JSON.stringify(settings),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Failed to update billing settings" }));
+        throw new Error(errorData.error || "Failed to update billing settings");
+      }
+      
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  // Email configuration and sending methods
+  static async testEmailConfiguration(): Promise<ApiResponse<any>> {
+    try {
+      const response = await this.fetchWithAuth("/api/billing/test-email-config", {
+        method: "POST",
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Failed to test email configuration" }));
+        throw new Error(errorData.error || "Failed to test email configuration");
+      }
+      
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  // ==========================================
+  // MÉTODOS FALTANTES PARA FACTURACIÓN
+  // ==========================================
+
+  // Get pending treatments for invoicing
+  static async getPendingTreatments(patientId?: number): Promise<ApiResponse<any[]>> {
+    try {
+      const url = patientId 
+        ? `/api/billing/pending-treatments?patient_id=${patientId}`
+        : "/api/billing/pending-treatments";
+        
+      const response = await fetch(url, {
+        method: "GET",
+        headers: this.getAuthHeaders(),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Failed to fetch pending treatments" }));
+        throw new Error(errorData.error || "Failed to fetch pending treatments");
+      }
+      
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  // Get invoices
+  static async getInvoices(params?: {
+    status?: string;
+    from_date?: string;
+    to_date?: string;
+    patient_id?: number;
+  }): Promise<ApiResponse<any[]>> {
+    try {
+      const searchParams = new URLSearchParams();
+      if (params?.status) searchParams.append('status', params.status);
+      if (params?.from_date) searchParams.append('from_date', params.from_date);
+      if (params?.to_date) searchParams.append('to_date', params.to_date);
+      if (params?.patient_id) searchParams.append('patient_id', params.patient_id.toString());
+
+      const url = `/api/billing/invoices${searchParams.toString() ? `?${searchParams}` : ''}`;
+      const response = await fetch(url, {
+        method: "GET",
+        headers: this.getAuthHeaders(),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Failed to fetch invoices" }));
+        throw new Error(errorData.error || "Failed to fetch invoices");
+      }
+      
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  // Create invoice FROM record
+  static async createInvoiceFromRecords(recordIds: number[]): Promise<ApiResponse<any>> {
+    try {
+      const response = await fetch(`/api/billing/create-invoice`, {
+        method: "POST",
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({ record_ids: recordIds }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Failed to create invoice" }));
+        throw new Error(errorData.error || "Failed to create invoice");
+      }
+      
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  // Create invoice with custom data
+  static async createInvoice(invoiceData: any): Promise<ApiResponse<any>> {
+    try {
+      const response = await fetch(`/api/billing/invoices`, {
+        method: "POST",
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify(invoiceData),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Failed to create invoice" }));
+        throw new Error(errorData.error || "Failed to create invoice");
+      }
+      
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  // Stamp invoice (timbrar)
+  static async stampInvoice(invoiceId: number): Promise<ApiResponse<any>> {
+    try {
+      const response = await fetch(`/api/billing/invoices/${invoiceId}/stamp`, {
+        method: "POST",
+        headers: this.getAuthHeaders(),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Failed to stamp invoice" }));
+        throw new Error(errorData.error || "Failed to stamp invoice");
+      }
+      
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  // Cancel invoice
+  static async cancelInvoice(invoiceId: number, reason: string): Promise<ApiResponse<any>> {
+    try {
+      const response = await fetch(`/api/billing/invoices/${invoiceId}/cancel`, {
+        method: "POST",
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({ reason }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Failed to cancel invoice" }));
+        throw new Error(errorData.error || "Failed to cancel invoice");
+      }
+      
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  // Download invoice XML
+  static async downloadInvoiceXML(invoiceId: number): Promise<ApiResponse<Blob>> {
+    try {
+      const response = await fetch(`/api/billing/invoices/${invoiceId}/xml`, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${AuthService.getToken()}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Failed to download XML" }));
+        throw new Error(errorData.error || "Failed to download XML");
+      }
+      
+      const blob = await response.blob();
+      return { data: blob };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  // Download invoice PDF
+  static async downloadInvoicePDF(invoiceId: number): Promise<ApiResponse<Blob>> {
+    try {
+      const response = await fetch(`/api/billing/invoices/${invoiceId}/pdf`, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${AuthService.getToken()}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Failed to download PDF" }));
+        throw new Error(errorData.error || "Failed to download PDF");
+      }
+      
+      const blob = await response.blob();
+      return { data: blob };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  // Send invoice by email
+  static async sendInvoiceEmail(invoiceId: number, email: string): Promise<ApiResponse<any>> {
+    try {
+      const response = await fetch(`/api/billing/invoices/${invoiceId}/send-email`, {
+        method: "POST",
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({ email }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Failed to send invoice email" }));
+        throw new Error(errorData.error || "Failed to send invoice email");
+      }
+      
+      const data = await response.json();
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+}
+
+export default ApiService;

@@ -1,0 +1,34 @@
+-- Add sample appointments data
+INSERT INTO appointments (patient_id, treatment_id, fecha_hora, duracion_minutos, estado, notas, precio_acordado) 
+SELECT 
+  p.id as patient_id,
+  t.id as treatment_id,
+  CASE 
+    WHEN ROW_NUMBER() OVER() = 1 THEN NOW() + INTERVAL '2 hours'
+    WHEN ROW_NUMBER() OVER() = 2 THEN NOW() + INTERVAL '1 day'
+    WHEN ROW_NUMBER() OVER() = 3 THEN NOW() + INTERVAL '2 days'
+    ELSE NOW() + INTERVAL '3 days'
+  END as fecha_hora,
+  t.duracion_minutos,
+  CASE 
+    WHEN ROW_NUMBER() OVER() % 3 = 0 THEN 'completada'
+    WHEN ROW_NUMBER() OVER() % 3 = 1 THEN 'confirmada'
+    ELSE 'programada'
+  END as estado,
+  'Cita de ejemplo generada automáticamente' as notas,
+  t.precio_base as precio_acordado
+FROM (
+  SELECT id, nombre, apellido FROM patients LIMIT 2
+) p
+CROSS JOIN (
+  SELECT id, nombre, descripcion, precio_base, duracion_minutos FROM treatments LIMIT 2
+) t
+LIMIT 4;
+
+-- Add sample patients for testing
+INSERT INTO patients (nombre, apellido, telefono, email, fecha_nacimiento, direccion, notas) VALUES
+('Juan Carlos', 'García López', '555-0123', 'juan.garcia@email.com', '1985-03-15', 'Av. Reforma 123, Col. Centro', 'Paciente regular, historial de limpiezas'),
+('María Elena', 'Rodríguez Pérez', '555-0124', 'maria.rodriguez@email.com', '1990-07-22', 'Calle Morelos 456, Col. Norte', 'Primera consulta, derivada por recomendación'),
+('Pedro Antonio', 'Martínez Silva', '555-0125', 'pedro.martinez@email.com', '1978-11-08', 'Av. Juárez 789, Col. Sur', 'Tratamiento de ortodoncia en progreso'),
+('Ana Sofía', 'López Hernández', '555-0126', 'ana.lopez@email.com', '1995-01-30', 'Calle Hidalgo 321, Col. Este', 'Paciente con seguro dental')
+ON CONFLICT DO NOTHING;

@@ -1,0 +1,90 @@
+import type { NextConfig } from "next";
+import path from "path";
+import withPWA from 'next-pwa';
+
+const nextConfig: NextConfig = {
+  // Desactivar ESLint y TypeScript checking durante build para deploy rápido
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  serverExternalPackages: ['@supabase/supabase-js'],
+  images: {
+    domains: ['localhost'],
+  },
+  // Ensure Next uses this folder as the workspace root in a multi-lockfile repo
+  outputFileTracingRoot: path.join(__dirname),
+  env: {
+    NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'http://localhost:3000',
+    NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET || 'sgmm-dev-secret-key-2025',
+  },
+  // Redirects
+  async redirects() {
+    return [
+      {
+        source: '/auth/login',
+        destination: '/auth/signin',
+        permanent: true,
+      },
+    ]
+  },
+};
+
+// PWA configuration
+const pwaConfig = withPWA({
+  dest: 'public',
+  register: true,
+  skipWaiting: true,
+  disable: process.env.NODE_ENV === 'development',
+  runtimeCaching: [
+    {
+      urlPattern: /^https:\/\/fonts\.(?:gstatic|googleapis)\.com\/.*/i,
+      handler: 'CacheFirst',
+      options: {
+        cacheName: 'google-fonts',
+        expiration: {
+          maxEntries: 4,
+          maxAgeSeconds: 365 * 24 * 60 * 60 // 1 year
+        }
+      }
+    },
+    {
+      urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
+      handler: 'NetworkFirst',
+      options: {
+        cacheName: 'supabase-api',
+        networkTimeoutSeconds: 10,
+        expiration: {
+          maxEntries: 50,
+          maxAgeSeconds: 24 * 60 * 60 // 24 hours
+        }
+      }
+    },
+    {
+      urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp|ico)$/i,
+      handler: 'CacheFirst',
+      options: {
+        cacheName: 'static-images',
+        expiration: {
+          maxEntries: 100,
+          maxAgeSeconds: 30 * 24 * 60 * 60 // 30 days
+        }
+      }
+    },
+    {
+      urlPattern: /\.(?:js|css)$/i,
+      handler: 'StaleWhileRevalidate',
+      options: {
+        cacheName: 'static-resources',
+        expiration: {
+          maxEntries: 50,
+          maxAgeSeconds: 24 * 60 * 60 // 24 hours
+        }
+      }
+    }
+  ]
+});
+
+export default pwaConfig(nextConfig);

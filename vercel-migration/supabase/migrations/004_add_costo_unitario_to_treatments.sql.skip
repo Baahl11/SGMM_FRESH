@@ -1,0 +1,14 @@
+-- Add costo_unitario column to treatments table
+-- This field is essential for profit calculations
+
+ALTER TABLE treatments 
+ADD COLUMN IF NOT EXISTS costo_unitario DECIMAL(10,2) DEFAULT 0;
+
+-- Add comment
+COMMENT ON COLUMN treatments.costo_unitario IS 'Costo de producción o adquisición del tratamiento';
+
+-- Update existing treatments with default cost (can be updated manually later)
+UPDATE treatments SET costo_unitario = precio_base * 0.3 WHERE costo_unitario = 0;
+
+-- Create index for quick filtering
+CREATE INDEX IF NOT EXISTS idx_treatments_costo ON treatments(costo_unitario);
