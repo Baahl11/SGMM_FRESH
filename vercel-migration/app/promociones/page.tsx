@@ -191,7 +191,7 @@ export default function PromocionesPage() {
                 </p>
                 <Button 
                   className="bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700"
-                  onClick={() => router.push('/promociones/new')}
+                  onClick={() => setDialogOpen(true)}
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Crear Primera Promoción

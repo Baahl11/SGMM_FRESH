@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,6 +11,12 @@ export async function GET(
   try {
     const { id } = await params;
     const supabase = await createClient();
+    
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
     const { data: promotion, error } = await supabase
       .from('promotions')
@@ -28,6 +34,7 @@ export async function GET(
         )
       `)
       .eq('id', id)
+      .eq('user_id', user.id)
       .single();
 
     if (error) {
@@ -53,6 +60,13 @@ export async function PUT(
   try {
     const { id } = await params;
     const supabase = await createClient();
+    
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
     const body = await request.json();
 
     const {
@@ -74,7 +88,8 @@ export async function PUT(
         descuento_porcentaje: descuento_porcentaje !== undefined ? parseFloat(descuento_porcentaje) : undefined,
         activo
       })
-      .eq('id', id);
+      .eq('id', id)
+      .eq('user_id', user.id);
 
     if (updateError) {
       console.error('Error updating promotion:', updateError);
@@ -123,6 +138,7 @@ export async function PUT(
         )
       `)
       .eq('id', id)
+      .eq('user_id', user.id)
       .single();
 
     if (fetchError) {
@@ -148,21 +164,45 @@ export async function DELETE(
   try {
     const { id } = await params;
     const supabase = await createClient();
+    
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-    // Delete promotion (cascade will delete promotion_treatments)
+    console.log(`🗑️ Deleting promotion ${id} for user ${user.id}`);
+
+    // Delete promotion_treatments first (foreign key constraint)
+    const { error: treatmentsError } = await supabase
+      .from('promotion_treatments')
+      .delete()
+      .eq('promotion_id', id);
+
+    if (treatmentsError) {
+      console.error('❌ Error deleting promotion treatments:', treatmentsError);
+      return NextResponse.json({ error: treatmentsError.message }, { status: 500 });
+    }
+
+    console.log(`✅ Deleted promotion_treatments for promotion ${id}`);
+
+    // Delete promotion (with user_id check for security)
     const { error } = await supabase
       .from('promotions')
       .delete()
-      .eq('id', id);
+      .eq('id', id)
+      .eq('user_id', user.id);
 
     if (error) {
-      console.error('Error deleting promotion:', error);
+      console.error('❌ Error deleting promotion:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    console.log(`✅ Promotion ${id} deleted successfully`);
+
     return NextResponse.json({ success: true, message: 'Promotion deleted' });
   } catch (error) {
-    console.error('Error in DELETE /api/promotions/[id]:', error);
+    console.error('💥 Error in DELETE /api/promotions/[id]:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

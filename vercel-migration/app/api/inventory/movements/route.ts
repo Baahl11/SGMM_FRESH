@@ -29,10 +29,11 @@ export async function GET(request: NextRequest) {
   const to = searchParams.get('to');
   const search = searchParams.get('search');
 
-    // Build query
+    // Build query - FILTER BY USER_ID
     let query = supabase
       .from('inventory_movements')
       .select('*')
+      .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(limit);
 
@@ -119,11 +120,12 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createClient();
 
-    // Get current stock
+    // Get current stock - VERIFY USER OWNS THE ITEM
     const { data: item, error: itemError } = await supabase
       .from('inventory_items')
       .select('id, nombre, stock_actual')
       .eq('id', item_id)
+      .eq('user_id', user.id)
       .single();
 
     if (itemError || !item) {
@@ -147,14 +149,15 @@ export async function POST(request: NextRequest) {
       cantidad_nueva = cantidad;
     }
 
-    // Update inventory stock
+    // Update inventory stock - VERIFY USER_ID
     const { error: updateError } = await supabase
       .from('inventory_items')
       .update({ 
         stock_actual: cantidad_nueva,
         updated_at: new Date().toISOString()
       })
-      .eq('id', item_id);
+      .eq('id', item_id)
+      .eq('user_id', user.id);
 
     if (updateError) {
       console.error('❌ Error updating stock:', updateError);

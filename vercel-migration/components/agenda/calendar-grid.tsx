@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,8 +9,27 @@ import {
   User, 
   Phone, 
   Calendar as CalendarIcon,
-  Plus
+  Plus,
+  GripVertical,
+  AlertCircle
 } from "lucide-react";
+import { 
+  getAppointmentColorsByStatus, 
+  getStatusLabel, 
+  getStatusIcon 
+} from "@/lib/utils/appointment-colors";
+import { 
+  loadBufferConfig, 
+  isTimeSlotInBuffer,
+  getBufferTimeLabel
+} from "@/lib/utils/buffer-time";
+import { useDragAndDrop } from "@/hooks/use-drag-and-drop";
+import { canDragAppointment, getDropZoneClass } from "@/lib/utils/drag-and-drop";
+import { RecurringBadge } from "@/components/appointments/recurring-badge";
+import { GoogleSyncBadge } from "@/components/appointments/google-sync-badge";
+import { isRecurringAppointment, RecurrencePattern } from "@/lib/utils/recurring-appointments";
+import { isSyncedWithGoogle } from "@/lib/utils/google-calendar";
+import { toast } from "sonner";
 
 interface Appointment {
   id: number;
@@ -32,6 +51,15 @@ interface Appointment {
   appointment_type_id?: string;
   appointment_type_name?: string;
   appointment_type_color?: string;
+  // 🆕 Recurring fields
+  recurring_series_id?: string;
+  recurring_pattern?: RecurrencePattern;
+  recurring_instance_index?: number;
+  is_recurring?: boolean;
+  // 🆕 Google Calendar sync fields
+  google_calendar_event_id?: string;
+  synced_with_google?: boolean;
+  last_synced_at?: string;
 }
 
 interface TimeSlot {
@@ -49,6 +77,8 @@ interface CalendarGridProps {
   timeSlots: TimeSlot[];
   onSlotClick: (date: string, time: string) => void;
   onAppointmentClick: (appointment: Appointment) => void;
+  onAppointmentMove?: (appointmentId: number, newDate: string, newTime: string) => Promise<void>;
+  enableDragAndDrop?: boolean;
 }
 
 export default function CalendarGrid({
@@ -57,34 +87,80 @@ export default function CalendarGrid({
   appointments,
   timeSlots: propTimeSlots,
   onSlotClick,
-  onAppointmentClick
+  onAppointmentClick,
+  onAppointmentMove,
+  enableDragAndDrop = true
 }: CalendarGridProps) {
   
-  // 🆕 Helper function to get appointment colors
+  // Load buffer configuration
+  const bufferConfig = useMemo(() => loadBufferConfig(), []);
+
+  // Drag and Drop functionality
+  const {
+    isDragging,
+    draggedAppointment,
+    handleDragStart,
+    handleDragOver,
+    handleDragEnter,
+    handleDragLeave,
+    handleDrop,
+    handleDragEnd,
+    isDropTarget,
+    isValidDropTarget,
+    getDropTargetConflicts
+  } = useDragAndDrop({
+    appointments,
+    onAppointmentMove: onAppointmentMove || (async () => {
+      toast.error('Drag & Drop no configurado');
+    }),
+    onConflictDetected: (conflicts) => {
+      toast.error('Conflicto de horario', {
+        description: conflicts.join(', ')
+      });
+    }
+  });
+  
+  // � NEW: Get appointment colors with status-based priority
   const getAppointmentColors = (appointment: Appointment) => {
-    const color = appointment.doctor_color || '#3b82f6'; // Default blue
-    
-    // 🔍 DEBUG: Log color information
-    console.log('🎨 getAppointmentColors:', {
-      patient: appointment.patient_name,
-      doctor_id: appointment.doctor_id,
-      doctor_name: appointment.doctor_name,
-      doctor_color: appointment.doctor_color,
-      final_color: color
-    });
-    
-    // Convert hex to RGB for opacity
-    const hex = color.replace('#', '');
-    const r = parseInt(hex.substring(0, 2), 16);
-    const g = parseInt(hex.substring(2, 4), 16);
-    const b = parseInt(hex.substring(4, 6), 16);
-    
-    return {
-      background: `rgba(${r}, ${g}, ${b}, 0.15)`, // Light background
-      border: `rgba(${r}, ${g}, ${b}, 0.4)`,      // Medium border
-      hover: `rgba(${r}, ${g}, ${b}, 0.25)`,      // Hover background
-      text: color,                                 // Full color for text
-    };
+    // Use new utility function that prioritizes status colors
+    return getAppointmentColorsByStatus(
+      appointment.status,
+      appointment.doctor_color
+    );
+  };
+
+  // Check if a time slot is blocked by buffer time
+  const isSlotBlockedByBuffer = (date: Date, slotTime: string): { blocked: boolean; reason?: string } => {
+    if (!bufferConfig.enabled) {
+      return { blocked: false };
+    }
+
+    // Get all appointments for this date
+    const dateAppointments = appointments.filter(apt => isSameDay(date, apt.fecha));
+
+    // Check each appointment to see if this slot is in its buffer zone
+    for (const apt of dateAppointments) {
+      const aptTime = formatTime(apt.appointment_time);
+      const duration = 30; // Default 30 min, adjust based on appointment type if available
+
+      const inBuffer = isTimeSlotInBuffer(
+        slotTime,
+        aptTime,
+        duration,
+        bufferConfig,
+        apt.doctor_id,
+        apt.appointment_type_id
+      );
+
+      if (inBuffer) {
+        return { 
+          blocked: true, 
+          reason: `Buffer de ${getBufferTimeLabel(bufferConfig.globalBufferMinutes)} - ${apt.patient_name || 'Cita'}` 
+        };
+      }
+    }
+
+    return { blocked: false };
   };
   
   // Generate emergency slots if needed
@@ -232,27 +308,38 @@ export default function CalendarGrid({
         <div className="grid gap-2">
           {timeSlots.map((slot) => {
             const slotAppointments = getAppointmentsForSlot(currentDate, slot.time);
-            const isAvailable = slot.available && !slot.blocked;
+            const bufferCheck = isSlotBlockedByBuffer(currentDate, slot.time);
+            const isBlocked = slot.blocked || bufferCheck.blocked;
+            const isAvailable = slot.available && !isBlocked;
+            
+            const year = currentDate.getFullYear();
+            const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+            const dayOfMonth = String(currentDate.getDate()).padStart(2, '0');
+            const localDateString = `${year}-${month}-${dayOfMonth}`;
+            
+            const isCurrentDropTarget = isDropTarget(localDateString, slot.time);
+            const isValidDrop = isValidDropTarget(localDateString, slot.time);
+            const dropConflicts = getDropTargetConflicts(localDateString, slot.time);
+            const dropZoneClass = getDropZoneClass(isCurrentDropTarget, isValidDrop, dropConflicts.length > 0);
             
             return (
               <Card 
                 key={slot.id}
                 className={`
-                  p-4 transition-colors cursor-pointer
+                  p-4 transition-all cursor-pointer
                   ${isAvailable ? 'hover:bg-blue-50' : 'bg-gray-50'}
-                  ${slot.blocked ? 'bg-red-50 cursor-not-allowed' : ''}
+                  ${isBlocked ? 'bg-orange-50 cursor-not-allowed' : ''}
+                  ${dropZoneClass}
                 `}
                 onClick={() => {
-                  if (isAvailable && !slot.blocked) {
-                    const year = currentDate.getFullYear();
-                    const month = String(currentDate.getMonth() + 1).padStart(2, '0');
-                    const dayOfMonth = String(currentDate.getDate()).padStart(2, '0');
-                    const localDateString = `${year}-${month}-${dayOfMonth}`;
-                    
-                    // Siempre permitir crear nueva cita, incluso si ya hay citas en este slot
+                  if (isAvailable && !isBlocked) {
                     onSlotClick(localDateString, slot.time);
                   }
                 }}
+                onDragOver={(e) => enableDragAndDrop && handleDragOver(localDateString, slot.time, e)}
+                onDragEnter={(e) => enableDragAndDrop && handleDragEnter(e)}
+                onDragLeave={(e) => enableDragAndDrop && handleDragLeave(e)}
+                onDrop={(e) => enableDragAndDrop && handleDrop(localDateString, slot.time, e)}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -264,10 +351,30 @@ export default function CalendarGrid({
                         Bloqueado
                       </Badge>
                     )}
+
+                    {bufferCheck.blocked && (
+                      <Badge variant="outline" className="text-xs bg-orange-100 text-orange-800 border-orange-300">
+                        ⏱️ Buffer
+                      </Badge>
+                    )}
                     
                     {slotAppointments.length > 0 && (
                       <Badge variant="default" className="text-xs bg-blue-600">
                         {slotAppointments.length} citas
+                      </Badge>
+                    )}
+
+                    {/* Drop zone indicator */}
+                    {isCurrentDropTarget && isValidDrop && (
+                      <Badge variant="outline" className="text-xs bg-green-100 text-green-800 border-green-400">
+                        ✓ Soltar aquí
+                      </Badge>
+                    )}
+
+                    {isCurrentDropTarget && dropConflicts.length > 0 && (
+                      <Badge variant="outline" className="text-xs bg-red-100 text-red-800 border-red-400">
+                        <AlertCircle className="h-3 w-3 mr-1" />
+                        Conflicto
                       </Badge>
                     )}
                   </div>
@@ -305,14 +412,24 @@ export default function CalendarGrid({
                     
                     {slotAppointments.map((appointment: Appointment) => {
                       const colors = getAppointmentColors(appointment);
+                      const dragCheck = canDragAppointment(appointment);
+                      const isDraggable = enableDragAndDrop && dragCheck.canDrag;
+                      
                       return (
                         <div
                           key={appointment.id}
+                          draggable={isDraggable}
+                          onDragStart={(e) => isDraggable && handleDragStart(appointment, e)}
+                          onDragEnd={handleDragEnd}
                           onClick={(e) => {
                             e.stopPropagation();
                             onAppointmentClick(appointment);
                           }}
-                          className="rounded-lg p-3 transition-colors cursor-pointer border"
+                          className={`
+                            rounded-lg p-3 transition-all cursor-pointer border
+                            ${isDraggable ? 'cursor-move hover:shadow-lg' : ''}
+                            ${isDragging && draggedAppointment?.id === appointment.id ? 'opacity-50' : ''}
+                          `}
                           style={{
                             backgroundColor: colors.background,
                             borderColor: colors.border,
@@ -326,6 +443,14 @@ export default function CalendarGrid({
                         >
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
+                              {isDraggable && (
+                                <div title="Arrastrar para mover">
+                                  <GripVertical 
+                                    className="h-4 w-4 opacity-50 hover:opacity-100 transition-opacity cursor-grab" 
+                                    style={{ color: colors.text }}
+                                  />
+                                </div>
+                              )}
                               <User className="h-4 w-4" style={{ color: colors.text }} />
                               <span className="font-medium" style={{ color: colors.text }}>
                                 {appointment.patient_name}
@@ -335,9 +460,28 @@ export default function CalendarGrid({
                               )}
                             </div>
                             
-                            <Badge variant="secondary" style={{ backgroundColor: colors.border, color: colors.text }}>
-                              {appointment.status || 'Programada'}
-                            </Badge>
+                            <div className="flex gap-1">
+                              <Badge 
+                                variant="secondary" 
+                                style={{ 
+                                  backgroundColor: colors.badgeBackground, 
+                                  color: colors.badgeText,
+                                  borderColor: colors.border
+                                }}
+                                className="border"
+                              >
+                                {getStatusIcon(appointment.status)} {getStatusLabel(appointment.status)}
+                              </Badge>
+                              {isRecurringAppointment(appointment) && (
+                                <RecurringBadge pattern={appointment.recurring_pattern} />
+                              )}
+                              {isSyncedWithGoogle(appointment) && (
+                                <GoogleSyncBadge 
+                                  synced={true} 
+                                  eventId={appointment.google_calendar_event_id}
+                                />
+                              )}
+                            </div>
                           </div>
                           
                           <div className="text-sm mb-1" style={{ color: colors.text, opacity: 0.9 }}>
@@ -402,29 +546,48 @@ export default function CalendarGrid({
             
             {weekDays.map((day, dayIndex) => {
               const dayAppointments = getAppointmentsForSlot(day, slot.time);
-              const isAvailable = slot.available && !slot.blocked;
+              const bufferCheck = isSlotBlockedByBuffer(day, slot.time);
+              const isBlocked = slot.blocked || bufferCheck.blocked;
+              const isAvailable = slot.available && !isBlocked;
+              
+              const year = day.getFullYear();
+              const month = String(day.getMonth() + 1).padStart(2, '0');
+              const dayOfMonth = String(day.getDate()).padStart(2, '0');
+              const localDateString = `${year}-${month}-${dayOfMonth}`;
+              
+              const isCurrentDropTarget = isDropTarget(localDateString, slot.time);
+              const isValidDrop = isValidDropTarget(localDateString, slot.time);
+              const dropConflicts = getDropTargetConflicts(localDateString, slot.time);
+              const dropZoneClass = getDropZoneClass(isCurrentDropTarget, isValidDrop, dropConflicts.length > 0);
               
               return (
                 <div 
                   key={`${dayIndex}-${slot.id}`}
                   className={`
-                    relative min-h-[60px] border border-gray-200 rounded-lg p-1 transition-colors group
+                    relative min-h-[60px] border border-gray-200 rounded-lg p-1 transition-all group
                     ${isAvailable ? 'hover:bg-blue-50 cursor-pointer' : 'bg-gray-50'}
-                    ${slot.blocked ? 'bg-red-50 cursor-not-allowed' : ''}
+                    ${isBlocked ? 'bg-orange-50 cursor-not-allowed' : ''}
+                    ${dropZoneClass}
                   `}
                   onClick={() => {
-                    if (isAvailable && !slot.blocked && dayAppointments.length === 0) {
-                      const year = day.getFullYear();
-                      const month = String(day.getMonth() + 1).padStart(2, '0');
-                      const dayOfMonth = String(day.getDate()).padStart(2, '0');
-                      const localDateString = `${year}-${month}-${dayOfMonth}`;
+                    if (isAvailable && !isBlocked && dayAppointments.length === 0) {
                       onSlotClick(localDateString, slot.time);
                     }
                   }}
+                  onDragOver={(e) => enableDragAndDrop && handleDragOver(localDateString, slot.time, e)}
+                  onDragEnter={(e) => enableDragAndDrop && handleDragEnter(e)}
+                  onDragLeave={(e) => enableDragAndDrop && handleDragLeave(e)}
+                  onDrop={(e) => enableDragAndDrop && handleDrop(localDateString, slot.time, e)}
                 >
                   {slot.blocked && (
                     <div className="absolute inset-0 flex items-center justify-center">
                       <span className="text-xs text-red-600">Bloqueado</span>
+                    </div>
+                  )}
+
+                  {bufferCheck.blocked && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-xs text-orange-700">⏱️ Buffer</span>
                     </div>
                   )}
                   
@@ -435,7 +598,7 @@ export default function CalendarGrid({
                   )}
                   
                   {/* Botón "+" cuando hay citas (aparece al hover) */}
-                  {dayAppointments.length > 0 && isAvailable && !slot.blocked && (
+                  {dayAppointments.length > 0 && isAvailable && !isBlocked && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -454,14 +617,24 @@ export default function CalendarGrid({
                   
                   {dayAppointments.map((appointment) => {
                     const colors = getAppointmentColors(appointment);
+                    const dragCheck = canDragAppointment(appointment);
+                    const isDraggable = enableDragAndDrop && dragCheck.canDrag;
+                    
                     return (
                       <div
                         key={appointment.id}
+                        draggable={isDraggable}
+                        onDragStart={(e) => isDraggable && handleDragStart(appointment, e)}
+                        onDragEnd={handleDragEnd}
                         onClick={(e) => {
                           e.stopPropagation();
                           onAppointmentClick(appointment);
                         }}
-                        className="rounded p-1 mb-1 cursor-pointer transition-colors border"
+                        className={`
+                          rounded p-1 mb-1 cursor-pointer transition-all border
+                          ${isDraggable ? 'cursor-move hover:shadow-md' : ''}
+                          ${isDragging && draggedAppointment?.id === appointment.id ? 'opacity-50' : ''}
+                        `}
                         style={{
                           backgroundColor: colors.background,
                           borderColor: colors.border,
@@ -549,12 +722,27 @@ export default function CalendarGrid({
                   }
                 }}
               >
-                <div className={`
-                  text-sm font-medium mb-1
-                  ${isCurrentMonth ? 'text-gray-900' : 'text-gray-400'}
-                  ${isToday ? 'text-blue-600' : ''}
-                `}>
-                  {day.getDate()}
+                <div className="flex items-start justify-between mb-1">
+                  <div className={`
+                    text-sm font-medium
+                    ${isCurrentMonth ? 'text-gray-900' : 'text-gray-400'}
+                    ${isToday ? 'text-blue-600 font-bold' : ''}
+                  `}>
+                    {day.getDate()}
+                    {isToday && <span className="ml-1 text-xs">●</span>}
+                  </div>
+                  
+                  {/* Badge con contador de citas */}
+                  {dayAppointments.length > 0 && (
+                    <div className="flex items-center gap-1">
+                      <Badge 
+                        variant="secondary" 
+                        className="text-xs px-1.5 py-0 h-4 bg-indigo-100 text-indigo-700"
+                      >
+                        {dayAppointments.length}
+                      </Badge>
+                    </div>
+                  )}
                   
                   {/* Botón "+" para agregar cita (aparece al hover) */}
                   {isCurrentMonth && (
@@ -567,10 +755,10 @@ export default function CalendarGrid({
                         const localDateString = `${year}-${month}-${dayOfMonth}`;
                         onSlotClick(localDateString, '09:00');
                       }}
-                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-white rounded-full p-1 shadow-sm border border-blue-300 hover:bg-blue-50"
+                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-white rounded-full p-1 shadow-sm border border-indigo-300 hover:bg-indigo-50"
                       title="Agregar cita"
                     >
-                      <Plus className="h-3 w-3 text-blue-600" />
+                      <Plus className="h-3 w-3 text-indigo-600" />
                     </button>
                   )}
                 </div>
@@ -585,9 +773,10 @@ export default function CalendarGrid({
                           e.stopPropagation();
                           onAppointmentClick(appointment);
                         }}
-                        className="rounded px-1 py-0.5 text-xs truncate cursor-pointer transition-colors"
+                        className="rounded px-1.5 py-1 text-xs truncate cursor-pointer transition-all border"
                         style={{
                           backgroundColor: colors.background,
+                          borderColor: colors.border,
                           color: colors.text,
                         }}
                         onMouseEnter={(e) => {
@@ -596,14 +785,16 @@ export default function CalendarGrid({
                         onMouseLeave={(e) => {
                           e.currentTarget.style.backgroundColor = colors.background;
                         }}
+                        title={`${getStatusLabel(appointment.status)} - ${appointment.patient_name}`}
                       >
+                        <span className="mr-0.5">{getStatusIcon(appointment.status)}</span>
                         {formatTime(appointment.fecha)} {appointment.patient_name}
                       </div>
                     );
                   })}
                   
                   {dayAppointments.length > 3 && (
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-gray-500 font-medium px-1">
                       +{dayAppointments.length - 3} más
                     </div>
                   )}

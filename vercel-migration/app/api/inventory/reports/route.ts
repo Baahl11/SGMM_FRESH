@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     const fromDate = new Date();
     fromDate.setDate(fromDate.getDate() - rangeDays);
 
-    // Fetch movements with related inventory item info
+    // Fetch movements with related inventory item info - FILTER BY USER_ID
     const { data: movements, error: movementsError } = await supabase
       .from('inventory_movements')
       .select(`
@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
         related_record_id,
         inventory_items ( id, nombre, precio_unitario )
       `)
+      .eq('user_id', user.id)
       .gte('created_at', fromDate.toISOString())
       .order('created_at', { ascending: false })
       .limit(1000);

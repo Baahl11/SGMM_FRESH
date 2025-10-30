@@ -272,6 +272,7 @@ export default function TreatmentsPage() {
                       Editar
                     </Button>
                   </Link>
+                  {/* TODO: Implementar página de inventory por tratamiento
                   {(treatment.costo_unitario || 0) > 0 && (
                     <Link href={`/treatments/${treatment.id}/inventory`}>
                       <Button variant="outline" size="sm" className="hover:bg-indigo-50 hover:border-indigo-200">
@@ -279,6 +280,7 @@ export default function TreatmentsPage() {
                       </Button>
                     </Link>
                   )}
+                  */}
                   <Button 
                     variant="outline" 
                     size="sm"

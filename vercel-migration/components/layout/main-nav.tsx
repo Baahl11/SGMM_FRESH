@@ -225,9 +225,9 @@ export function MainNav() {
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/settings/facturacion" className="flex items-center">
+                <Link href="/configuracion" className="flex items-center">
                   <Settings className="mr-2 h-4 w-4" />
-                  Configuración
+                  Configuración (10 Features)
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />

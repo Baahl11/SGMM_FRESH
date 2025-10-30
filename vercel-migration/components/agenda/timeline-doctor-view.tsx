@@ -50,6 +50,31 @@ export default function TimelineDoctorView({
 }: TimelineDoctorViewProps) {
   const [selectedDoctorId, setSelectedDoctorId] = useState<string>(doctors[0]?.id || '');
 
+  // Si no hay doctores, mostrar mensaje
+  if (!doctors || doctors.length === 0) {
+    return (
+      <Card>
+        <CardContent className="py-12">
+          <div className="text-center space-y-4">
+            <User className="h-12 w-12 text-gray-400 mx-auto" />
+            <div>
+              <h3 className="text-lg font-medium text-gray-900">No hay doctores registrados</h3>
+              <p className="text-sm text-gray-500 mt-2">
+                Primero debes registrar doctores en la sección de configuración
+              </p>
+            </div>
+            <button
+              onClick={() => window.location.href = '/dashboard/settings/doctors'}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+            >
+              Ir a Configuración de Doctores
+            </button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   const selectedDoctor = doctors.find(d => d.id === selectedDoctorId);
 
   // Filter appointments for selected doctor and current date

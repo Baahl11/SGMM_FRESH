@@ -7,6 +7,12 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
+    
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
     const { data: promotions, error } = await supabase
       .from('promotions')
@@ -23,6 +29,7 @@ export async function GET(request: NextRequest) {
           )
         )
       `)
+      .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -44,6 +51,13 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
+    
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
 
     const {
@@ -63,7 +77,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create promotion
+    console.log('📦 Creating promotion for user:', user.id);
+
+    // Create promotion with user_id
     const { data: promotion, error: promotionError } = await supabase
       .from('promotions')
       .insert({
@@ -71,7 +87,8 @@ export async function POST(request: NextRequest) {
         descripcion,
         precio_total: parseFloat(precio_total),
         descuento_porcentaje: descuento_porcentaje ? parseFloat(descuento_porcentaje) : 0,
-        activo
+        activo,
+        user_id: user.id
       })
       .select()
       .single();

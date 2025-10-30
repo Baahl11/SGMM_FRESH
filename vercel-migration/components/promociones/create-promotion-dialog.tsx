@@ -12,14 +12,14 @@ import { Loader2, Plus, Trash2, Calculator, CreditCard } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 
 interface Treatment {
-  id: number
+  id: string
   nombre: string
   precio_base: number
   costo_unitario: number
 }
 
 interface SelectedTreatment {
-  treatment_id: number
+  treatment_id: string
   nombre: string
   precio_base: number
   costo_unitario: number
@@ -61,7 +61,7 @@ export function CreatePromotionDialog({ open, onOpenChange, onSuccess }: CreateP
   const [selectedTreatmentId, setSelectedTreatmentId] = useState<string>('')
   const [paymentMethod, setPaymentMethod] = useState<string>('efectivo')
   const [creditCard, setCreditCard] = useState<string>('BBVA')
-  const [msi, setMsi] = useState<string>('')
+  const [msi, setMsi] = useState<string>('none')
   const [loading, setLoading] = useState(false)
   const [loadingTreatments, setLoadingTreatments] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -76,13 +76,11 @@ export function CreatePromotionDialog({ open, onOpenChange, onSuccess }: CreateP
   const loadTreatments = async () => {
     setLoadingTreatments(true)
     try {
-      const supabase = createClient()
-      const { data, error } = await supabase
-        .from('treatments')
-        .select('id, nombre, precio_base, costo_unitario')
-        .order('nombre')
-
-      if (error) throw error
+      const response = await fetch('/api/treatments')
+      if (!response.ok) {
+        throw new Error('Error al cargar tratamientos')
+      }
+      const data = await response.json()
       setTreatments(data || [])
     } catch (err) {
       console.error('Error loading treatments:', err)
@@ -95,7 +93,7 @@ export function CreatePromotionDialog({ open, onOpenChange, onSuccess }: CreateP
   const addTreatment = () => {
     if (!selectedTreatmentId) return
 
-    const treatment = treatments.find(t => t.id === parseInt(selectedTreatmentId))
+    const treatment = treatments.find(t => t.id === selectedTreatmentId)
     if (!treatment) return
 
     // Check if already added
@@ -118,11 +116,11 @@ export function CreatePromotionDialog({ open, onOpenChange, onSuccess }: CreateP
     setError(null)
   }
 
-  const removeTreatment = (treatmentId: number) => {
+  const removeTreatment = (treatmentId: string) => {
     setSelectedTreatments(selectedTreatments.filter(t => t.treatment_id !== treatmentId))
   }
 
-  const updateQuantity = (treatmentId: number, cantidad: number) => {
+  const updateQuantity = (treatmentId: string, cantidad: number) => {
     if (cantidad < 1) return
     setSelectedTreatments(
       selectedTreatments.map(t =>
@@ -155,7 +153,7 @@ export function CreatePromotionDialog({ open, onOpenChange, onSuccess }: CreateP
     const card = CREDIT_CARDS.find(c => c.value === creditCard)
     commissionRate = card?.commission || 0
     
-    if (msi) {
+    if (msi && msi !== 'none') {
       const msiOption = MSI_OPTIONS.find(m => m.value === msi)
       commissionRate = msiOption?.commission || commissionRate
     }
@@ -299,11 +297,13 @@ export function CreatePromotionDialog({ open, onOpenChange, onSuccess }: CreateP
                   <SelectValue placeholder="Seleccionar tratamiento..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {treatments.map((treatment) => (
-                    <SelectItem key={treatment.id} value={treatment.id.toString()}>
-                      {treatment.nombre} - ${treatment.precio_base.toFixed(2)}
-                    </SelectItem>
-                  ))}
+                  {treatments
+                    .filter(t => !selectedTreatments.some(st => st.treatment_id === t.id))
+                    .map((treatment) => (
+                      <SelectItem key={treatment.id} value={treatment.id}>
+                        {treatment.nombre} - ${treatment.precio_base.toFixed(2)}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
               <Button
@@ -458,7 +458,7 @@ export function CreatePromotionDialog({ open, onOpenChange, onSuccess }: CreateP
                         <SelectValue placeholder="Sin MSI" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Sin MSI</SelectItem>
+                        <SelectItem value="none">Sin MSI</SelectItem>
                         {MSI_OPTIONS.map((option) => (
                           <SelectItem key={option.value} value={option.value}>
                             {option.label} ({option.commission}%)

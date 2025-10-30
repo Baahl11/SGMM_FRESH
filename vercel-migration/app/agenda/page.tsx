@@ -23,6 +23,7 @@ import AppLayout from "@/components/layout/app-layout";
 import CalendarGrid from "@/components/agenda/calendar-grid";
 import AppointmentModal from "@/components/agenda/appointment-modal";
 import TimeSlotManager from "@/components/agenda/time-slot-manager";
+import AgendaConfigModal from "@/components/agenda/agenda-config-modal";
 import TimelineDoctorView from "@/components/agenda/timeline-doctor-view";
 import TimelineConsultorioView from "@/components/agenda/timeline-consultorio-view";
 import GridMultiDoctorView from "@/components/agenda/grid-multi-doctor-view";
@@ -69,6 +70,7 @@ export default function AgendaPage() {
   const [workingHours, setWorkingHours] = useState<any>(null);
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const [showTimeSlotManager, setShowTimeSlotManager] = useState(false);
+  const [showConfigModal, setShowConfigModal] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<{ date: string; time: string } | null>(null);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   
@@ -86,28 +88,49 @@ export default function AgendaPage() {
   // 🆕 Load filter data
   const loadFilters = async () => {
     try {
+      console.log('🔍 [FILTERS] Loading doctors, consultorios, and appointment types...');
       const [doctorsRes, consultoriosRes, typesRes] = await Promise.all([
         fetch('/api/doctors'),
         fetch('/api/consultorios'),
         fetch('/api/appointment-types')
       ]);
       
+      console.log('🔍 [FILTERS] Doctors response status:', doctorsRes.status);
       if (doctorsRes.ok) {
         const data = await doctorsRes.json();
-        setDoctors(Array.isArray(data) ? data.filter((d: any) => d.activo !== false) : []);
+        console.log('🔍 [FILTERS] Doctors data:', data);
+        const activeDoctors = Array.isArray(data) ? data.filter((d: any) => d.activo !== false) : [];
+        console.log('🔍 [FILTERS] Active doctors count:', activeDoctors.length);
+        setDoctors(activeDoctors);
+      } else {
+        console.error('❌ [FILTERS] Doctors endpoint returned error:', doctorsRes.status);
+        setDoctors([]);
       }
       
+      console.log('🔍 [FILTERS] Consultorios response status:', consultoriosRes.status);
       if (consultoriosRes.ok) {
         const data = await consultoriosRes.json();
+        console.log('🔍 [FILTERS] Consultorios data count:', Array.isArray(data) ? data.length : 0);
         setConsultorios(Array.isArray(data) ? data.filter((c: any) => c.activo !== false) : []);
+      } else {
+        console.error('❌ [FILTERS] Consultorios endpoint returned error:', consultoriosRes.status);
+        setConsultorios([]);
       }
       
+      console.log('🔍 [FILTERS] Appointment types response status:', typesRes.status);
       if (typesRes.ok) {
         const data = await typesRes.json();
+        console.log('🔍 [FILTERS] Appointment types data count:', Array.isArray(data) ? data.length : 0);
         setAppointmentTypes(Array.isArray(data) ? data.filter((t: any) => t.activo !== false) : []);
+      } else {
+        console.error('❌ [FILTERS] Appointment types endpoint returned error:', typesRes.status);
+        setAppointmentTypes([]);
       }
     } catch (err) {
-      console.error('❌ Error loading filters:', err);
+      console.error('❌ [FILTERS] Error loading filters:', err);
+      setDoctors([]);
+      setConsultorios([]);
+      setAppointmentTypes([]);
     }
   };
 
@@ -509,6 +532,40 @@ export default function AgendaPage() {
     }
   };
 
+  // 🆕 Handler for drag-and-drop appointment move
+  const handleAppointmentMove = async (appointmentId: number, newDate: string, newTime: string) => {
+    console.log('🎯 [DRAG] Moving appointment', appointmentId, 'to', newDate, newTime);
+    try {
+      // Combine date and time into ISO string
+      const [hours, minutes] = newTime.split(':');
+      const appointmentDateTime = new Date(newDate);
+      appointmentDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+      
+      const response = await fetch(`/api/appointments/${appointmentId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          appointment_date: appointmentDateTime.toISOString(),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      // Reload appointments to show the change
+      await loadAppointments();
+      console.log('✅ [DRAG] Appointment moved successfully');
+    } catch (error) {
+      console.error('❌ [DRAG] Error moving appointment:', error);
+      alert('Error al mover la cita');
+      // Reload to revert the optimistic update
+      await loadAppointments();
+    }
+  };
+
   // 🆕 Filter appointments
   const filteredAppointments = appointments.filter(apt => {
     if (filterDoctor !== 'all' && apt.doctor_id !== filterDoctor) return false;
@@ -580,7 +637,7 @@ export default function AgendaPage() {
                 </Button>
                 <Button 
                   variant="outline" 
-                  onClick={() => window.location.href = '/dashboard/settings/doctors'}
+                  onClick={() => setShowConfigModal(true)}
                   className="flex items-center gap-2"
                 >
                   <Settings className="h-4 w-4" />
@@ -759,6 +816,8 @@ export default function AgendaPage() {
                     timeSlots={timeSlots.length > 0 ? timeSlots : forceTimeSlots}
                     onSlotClick={handleSlotClick}
                     onAppointmentClick={handleAppointmentClick}
+                    onAppointmentMove={handleAppointmentMove}
+                    enableDragAndDrop={true}
                   />
                 )}
                 
@@ -855,6 +914,14 @@ export default function AgendaPage() {
               setRefreshTrigger(prev => prev + 1);
               console.log('🔍 Forced refresh trigger');
             }}
+          />
+        )}
+
+        {/* Configuración Modal con TODAS las features */}
+        {showConfigModal && (
+          <AgendaConfigModal
+            isOpen={showConfigModal}
+            onClose={() => setShowConfigModal(false)}
           />
         )}
       </div>

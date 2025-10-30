@@ -17,10 +17,11 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '100')
     const search = searchParams.get('search')
 
-    // Build query
+    // Build query - FILTER BY USER_ID
     let query = supabase
       .from('inventory_items')
       .select('*')
+      .eq('user_id', user.id)
 
     // Apply filters
     if (search) {

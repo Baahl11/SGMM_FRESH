@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabase
       .from('inventory_items')
       .select('*')
+      .eq('user_id', user.id)
       .order('stock_actual', { ascending: true })
       .limit(500);
 

@@ -62,7 +62,6 @@ export async function PUT(
       .update({
         nombre,
         descripcion,
-        precio: precio || 0,
         precio_base: precio || 0,
         costo_unitario: costo_unitario || 0,
         duracion_minutos: duracion_minutos || 30,

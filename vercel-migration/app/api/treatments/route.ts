@@ -40,7 +40,9 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { nombre, descripcion, precio, duracion_minutos, categoria, activo = true } = body;
+    console.log('📦 Received body:', JSON.stringify(body, null, 2));
+    
+    const { nombre, descripcion, precio, costo_unitario, duracion_minutos, categoria, activo = true } = body;
 
     // Validate required fields (descripcion is optional)
     if (!nombre || precio === undefined) {
@@ -50,29 +52,66 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Insert new treatment with user_id (only fields that exist in the table)
+    // Start with absolute minimum fields that MUST exist
+    const insertData: any = {
+      nombre: nombre,
+      user_id: user.id
+    };
+
+    // Add precio_base (the actual column name in DB, not precio)
+    if (precio !== undefined && precio !== null) {
+      insertData.precio_base = parseFloat(precio);
+    }
+
+    // Add optional fields only if they have values
+    if (descripcion) {
+      insertData.descripcion = descripcion;
+    }
+    if (costo_unitario !== undefined && costo_unitario !== null) {
+      insertData.costo_unitario = parseFloat(costo_unitario);
+    }
+    if (duracion_minutos !== undefined && duracion_minutos !== null) {
+      insertData.duracion_minutos = parseInt(duracion_minutos);
+    }
+    if (activo !== undefined) {
+      insertData.activo = Boolean(activo);
+    }
+
+    console.log('💾 Attempting to insert:', JSON.stringify(insertData, null, 2));
+
+    // Insert new treatment with user_id
     const { data: treatment, error } = await supabase
       .from('treatments')
-      .insert([{
-        nombre,
-        descripcion: descripcion || null,
-        precio_base: precio,
-        duracion_minutos: duracion_minutos || 30,
-        activo,
-        user_id: user.id
-      }])
+      .insert([insertData])
       .select('*')
       .single();
 
     if (error) {
-      console.error('Error creating treatment:', error);
-      return NextResponse.json({ error: 'Error creating treatment' }, { status: 500 });
+      console.error('❌ Supabase error creating treatment:', error);
+      console.error('Error details:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      });
+      return NextResponse.json({ 
+        error: 'Error creating treatment',
+        details: error.message,
+        hint: error.hint,
+        code: error.code
+      }, { status: 500 });
     }
 
+    console.log('✅ Treatment created successfully:', treatment?.id);
     return NextResponse.json(treatment, { status: 201 });
 
-  } catch (error) {
-    console.error('Unexpected error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  } catch (error: any) {
+    console.error('💥 Unexpected error:', error);
+    console.error('Stack trace:', error.stack);
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    }, { status: 500 });
   }
 }

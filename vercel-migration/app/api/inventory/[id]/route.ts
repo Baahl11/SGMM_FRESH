@@ -87,6 +87,22 @@ export async function DELETE(
 
     const supabase = await createClient()
     
+    console.log('🗑️ Deleting inventory item:', params.id, 'for user:', user.id)
+    
+    // First delete all treatment_inventory_items that reference this inventory item
+    const { error: treatmentItemsError } = await supabase
+      .from('treatment_inventory_items')
+      .delete()
+      .eq('inventory_item_id', params.id)
+
+    if (treatmentItemsError) {
+      console.error('❌ Error deleting treatment_inventory_items:', treatmentItemsError)
+      // Continue anyway - the FK constraint might not exist or items might not be referenced
+    } else {
+      console.log('✅ Deleted related treatment_inventory_items')
+    }
+
+    // Now delete the inventory item itself
     const { error } = await supabase
       .from('inventory_items')
       .delete()
@@ -94,13 +110,14 @@ export async function DELETE(
       .eq('user_id', user.id)
 
     if (error) {
-      console.error('Error deleting inventory item:', error)
+      console.error('❌ Error deleting inventory item:', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
+    console.log('✅ Inventory item deleted successfully')
     return NextResponse.json({ message: 'Inventory item deleted successfully' })
   } catch (error) {
-    console.error('Error in inventory DELETE:', error)
+    console.error('❌ Error in inventory DELETE:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
