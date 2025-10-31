@@ -164,11 +164,11 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     max_locations: limits.max_locations,
     trial_start: trialStart?.toISOString() || null,
     trial_end: trialEnd?.toISOString() || null,
-    current_period_start: stripeSubscription?.current_period_start 
-      ? new Date(stripeSubscription.current_period_start * 1000).toISOString() 
+    current_period_start: stripeSubscription 
+      ? new Date((stripeSubscription as any).current_period_start * 1000).toISOString() 
       : null,
-    current_period_end: stripeSubscription?.current_period_end 
-      ? new Date(stripeSubscription.current_period_end * 1000).toISOString() 
+    current_period_end: stripeSubscription 
+      ? new Date((stripeSubscription as any).current_period_end * 1000).toISOString() 
       : null,
     updated_at: new Date().toISOString(),
   }
@@ -197,8 +197,8 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   if (stripeSubscription) {
     updateUserData.stripe_subscription_id = stripeSubscription.id
-    updateUserData.subscription_start_date = new Date(stripeSubscription.current_period_start * 1000).toISOString()
-    updateUserData.subscription_end_date = new Date(stripeSubscription.current_period_end * 1000).toISOString()
+    updateUserData.subscription_start_date = new Date((stripeSubscription as any).current_period_start * 1000).toISOString()
+    updateUserData.subscription_end_date = new Date((stripeSubscription as any).current_period_end * 1000).toISOString()
   } else if (mode === 'payment') {
     // Lifetime - pago único
     updateUserData.subscription_start_date = new Date().toISOString()
