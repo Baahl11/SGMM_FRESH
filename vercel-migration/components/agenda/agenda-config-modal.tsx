@@ -2,6 +2,8 @@
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { ExternalLink, Users } from "lucide-react";
 import BufferTimeSettings from '@/components/settings/buffer-time-settings';
 import { WaitlistSettingsComponent } from '@/components/settings/waitlist-settings';
 import { MobileDragDropSettings } from '@/components/settings/mobile-drag-drop-settings';
@@ -9,6 +11,7 @@ import { BookingLockSettings } from '@/components/settings/booking-lock-settings
 import GoogleCalendarSettings from '@/components/settings/google-calendar-settings';
 import { SmsReminderSettings } from '@/components/settings/sms-reminder-settings';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { 
   loadMobileDragConfig, 
   saveMobileDragConfig, 
@@ -31,10 +34,16 @@ interface AgendaConfigModalProps {
 }
 
 export default function AgendaConfigModal({ isOpen, onClose }: AgendaConfigModalProps) {
+  const router = useRouter();
   const [mobileDragConfig, setMobileDragConfig] = useState<MobileDragConfig | null>(null);
   const [bookingLockConfig, setBookingLockConfig] = useState<BookingLockConfig | null>(null);
   const [smsConfig, setSmsConfig] = useState<SmsReminderConfig | null>(null);
   const [settings, setSettings] = useState<any>({});
+
+  const goToFullSettings = () => {
+    onClose();
+    router.push('/dashboard/settings/doctors');
+  };
 
   useEffect(() => {
     // Load all configs on mount (client-side only)
@@ -83,7 +92,19 @@ export default function AgendaConfigModal({ isOpen, onClose }: AgendaConfigModal
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold">Configuración de Agenda</DialogTitle>
+          <DialogTitle className="text-2xl font-bold flex items-center justify-between">
+            <span>Configuración de Agenda</span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={goToFullSettings}
+              className="gap-2"
+            >
+              <Users className="h-4 w-4" />
+              Configurar Doctores
+              <ExternalLink className="h-3 w-3" />
+            </Button>
+          </DialogTitle>
         </DialogHeader>
         
         <Tabs defaultValue="general" className="w-full">

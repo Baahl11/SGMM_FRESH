@@ -7,11 +7,29 @@ export type ReminderTiming = '24h' | '12h' | '6h' | '2h' | '1h' | 'custom';
 
 export type ReminderStatus = 'pending' | 'sent' | 'delivered' | 'failed' | 'cancelled';
 
-export type SmsProvider = 'twilio' | 'messagebird' | 'vonage' | 'manual';
+export type SmsProvider = 'twilio' | 'messagebird' | 'plivo' | 'manual';
+
+export interface SmsCredentials {
+  // Twilio
+  account_sid?: string;
+  auth_token?: string;
+  phone_number?: string;
+  
+  // MessageBird
+  api_key?: string;
+  originator?: string;
+  
+  // Plivo
+  auth_id?: string;
+  
+  // Vonage/Nexmo
+  api_secret?: string;
+}
 
 export interface SmsReminderConfig {
   enabled: boolean;
   provider: SmsProvider;
+  credentials?: SmsCredentials;
   default_timings: ReminderTiming[];
   send_confirmation: boolean; // Send confirmation when appointment is booked
   send_day_before: boolean;
@@ -150,25 +168,29 @@ export const SMS_PROVIDERS = {
     name: 'Twilio',
     requires: ['account_sid', 'auth_token', 'phone_number'],
     pricing: '$0.0075 por SMS',
-    features: ['Entrega confirmada', 'Respuestas bidireccionales', 'URLs cortas']
+    features: ['Entrega confirmada', 'Respuestas bidireccionales', 'URLs cortas'],
+    setup_url: 'https://console.twilio.com'
   },
   messagebird: {
     name: 'MessageBird',
-    requires: ['api_key'],
+    requires: ['api_key', 'originator'],
     pricing: '$0.006 por SMS',
-    features: ['Multi-país', 'Número virtual', 'APIs REST']
+    features: ['Multi-país', 'Número virtual', 'APIs REST'],
+    setup_url: 'https://dashboard.messagebird.com'
   },
-  vonage: {
-    name: 'Vonage (Nexmo)',
-    requires: ['api_key', 'api_secret'],
-    pricing: '$0.0057 por SMS',
-    features: ['Global', 'Verificación 2FA', 'APIs avanzadas']
+  plivo: {
+    name: 'Plivo',
+    requires: ['auth_id', 'auth_token', 'phone_number'],
+    pricing: '$0.0035 por SMS',
+    features: ['Económico', 'Multi-región', 'APIs simples'],
+    setup_url: 'https://console.plivo.com'
   },
   manual: {
     name: 'Manual',
     requires: [],
     pricing: 'Gratis',
-    features: ['Sin integración', 'Copiar y pegar', 'Para testing']
+    features: ['Sin integración', 'Copiar y pegar', 'Para testing'],
+    setup_url: ''
   }
 } as const;
 
@@ -463,7 +485,7 @@ export function estimateMonthlyCost(
   const pricing: Record<SmsProvider, number> = {
     twilio: 0.0075,
     messagebird: 0.006,
-    vonage: 0.0057,
+    plivo: 0.0035,
     manual: 0
   };
   

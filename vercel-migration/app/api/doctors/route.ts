@@ -35,7 +35,8 @@ export async function GET() {
     }
 
     console.log(`✅ [doctors] Found ${doctors?.length || 0} doctors`);
-    return NextResponse.json({ doctors: doctors || [] })
+    // Return array directly for compatibility with frontend
+    return NextResponse.json(doctors || [])
   } catch (error) {
     console.error('❌ [doctors] Unexpected error:', error)
     return NextResponse.json(

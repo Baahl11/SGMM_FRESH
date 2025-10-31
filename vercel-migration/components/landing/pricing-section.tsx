@@ -34,18 +34,19 @@ const plans: readonly StandardPlan[] = [
     name: "Básico",
     planId: "basico",
     description: "Perfecto para consultorios pequeños",
-    monthlyPrice: 499,
-    annualPrice: 4990,
+    monthlyPrice: 599,
+    annualPrice: 5990,
     icon: Sparkles,
     gradient: "from-blue-500 to-cyan-500",
     features: [
-      "Hasta 2 doctores",
+      "1 doctor",
       "1 consultorio",
+      "200 citas/mes",
+      "20 items de inventario",
+      "10 tipos de tratamientos",
       "Agenda con 4 vistas",
       "Gestión de pacientes",
-      "Tipos de cita ilimitados",
       "Horarios automáticos",
-      "Excepciones y vacaciones",
       "Reportes básicos",
       "Soporte por email"
     ],
@@ -64,9 +65,10 @@ const plans: readonly StandardPlan[] = [
     features: [
       "Hasta 10 doctores",
       "5 consultorios",
+      "Citas ilimitadas",
+      "Inventario ilimitado",
+      "Tratamientos ilimitados",
       "Todo del plan Básico",
-      "Inventario médico completo",
-      "Gestión de tratamientos",
       "Bundles y paquetes",
       "Reportes avanzados",
       "Control de gastos fijos",
@@ -105,11 +107,11 @@ const plans: readonly StandardPlan[] = [
 ];
 
 const lifetimeOffer = {
-  price: 19999,
+  price: 19990,
   oldPrice: 24999,
-  // Ahorro comparado con Plan Pro anual durante 5 años: $999 × 12 meses × 5 años = $59,940
+  // Ahorro comparado con Plan Pro anual durante 5 años: $9,990/año × 5 años = $49,950
   yearlyProCost: 9990, // Costo anual del plan Pro
-  fiveYearSavings: 39951, // (9990 × 5) - 19999 = 29,951 (redondeado a ~40k para marketing)
+  fiveYearSavings: 29960, // (9990 × 5) - 19990 = 29,960
   included: [
     "Todas las funcionalidades del plan Pro",
     "Actualizaciones de por vida sin costo adicional",
