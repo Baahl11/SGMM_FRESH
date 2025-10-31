@@ -98,6 +98,16 @@ export async function middleware(request: NextRequest) {
   // ========================================
   if (isProtectedRoute && user) {
     try {
+      // Permitir acceso a /select-trial-plan y /trial-success sin verificar suscripción
+      const onboardingPaths = ['/select-trial-plan', '/trial-success']
+      const isOnboarding = onboardingPaths.some(path => 
+        request.nextUrl.pathname.startsWith(path)
+      )
+      
+      if (isOnboarding) {
+        return response
+      }
+
       // Obtener suscripción del usuario
       const { data: subscription } = await supabase
         .from('subscriptions')
@@ -106,14 +116,11 @@ export async function middleware(request: NextRequest) {
         .in('status', ['active', 'trialing'])
         .single()
 
-      // Si no tiene suscripción activa, redirigir a pricing
+      // Si no tiene suscripción activa, redirigir a selección de plan
       if (!subscription) {
-        // Permitir acceso a /settings para que pueda configurar su plan
-        if (!request.nextUrl.pathname.startsWith('/settings')) {
-          const pricingUrl = new URL('/pricing', request.url)
-          pricingUrl.searchParams.set('reason', 'no_subscription')
-          return NextResponse.redirect(pricingUrl)
-        }
+        const selectPlanUrl = new URL('/select-trial-plan', request.url)
+        selectPlanUrl.searchParams.set('reason', 'no_subscription')
+        return NextResponse.redirect(selectPlanUrl)
       }
 
       // Rutas que requieren Plan Pro (no Plan Básico)

@@ -123,28 +123,91 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   console.log(`💰 Determined tier: ${tier} from priceId: ${priceId}`)
 
-  // Actualizar el usuario en la tabla users
-  const updateData: any = {
+  // Si es subscription, obtener detalles completos
+  let stripeSubscription: Stripe.Subscription | null = null
+  let subscriptionStatus = 'active'
+  let trialStart: Date | null = null
+  let trialEnd: Date | null = null
+
+  if (mode === 'subscription' && session.subscription) {
+    stripeSubscription = await stripe.subscriptions.retrieve(session.subscription as string)
+    subscriptionStatus = stripeSubscription.status
+    
+    // Verificar si está en trial
+    if (stripeSubscription.trial_start && stripeSubscription.trial_end) {
+      trialStart = new Date(stripeSubscription.trial_start * 1000)
+      trialEnd = new Date(stripeSubscription.trial_end * 1000)
+      subscriptionStatus = 'trialing'
+      console.log(`🎉 Trial active: ${trialStart.toISOString()} to ${trialEnd.toISOString()}`)
+    }
+  }
+
+  // Determinar features y límites según el tier
+  const tierLimits = {
+    basico: { max_doctors: 1, max_locations: 1 },
+    pro: { max_doctors: 10, max_locations: 5 },
+    enterprise: { max_doctors: 999, max_locations: 999 },
+    lifetime: { max_doctors: 999, max_locations: 999 },
+  }
+
+  const limits = tierLimits[tier]
+
+  // Actualizar o crear registro en la tabla subscriptions
+  const subscriptionData: any = {
+    user_id: userId,
+    plan_tier: tier === 'lifetime' ? 'enterprise' : tier,
+    status: subscriptionStatus,
+    stripe_customer_id: customerId,
+    stripe_subscription_id: stripeSubscription?.id || null,
+    stripe_price_id: priceId,
+    max_doctors: limits.max_doctors,
+    max_locations: limits.max_locations,
+    trial_start: trialStart?.toISOString() || null,
+    trial_end: trialEnd?.toISOString() || null,
+    current_period_start: stripeSubscription?.current_period_start 
+      ? new Date(stripeSubscription.current_period_start * 1000).toISOString() 
+      : null,
+    current_period_end: stripeSubscription?.current_period_end 
+      ? new Date(stripeSubscription.current_period_end * 1000).toISOString() 
+      : null,
+    updated_at: new Date().toISOString(),
+  }
+
+  // Usar upsert para crear o actualizar
+  const { error: subError } = await supabaseAdmin
+    .from('subscriptions')
+    .upsert(subscriptionData, {
+      onConflict: 'user_id',
+      ignoreDuplicates: false,
+    })
+
+  if (subError) {
+    console.error('❌ Error upserting subscription:', subError)
+  } else {
+    console.log(`✅ Subscription updated for user ${userId}: ${tier} (${subscriptionStatus})`)
+  }
+
+  // También actualizar tabla users (legacy, para compatibilidad)
+  const updateUserData: any = {
     subscription_tier: tier,
-    subscription_status: 'active',
+    subscription_status: subscriptionStatus,
     stripe_customer_id: customerId,
     updated_at: new Date().toISOString(),
   }
 
-  if (mode === 'subscription' && session.subscription) {
-    const subscription = await stripe.subscriptions.retrieve(session.subscription as string)
-    updateData.stripe_subscription_id = subscription.id
-    updateData.subscription_start_date = new Date((subscription as any).current_period_start * 1000).toISOString()
-    updateData.subscription_end_date = new Date((subscription as any).current_period_end * 1000).toISOString()
+  if (stripeSubscription) {
+    updateUserData.stripe_subscription_id = stripeSubscription.id
+    updateUserData.subscription_start_date = new Date(stripeSubscription.current_period_start * 1000).toISOString()
+    updateUserData.subscription_end_date = new Date(stripeSubscription.current_period_end * 1000).toISOString()
   } else if (mode === 'payment') {
     // Lifetime - pago único
-    updateData.subscription_start_date = new Date().toISOString()
-    updateData.subscription_end_date = null // Sin fecha de fin
+    updateUserData.subscription_start_date = new Date().toISOString()
+    updateUserData.subscription_end_date = null
   }
 
   const { error } = await supabaseAdmin
     .from('users')
-    .update(updateData)
+    .update(updateUserData)
     .eq('id', userId)
 
   if (error) {

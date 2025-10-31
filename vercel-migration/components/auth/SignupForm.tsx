@@ -64,13 +64,13 @@ export function SignupForm() {
         }
 
         toast.success('¡Cuenta creada exitosamente!', {
-          description: 'Revisa tu email para confirmar tu cuenta'
+          description: 'Ahora selecciona tu plan para comenzar'
         })
         
-        // Redirect a login después de 2 segundos
+        // Redirigir a selección de plan para iniciar trial
         setTimeout(() => {
-          router.push('/auth/login')
-        }, 2000)
+          router.push('/select-trial-plan')
+        }, 1500)
       }
     } catch (error) {
       console.error('Signup error:', error)
