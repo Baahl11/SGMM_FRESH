@@ -117,7 +117,7 @@ export function TestimonialsSection() {
             </div>
             <div className="w-px h-12 bg-slate-300" />
             <div>
-              <div className="text-2xl font-bold text-slate-900 mb-1">15 días</div>
+              <div className="text-2xl font-bold text-slate-900 mb-1">7 días</div>
               <div className="text-sm text-slate-600">Prueba gratis</div>
             </div>
             <div className="w-px h-12 bg-slate-300" />

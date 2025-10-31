@@ -210,7 +210,7 @@ export function PricingSection() {
         <div className="text-center max-w-3xl mx-auto mb-16">
           <div className="inline-flex items-center justify-center px-4 py-1.5 mb-6 text-sm font-medium bg-blue-500/10 text-blue-300 rounded-full border border-blue-500/20">
             <span className="w-2 h-2 bg-blue-400 rounded-full mr-2 animate-pulse" />
-            15 días gratis, cancela cuando quieras
+            7 días gratis, cancela cuando quieras
           </div>
 
           <h2 className="text-4xl lg:text-5xl font-bold text-white mb-6">

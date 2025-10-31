@@ -24,7 +24,7 @@ export function HeroSection() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
               </span>
-              <span className="text-sm font-medium">🚀 Programa Beta • 15 días prueba gratis</span>
+              <span className="text-sm font-medium">🚀 Programa Beta • 7 días prueba gratis</span>
             </div>
 
             {/* Heading */}
@@ -93,7 +93,7 @@ export function HeroSection() {
                   size="lg" 
                   className="w-full sm:w-auto bg-white text-blue-600 hover:bg-gray-100 text-lg px-8 py-6 font-semibold shadow-xl hover:shadow-2xl transition-all"
                 >
-                  🎉 Prueba Gratis 15 Días
+                  🎉 Prueba Gratis 7 Días
                 </Button>
               </Link>
               <Link href="/auth/signin">

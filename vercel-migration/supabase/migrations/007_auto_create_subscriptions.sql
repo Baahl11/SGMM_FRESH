@@ -69,7 +69,9 @@ BEGIN
     max_locations,
     features,
     status,
-    stripe_price_id
+    stripe_price_id,
+    trial_start,
+    trial_end
   )
   SELECT 
     NEW.id,
@@ -78,7 +80,9 @@ BEGIN
     1,
     '["basic_scheduling", "basic_patients"]'::jsonb,
     'trialing',
-    'price_basico_default'
+    'price_basico_default',
+    NOW(),
+    NOW() + INTERVAL '7 days'
   WHERE NOT EXISTS (
     SELECT 1 FROM subscriptions WHERE user_id = NEW.id
   );

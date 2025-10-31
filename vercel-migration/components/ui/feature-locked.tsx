@@ -95,7 +95,7 @@ export function FeatureLocked({ feature, requiredPlan, open, onOpenChange }: Fea
           {/* Precio */}
           <div className="text-center">
             <p className="text-3xl font-bold text-gray-900">{planInfo.price}</p>
-            <p className="text-sm text-gray-600 mt-1">+ 15 días de prueba gratis</p>
+            <p className="text-sm text-gray-600 mt-1">+ 7 días de prueba gratis</p>
           </div>
 
           {/* Features incluidas */}
