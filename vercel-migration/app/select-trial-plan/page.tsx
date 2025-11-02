@@ -123,13 +123,13 @@ function SelectTrialPlanContent() {
         <div className="text-center mb-12">
           <Badge className="mb-4 bg-green-500 text-white">🎉 ¡Bienvenido a AgendaMedPro!</Badge>
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Selecciona tu Plan
+            Comienza tu Prueba Gratis
           </h1>
           <p className="text-xl text-gray-600 mb-2">
-            Agrega tu tarjeta y comienza tu prueba de <span className="font-bold text-green-600">7 días gratis</span>
+            Elige tu plan y accede <span className="font-bold text-green-600">7 días completamente gratis</span>
           </p>
           <p className="text-sm text-gray-500">
-            No se te cobrará hasta el día 8. Cancela cuando quieras.
+            Sin compromiso. Cancela cuando quieras.
           </p>
         </div>
 
@@ -241,17 +241,15 @@ function SelectTrialPlanContent() {
           <h3 className="text-2xl font-bold text-gray-900 mb-6">¿Tienes preguntas?</h3>
           <div className="space-y-4 text-left">
             <div className="bg-white p-4 rounded-lg border border-gray-200">
-              <p className="font-semibold text-gray-900 mb-2">¿Cuándo se me cobrará?</p>
+              <p className="font-semibold text-gray-900 mb-2">¿Cuánto dura la prueba gratis?</p>
               <p className="text-gray-600">
-                Tu tarjeta será autorizada hoy, pero <strong>no se te cobrará hasta el día 8</strong>. 
-                Los primeros 7 días son completamente gratis.
+                Tendrás <strong>7 días completos</strong> para probar todas las funciones de AgendaMedPro sin restricciones.
               </p>
             </div>
             <div className="bg-white p-4 rounded-lg border border-gray-200">
               <p className="font-semibold text-gray-900 mb-2">¿Puedo cancelar en cualquier momento?</p>
               <p className="text-gray-600">
-                Sí, puedes cancelar cuando quieras desde tu panel de control. 
-                Si cancelas durante el trial, no se te cobrará nada.
+                Por supuesto. Cancela cuando quieras desde tu panel de control, sin complicaciones.
               </p>
             </div>
           </div>

@@ -28,10 +28,23 @@ export async function GET(request: NextRequest) {
       }
     )
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    const { error, data } = await supabase.auth.exchangeCodeForSession(code)
     
-    if (!error) {
-      // Redirect to dashboard after successful email confirmation
+    if (!error && data.user) {
+      // Check if user has an active subscription
+      const { data: subscription } = await supabase
+        .from('subscriptions')
+        .select('*')
+        .eq('user_id', data.user.id)
+        .in('status', ['active', 'trialing'])
+        .single()
+
+      // If no active subscription, redirect to trial plan selection
+      if (!subscription) {
+        return NextResponse.redirect(`${origin}/select-trial-plan`)
+      }
+
+      // Otherwise, redirect to intended destination
       return NextResponse.redirect(`${origin}${next}`)
     }
   }
