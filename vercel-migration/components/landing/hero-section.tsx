@@ -88,12 +88,12 @@ export function HeroSection() {
 
             {/* CTAs */}
             <div className="flex flex-col sm:flex-row gap-4">
-              <Link href="/auth/signup">
+              <Link href="/select-trial-plan">
                 <Button 
                   size="lg" 
                   className="w-full sm:w-auto bg-white text-blue-600 hover:bg-gray-100 text-lg px-8 py-6 font-semibold shadow-xl hover:shadow-2xl transition-all"
                 >
-                  🎉 Prueba Gratis 7 Días
+                  🎉 Comenzar Prueba Gratis
                 </Button>
               </Link>
               <Link href="/auth/signin">

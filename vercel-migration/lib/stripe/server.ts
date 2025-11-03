@@ -5,8 +5,14 @@ if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error('STRIPE_SECRET_KEY is not defined in environment variables')
 }
 
+// Clean the Stripe key (remove quotes, newlines, and whitespace)
+const cleanStripeKey = process.env.STRIPE_SECRET_KEY
+  .replace(/^["']|["']$/g, '') // Remove leading/trailing quotes
+  .replace(/\\r\\n|\\n|\\r/g, '') // Remove escaped newlines
+  .trim() // Remove whitespace
+
 // Singleton instance de Stripe
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+export const stripe = new Stripe(cleanStripeKey, {
   apiVersion: '2025-09-30.clover',
   typescript: true,
 })

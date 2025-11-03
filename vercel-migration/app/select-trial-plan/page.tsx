@@ -6,7 +6,24 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Check, Sparkles, Zap, Crown, Loader2 } from 'lucide-react'
-import { STRIPE_PRICES } from '@/lib/stripe/server'
+
+// Helper to clean Stripe IDs (remove quotes, newlines, whitespace)
+const cleanStripeId = (id: string | undefined): string => {
+  if (!id) return ''
+  return id
+    .replace(/^["']|["']$/g, '') // Remove quotes
+    .replace(/\\r\\n|\\n|\\r/g, '') // Remove escaped newlines
+    .replace(/\r\n|\n|\r/g, '') // Remove actual newlines
+    .trim()
+}
+
+// Stripe Price IDs from environment variables (cleaned)
+const STRIPE_PRICES = {
+  BASICO_MONTHLY: cleanStripeId(process.env.NEXT_PUBLIC_STRIPE_PRICE_BASICO_MONTHLY),
+  BASICO_ANNUAL: cleanStripeId(process.env.NEXT_PUBLIC_STRIPE_PRICE_BASICO_ANNUAL),
+  PRO_MONTHLY: cleanStripeId(process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_MONTHLY),
+  PRO_ANNUAL: cleanStripeId(process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_ANNUAL),
+}
 
 const currencyFormatter = new Intl.NumberFormat('es-MX', {
   style: 'currency',

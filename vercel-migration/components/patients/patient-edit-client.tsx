@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSession } from 'next-auth/react';
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import AppLayout from '@/components/layout/app-layout';
+import { createClient } from '@/lib/supabase/client';
 import {
   ArrowLeft,
   User,
@@ -39,9 +39,11 @@ interface PatientEditClientProps {
 }
 
 export default function PatientEditClient({ patientId }: PatientEditClientProps) {
-  const { data: session, status } = useSession();
   const router = useRouter();
+  const supabase = createClient();
   
+  const [user, setUser] = useState<any>(null);
+  const [loadingAuth, setLoadingAuth] = useState(true);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [patient, setPatient] = useState<Patient | null>(null);
@@ -57,15 +59,24 @@ export default function PatientEditClient({ patientId }: PatientEditClientProps)
   const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
-    if (status === 'loading') return;
-    
-    if (!session) {
-      router.push('/auth/signin');
-      return;
-    }
-    
-    loadPatientData();
-  }, [session, status, router, patientId]);
+    const initialize = async () => {
+      setLoadingAuth(true);
+
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+      setLoadingAuth(false);
+
+      if (!user) {
+        router.push('/auth/signin');
+        return;
+      }
+
+      loadPatientData();
+    };
+
+    void initialize();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [patientId, router]);
 
   const loadPatientData = async () => {
     try {
@@ -146,7 +157,7 @@ export default function PatientEditClient({ patientId }: PatientEditClientProps)
     }));
   };
 
-  if (status === 'loading') {
+  if (loadingAuth) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -154,7 +165,7 @@ export default function PatientEditClient({ patientId }: PatientEditClientProps)
     );
   }
 
-  if (!session) {
+  if (!user) {
     return null;
   }
 
@@ -209,7 +220,7 @@ export default function PatientEditClient({ patientId }: PatientEditClientProps)
             </div>
           </div>
           <div className="flex gap-3">
-            <Button variant="outline" onClick={() => router.push('/patients')}>
+            <Button variant="outline" onClick={() => router.push(`/patients/${patientId}`)}>
               <ArrowLeft className="h-4 w-4 mr-2" />
               Volver
             </Button>

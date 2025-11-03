@@ -1,6 +1,6 @@
 # ANÁLISIS COMPETITIVO COMPLETO: AGENDAMEDPRO VS COMPETENCIA INTERNACIONAL
 
-**Fecha:** 28 Octubre 2025 (actualizado con WhatsApp Business completado)  
+**Fecha:** 2 Noviembre 2025 (actualizado con onboarding de prueba en Stripe)  
 **Objetivo:** Identificar brechas de funcionalidad y ventajas competitivas para priorizar desarrollo
 
 ---
@@ -9,7 +9,22 @@
 
 ## ✅ Estado al 28 Oct 2025
 
-### 🎉 Avances recientes (28 Octubre 2025)
+### 🎉 Avances recientes (2 Noviembre 2025)
+- ✅ **Onboarding comercial con Stripe LIVE (trial de 7 días)**
+   - Checkout en modo producción con nuevos price IDs mensuales/anuales
+   - Middleware actualizado para permitir acceso mientras se habilita paywall definitivo
+   - Flujos de `select-trial-plan`, `create-trial-session` y éxito estabilizados
+   - Limpieza de credenciales (sanitización de keys, manejo de sesiones y signout dedicado)
+- ✅ **Editor de pacientes migrado 100% a Supabase Auth**
+   - Eliminado NextAuth residual que causaba redirecciones a `/dashboard`
+   - Botones de navegación contextual actualizados (`Volver` → detalle del paciente)
+- ✅ **Infraestructura Vercel**
+  - `CRON_SECRET` presente en entornos Production/Preview/Development
+  - Proyecto ya opera en plan **Vercel Pro** (crons horarios habilitados)
+- ✅ **Paywall activado (2 Nov 2025)**
+  - Middleware verifica `user_profiles.role = 'admin'` para bypass completo
+  - Usuarios regulares requieren suscripción activa/trialing en tabla `subscriptions`
+  - Headers `x-subscription-tier`, `x-subscription-status` expuestos en respuestas### Avances recientes (28 Octubre 2025)
 - ✅ **Sistema WhatsApp BYOK (Bring Your Own Key) COMPLETO** 🚀
   - Integración completa con WhatsApp Business API vía Twilio
   - Dashboard de mensajería con estadísticas en tiempo real
@@ -46,12 +61,12 @@
 - Plan de precios preliminar bosquejado en documentos de marketing (pendiente formalizar en sitio y app)
 
 ### Pendientes detectados (prioridad descendente)
-1. **Configurar CRON_SECRET en Vercel** - Agregar variable de entorno en Vercel Dashboard (Production + Preview + Development) ⚠️ URGENTE
+1. **Testing end-to-end Stripe trial (7 días)** - Validar checkout, webhooks, creación de suscripción y expiración de trial con clínica piloto
 2. **Testing end-to-end WhatsApp** - Probar flujo completo de recordatorios con clínica piloto
-3. **Definir y publicar pricing definitivo** en producto, landing y flujo de onboarding
+3. **Instrumentar seguimiento comercial del pricing** - Embudos, métricas de conversión y comunicación en landing/app ya con planes Básico/Pro/Lifetime/Enterprise
 4. **Desarrollar PWA móvil** con push y modo offline (Fase 1 del roadmap)
 5. **Lanzar beta con 50 clínicas piloto** y recoger métricas (acción inmediata recomendada)
-6. **Preparar transición a Vercel Pro** para habilitar múltiples crons y mayor frecuencia de alertas
+6. **Monitorear costos y crons bajo Vercel Pro** (ya activo) para planear escalamiento
 7. **Kickoff AI Assistant MVP** (Fase 2) aprovechando base de datos de tratamientos/records ya trazable
 8. **Multi-ubicación y multi-zona horaria** (Fase 4) – definir alcance técnico tras concluir AI
 
@@ -129,7 +144,7 @@
 
 ### Estado Actual AgendaMedPro:
 ✅ **21 módulos funcionales:** admin, agenda, api, auth, bundles, dashboard, gastos-fijos, inventory, medical, medical-records, messaging, notifications, patient-notes, patients, promociones, records, reports, settings, signup, treatments  
-✅ **Características implementadas:** Multi-doctor, data isolation, Supabase auth, Stripe payments, NextAuth, Expediente NOM-004, Sistema de Notas, **WhatsApp Business BYOK completo**  
+✅ **Características implementadas:** Multi-doctor, data isolation, Supabase auth (frontend+backend), Stripe payments con trial de 7 días en modo LIVE, Expediente NOM-004, Sistema de Notas, **WhatsApp Business BYOK completo**  
 ✅ **Despliegue:** Producción en agendamedpro.com (Vercel)  
 ✅ **Compliance:** NOM-004-SSA3-2012 (Expediente Médico Electrónico México)  
 ✅ **Mensajería:** WhatsApp Business API integrado vía Twilio con cron automático cada hora
@@ -478,15 +493,15 @@
 | **Timify** | €29/mes | €79/mes | €199/mes | SMB vs Enterprise |
 | **vCita** | $29/mes | $65/mes | $99/mes | AI premium add-on |
 | **Doctoralia** | Gratis básico | ~$100/mes | ~$200/mes | Modelo freemium + marketplace |
-| **AgendaMedPro** | ? | ? | Beta gratis | ❌ Pricing no definido |
+| **AgendaMedPro** | $599 MXN/mes (Básico) | $999 MXN/mes (Pro) | $19,990 MXN pago único (Lifetime) | Enterprise personalizado (cotización + onboarding dedicado) |
 
-### 🎯 Recomendación de Precios AgendaMedPro:
+### 🎯 Estructura de Precios AgendaMedPro (LIVE):
 
-**Modelo Freemium:**
-- **Gratis:** 1 profesional, 50 citas/mes, funciones básicas
-- **Starter ($39/mes):** 2 profesionales, 200 citas/mes, SMS básicos, email campaigns
-- **Professional ($89/mes):** 5 profesionales, citas ilimitadas, WhatsApp, AI assistant básico, multi-ubicación
-- **Enterprise ($199/mes):** Ilimitado, AI completo, API access, soporte prioritario, branding personalizado
+- **Básico:** $599 MXN/mes ó $5,990 MXN/año (2 meses gratis). Incluye 1 ubicación, hasta 3 doctores, recordatorios por WhatsApp/SMS básicos.
+- **Pro:** $999 MXN/mes ó $9,990 MXN/año. Agrega multi-ubicación, WhatsApp avanzado, campañas, inventario completo y reportes avanzados.
+- **Lifetime:** $19,990 MXN pago único. Acceso perpetuo al plan Pro para clínicas que prefieren CAPEX.
+- **Enterprise:** Plan a medida (precio bajo cotización) con onboarding dedicado, soporte prioritario 24/7 y límites extendidos.
+- **Trial:** Todos los planes arrancan con **7 días gratis** vía Stripe Checkout (modo producción).
 
 ---
 
@@ -8248,5 +8263,5 @@ Para generar impacto inmediato:
 ---
 
 **Preparado por:** GitHub Copilot  
-**Última actualización:** Enero 2025  
+**Última actualización:** OCTUBRE 2025  
 **Versión:** 1.0

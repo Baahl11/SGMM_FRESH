@@ -13,15 +13,8 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
     
-    // Verificar autenticación
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'No autenticado' },
-        { status: 401 }
-      )
-    }
+    // Verificar autenticación (OPCIONAL para usuarios anónimos)
+    const { data: { user } } = await supabase.auth.getUser()
 
     const body = await request.json()
     const { priceId, planTier } = body
@@ -33,53 +26,26 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verificar si el usuario ya tiene una suscripción activa
-    const { data: existingSub } = await supabase
-      .from('subscriptions')
-      .select('*')
-      .eq('user_id', user.id)
-      .in('status', ['active', 'trialing'])
-      .single()
+    // Si el usuario está autenticado, verificar si ya tiene suscripción
+    if (user) {
+      const { data: existingSub } = await supabase
+        .from('subscriptions')
+        .select('*')
+        .eq('user_id', user.id)
+        .in('status', ['active', 'trialing'])
+        .single()
 
-    if (existingSub) {
-      return NextResponse.json(
-        { error: 'Ya tienes una suscripción activa' },
-        { status: 400 }
-      )
-    }
-
-    // Buscar o crear Stripe Customer
-    let customerId: string
-
-    const { data: userData } = await supabase
-      .from('users')
-      .select('stripe_customer_id, email, name')
-      .eq('id', user.id)
-      .single()
-
-    if (userData?.stripe_customer_id) {
-      customerId = userData.stripe_customer_id
-    } else {
-      // Crear nuevo customer en Stripe
-      const customer = await stripe.customers.create({
-        email: userData?.email || user.email,
-        name: userData?.name || user.email?.split('@')[0],
-        metadata: {
-          supabase_user_id: user.id,
-        },
-      })
-      customerId = customer.id
-
-      // Guardar customer_id en la base de datos
-      await supabase
-        .from('users')
-        .update({ stripe_customer_id: customerId })
-        .eq('id', user.id)
+      if (existingSub) {
+        return NextResponse.json(
+          { error: 'Ya tienes una suscripción activa' },
+          { status: 400 }
+        )
+      }
     }
 
     // Crear Checkout Session con TRIAL de 7 días
-    const session = await stripe.checkout.sessions.create({
-      customer: customerId,
+    // Para usuarios anónimos: Stripe maneja la creación de customer y el email
+    const sessionConfig: any = {
       mode: 'subscription',
       payment_method_types: ['card'],
       line_items: [
@@ -91,18 +57,53 @@ export async function POST(request: NextRequest) {
       subscription_data: {
         trial_period_days: 7, // 🎯 7 días de prueba gratis
         metadata: {
-          user_id: user.id,
           plan_tier: planTier,
+          ...(user && { user_id: user.id }),
         },
       },
       metadata: {
-        user_id: user.id,
         plan_tier: planTier,
+        ...(user && { user_id: user.id }),
       },
       success_url: `${process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin}/trial-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin}/pricing?canceled=true`,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin}/select-trial-plan?canceled=true`,
       allow_promotion_codes: true,
-    })
+    }
+
+    // Si el usuario está autenticado, usar su customer_id existente o crear uno
+    if (user) {
+      const { data: userData } = await supabase
+        .from('users')
+        .select('stripe_customer_id, email, name')
+        .eq('id', user.id)
+        .single()
+
+      if (userData?.stripe_customer_id) {
+        sessionConfig.customer = userData.stripe_customer_id
+      } else {
+        // Crear nuevo customer en Stripe
+        const customer = await stripe.customers.create({
+          email: userData?.email || user.email,
+          name: userData?.name || user.email?.split('@')[0],
+          metadata: {
+            supabase_user_id: user.id,
+          },
+        })
+        sessionConfig.customer = customer.id
+
+        // Guardar customer_id en la base de datos
+        await supabase
+          .from('users')
+          .update({ stripe_customer_id: customer.id })
+          .eq('id', user.id)
+      }
+    } else {
+      // Usuario anónimo: Stripe pedirá email en el checkout
+      // En modo subscription, Stripe crea el customer automáticamente
+      // No se usa customer_creation (solo para mode: 'payment')
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionConfig)
 
     return NextResponse.json({ url: session.url })
   } catch (error: any) {

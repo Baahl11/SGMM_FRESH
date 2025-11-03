@@ -58,6 +58,24 @@ export async function middleware(request: NextRequest) {
   const { data: { session } } = await supabase.auth.getSession()
   const { data: { user } } = await supabase.auth.getUser()
 
+  // ========================================
+  // RUTAS PÚBLICAS: No requieren autenticación
+  // ========================================
+  const publicRoutes = [
+    '/book/',           // Páginas públicas de booking por clinic slug
+    '/api/public/',     // APIs públicas (availability, booking)
+    '/auth/',           // Login/signup pages
+  ]
+
+  const isPublicRoute = publicRoutes.some(route => 
+    request.nextUrl.pathname.startsWith(route)
+  )
+
+  // Si es ruta pública, permitir acceso sin auth
+  if (isPublicRoute) {
+    return response
+  }
+
   // Rutas protegidas - requieren login
   const protectedRoutes = [
     '/dashboard',
@@ -88,68 +106,77 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
-  // Si está en páginas de auth pero ya tiene sesión -> Dashboard
-  if (request.nextUrl.pathname.startsWith('/auth') && session) {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
-  }
-
   // ========================================
   // PAYWALL: Verificación de suscripción
   // ========================================
   if (isProtectedRoute && user) {
+    // Permitir acceso a /select-trial-plan y /trial-success sin verificar suscripción
+    const onboardingPaths = ['/select-trial-plan', '/trial-success']
+    const isOnboarding = onboardingPaths.some(path => 
+      request.nextUrl.pathname.startsWith(path)
+    )
+    
+    if (isOnboarding) {
+      return response
+    }
+
     try {
-      // Permitir acceso a /select-trial-plan y /trial-success sin verificar suscripción
-      const onboardingPaths = ['/select-trial-plan', '/trial-success']
-      const isOnboarding = onboardingPaths.some(path => 
-        request.nextUrl.pathname.startsWith(path)
-      )
-      
-      if (isOnboarding) {
+      // -------------------------------------------------
+      // 1) Detectar si el usuario es admin (bypass total)
+      // -------------------------------------------------
+      const { data: profile, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('role')
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      if (profileError) {
+        console.error('⚠️ middleware: error obteniendo perfil', profileError)
+      }
+
+      if (profile?.role === 'admin') {
+        response.headers.set('x-subscription-tier', 'admin')
+        response.headers.set('x-subscription-status', 'active')
         return response
       }
 
-      // Obtener suscripción del usuario
-      const { data: subscription } = await supabase
+      // -------------------------------------------------
+      // 2) Verificar suscripción activa/trialing en Stripe
+      // -------------------------------------------------
+      const { data: subscription, error: subscriptionError } = await supabase
         .from('subscriptions')
-        .select('plan_tier, status, max_doctors, max_locations')
+        .select('plan_tier, status, max_doctors, max_locations, trial_ends_at, current_period_end')
         .eq('user_id', user.id)
         .in('status', ['active', 'trialing'])
-        .single()
+        .maybeSingle()
 
-      // Si no tiene suscripción activa, redirigir a selección de plan
+      if (subscriptionError) {
+        console.error('⚠️ middleware: error obteniendo suscripción', subscriptionError)
+      }
+
       if (!subscription) {
         const selectPlanUrl = new URL('/select-trial-plan', request.url)
         selectPlanUrl.searchParams.set('reason', 'no_subscription')
         return NextResponse.redirect(selectPlanUrl)
       }
 
-      // Rutas que requieren Plan Pro (no Plan Básico)
-      const proOnlyRoutes = [
-        '/settings/schedules',     // Horarios recurrentes
-        '/settings/exceptions',    // Excepciones
-        '/settings/messaging',     // Mensajería avanzada
-        '/reports/advanced',       // Reportes avanzados
-      ]
-
-      const isProOnlyRoute = proOnlyRoutes.some(route =>
-        request.nextUrl.pathname.startsWith(route)
-      )
-
-      // Si es ruta Pro-only y usuario tiene plan Básico -> upgrade modal
-      if (isProOnlyRoute && subscription?.plan_tier === 'basico') {
-        const upgradeUrl = new URL('/pricing', request.url)
-        upgradeUrl.searchParams.set('reason', 'feature_requires_pro')
-        upgradeUrl.searchParams.set('feature', request.nextUrl.pathname)
-        return NextResponse.redirect(upgradeUrl)
+      // -------------------------------------------------
+      // 3) Subir metadata mínima para el resto de la app
+      // -------------------------------------------------
+      response.headers.set('x-subscription-tier', subscription.plan_tier || 'basico')
+      response.headers.set('x-subscription-status', subscription.status || 'inactive')
+      if (subscription.trial_ends_at) {
+        response.headers.set('x-subscription-trial-end', subscription.trial_ends_at)
+      }
+      if (subscription.current_period_end) {
+        response.headers.set('x-subscription-current-period-end', subscription.current_period_end)
       }
 
-      // Agregar headers con info de suscripción para que componentes puedan usarla
-      response.headers.set('x-subscription-tier', subscription?.plan_tier || 'basico')
-      response.headers.set('x-subscription-status', subscription?.status || 'inactive')
-
     } catch (error) {
-      console.error('Error checking subscription:', error)
-      // En caso de error, permitir continuar (no bloquear al usuario)
+      console.error('❌ middleware: error verificando paywall', error)
+      // En caso de error, dejar continuar para no bloquear a usuarios legítimos
+      response.headers.set('x-subscription-tier', 'basico')
+      response.headers.set('x-subscription-status', 'unknown')
     }
   }
 
