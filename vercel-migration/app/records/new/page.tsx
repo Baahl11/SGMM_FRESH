@@ -185,12 +185,17 @@ function NewRecordForm() {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
+    console.log("🚀 SUBMIT STARTED");
     e.preventDefault();
     setIsLoading(true);
     
+    console.log("📝 Form data:", formData);
+    
     try {
+      console.log("🔧 Creating Supabase client...");
       const supabase = createClient();
       
+      console.log("📤 Attempting to insert record...");
       const { data, error } = await supabase
         .from('records')
         .insert([{
@@ -211,7 +216,12 @@ function NewRecordForm() {
         }])
         .select();
       
-      if (error) throw error;
+      console.log("📊 Insert result - data:", data, "error:", error);
+      
+      if (error) {
+        console.error("🔴 Supabase error detected:", error);
+        throw error;
+      }
       
       console.log("✅ Record created:", data);
       alert("Tratamiento registrado exitosamente");
