@@ -49,7 +49,7 @@ export async function PUT(
 
     const body = await request.json();
     const { id } = params;
-    const { nombre, descripcion, precio, costo_unitario, duracion_minutos, categoria, activo } = body;
+    const { nombre, descripcion, precio, costo_unitario, duracion_minutos, categoria, activo, category, tags } = body;
 
     if (!nombre) {
       return NextResponse.json({ error: 'El nombre es requerido' }, { status: 400 });
@@ -57,18 +57,32 @@ export async function PUT(
 
     const supabase = await createClient();
 
+    // Build update object
+    const updateData: any = {
+      nombre,
+      descripcion,
+      precio_base: precio || 0,
+      costo_unitario: costo_unitario || 0,
+      duracion_minutos: duracion_minutos || 30,
+      activo: activo !== undefined ? activo : true,
+      updated_at: new Date().toISOString()
+    };
+
+    // Add category if provided (prefer 'category' over 'categoria')
+    if (category !== undefined) {
+      updateData.category = category;
+    } else if (categoria !== undefined) {
+      updateData.category = categoria;
+    }
+
+    // Add tags if provided
+    if (tags !== undefined && Array.isArray(tags)) {
+      updateData.tags = tags;
+    }
+
     const { data: treatment, error } = await supabase
       .from('treatments')
-      .update({
-        nombre,
-        descripcion,
-        precio_base: precio || 0,
-        costo_unitario: costo_unitario || 0,
-        duracion_minutos: duracion_minutos || 30,
-        categoria,
-        activo: activo !== undefined ? activo : true,
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', id)
       .eq('user_id', user.id)
       .select('*')

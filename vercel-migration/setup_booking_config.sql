@@ -7,7 +7,7 @@ UPDATE user_profiles
 SET 
   booking_enabled = true,
   booking_slug = 'dr-melgarejo'
-WHERE email = 'guillermo.melgarejo.m@gmail.com';
+WHERE email = 'gmelgarejom@gmail.com';
 
 -- 2. Verificar que se aplicó
 SELECT 
@@ -16,7 +16,7 @@ SELECT
   email,
   name
 FROM user_profiles 
-WHERE email = 'guillermo.melgarejo.m@gmail.com';
+WHERE email = 'gmelgarejom@gmail.com';
 
 -- ============================================
 -- CREAR CONFIGURACIÓN INICIAL DE BOOKING
@@ -73,7 +73,7 @@ SELECT
   2,
   60
 FROM user_profiles
-WHERE email = 'guillermo.melgarejo.m@gmail.com'
+WHERE email = 'gmelgarejom@gmail.com'
 ON CONFLICT (user_id) DO UPDATE SET
   available_days = EXCLUDED.available_days,
   time_ranges = EXCLUDED.time_ranges,
@@ -91,7 +91,7 @@ SELECT
   up.email
 FROM booking_settings bs
 JOIN user_profiles up ON bs.user_id = up.user_id
-WHERE up.email = 'guillermo.melgarejo.m@gmail.com';
+WHERE up.email = 'gmelgarejom@gmail.com';
 
 -- ============================================
 -- RESULTADO ESPERADO

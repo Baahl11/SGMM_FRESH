@@ -150,7 +150,7 @@ function NewRecordForm() {
 
   const loadData = async () => {
     const supabase = createClient();
-    
+
     try {
       // Load patients
       const { data: patientsData, error: patientsError } = await supabase
@@ -160,17 +160,23 @@ function NewRecordForm() {
       
       if (patientsError) throw patientsError;
       if (patientsData) setPatients(patientsData);
-      
-      // Load treatments via API endpoint (has auth + RLS)
-      console.log('🔄 Loading treatments...');
-      const treatmentsResponse = await fetch(`/api/treatments?t=${Date.now()}`);
+
+      // Load treatments via API endpoint (uses service role & full schema)
+      console.log('🔄 Loading treatments via API...');
+      const treatmentsResponse = await fetch(`/api/treatments?t=${Date.now()}`, {
+        credentials: 'include',
+      });
+
       if (!treatmentsResponse.ok) {
         console.error('❌ Error loading treatments:', treatmentsResponse.status);
         throw new Error('Error loading treatments');
       }
+
       const treatmentsData = await treatmentsResponse.json();
-      console.log('✅ Treatments loaded:', treatmentsData.length, 'treatments', treatmentsData);
-      setTreatments(treatmentsData || []);
+      const treatmentsCount = Array.isArray(treatmentsData) ? treatmentsData.length : 0;
+      console.log('✅ Treatments loaded via API:', treatmentsCount);
+
+      setTreatments(Array.isArray(treatmentsData) ? treatmentsData : []);
 
       // Load promotions
       const response = await fetch('/api/promotions');
@@ -192,14 +198,14 @@ function NewRecordForm() {
     console.log("📝 Form data:", formData);
     
     try {
-      console.log("🔧 Creating Supabase client...");
-      const supabase = createClient();
-      
-      console.log("📤 Attempting to insert record...");
-      const { data, error } = await supabase
-        .from('records')
-        .insert([{
-          patient_id: formData.patient_id,
+      console.log("🌐 Sending request to /api/records...");
+      const response = await fetch('/api/records', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          patient_id: formData.patient_id || patientId || '',
           treatment_id: formData.treatment_id,
           fecha: formData.fecha,
           monto_pagado: formData.monto_pagado,
@@ -212,18 +218,19 @@ function NewRecordForm() {
           tasa_comision: formData.tasa_comision,
           comision_monto: formData.comision_monto,
           notas: formData.notas,
-          nombre_promocion: formData.nombre_promocion
-        }])
-        .select();
-      
-      console.log("📊 Insert result - data:", data, "error:", error);
-      
-      if (error) {
-        console.error("🔴 Supabase error detected:", error);
-        throw error;
+          nombre_promocion: formData.nombre_promocion,
+        }),
+      });
+
+      const result = await response.json().catch(() => ({ error: 'Error desconocido en la API' }));
+      console.log("📊 API response:", response.status, result);
+
+      if (!response.ok || result.error) {
+        console.error("🔴 API error detected:", result);
+        throw new Error(result.error || 'Error en la creación del tratamiento');
       }
-      
-      console.log("✅ Record created:", data);
+
+      console.log("✅ Record created via API:", result);
       alert("Tratamiento registrado exitosamente");
       
       // Redirect back to patient or records page
@@ -234,7 +241,10 @@ function NewRecordForm() {
       }
     } catch (error) {
       console.error("❌ Error creating record:", error);
-      alert("Error al registrar tratamiento: " + (error instanceof Error ? error.message : "Error desconocido"));
+      const errorMessage = error instanceof Error
+        ? error.message
+        : JSON.stringify(error, null, 2);
+      alert("Error al registrar tratamiento:\n\n" + errorMessage);
     } finally {
       setIsLoading(false);
     }

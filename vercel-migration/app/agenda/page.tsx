@@ -142,7 +142,7 @@ export default function AgendaPage() {
     try {
       // Add cache busting to force fresh data
       const timestamp = new Date().getTime();
-      const response = await fetch(`/api/appointments?_=${timestamp}`, {
+      const response = await fetch(`/api/appointments/combined?_=${timestamp}`, {
         cache: 'no-store'
       });
       

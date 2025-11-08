@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Users, Building2, Calendar, ArrowLeft, Clock, CalendarX } from 'lucide-react'
+import { Users, Building2, Calendar, ArrowLeft, Clock, CalendarX, Globe, Mail, FileText } from 'lucide-react'
 import AppLayout from '@/components/layout/app-layout'
 
 const sections = [
@@ -36,6 +36,24 @@ const sections = [
     href: '/dashboard/settings/exceptions',
     icon: CalendarX,
     description: 'Vacaciones y bloqueos'
+  },
+  {
+    name: 'Reservas Online',
+    href: '/dashboard/settings/booking',
+    icon: Globe,
+    description: 'Página pública de reservas'
+  },
+  {
+    name: 'Notificaciones',
+    href: '/dashboard/settings/notifications',
+    icon: Mail,
+    description: 'Email y WhatsApp automáticos'
+  },
+  {
+    name: 'Formularios',
+    href: '/dashboard/settings/forms',
+    icon: FileText,
+    description: 'Formularios de admisión'
   }
 ]
 

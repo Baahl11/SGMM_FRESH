@@ -6,6 +6,10 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Stethoscope, DollarSign, TrendingUp, Edit, Trash2, Plus, Package } from "lucide-react";
 import AppLayout from "@/components/layout/app-layout";
+import { CategoryFilterTabs } from "@/components/treatments/category-filter";
+import { CategoryBadgeList } from "@/components/treatments/category-badge";
+import { TagsDisplay } from "@/components/treatments/tags-input";
+import type { TreatmentCategory } from "@/lib/types/treatment";
 
 // UI Components from shadcn/ui
 const Card = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
@@ -60,6 +64,8 @@ interface Treatment {
   descripcion?: string;
   duracion_minutos?: number;
   activo?: boolean;
+  category?: string | null;
+  tags?: string[] | null;
 }
 
 export default function TreatmentsPage() {
@@ -71,6 +77,10 @@ export default function TreatmentsPage() {
   const [treatments, setTreatments] = useState<Treatment[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
+  
+  // Filter states
+  const [selectedCategory, setSelectedCategory] = useState<TreatmentCategory | 'all'>('all');
+  const [searchTags, setSearchTags] = useState<string>('');
 
   useEffect(() => {
     const getUser = async () => {
@@ -87,14 +97,32 @@ export default function TreatmentsPage() {
     };
 
     getUser();
-  }, [router])
+  }, [router]);
+
+  // Reload treatments when filters change
+  useEffect(() => {
+    if (user) {
+      fetchTreatments();
+    }
+  }, [selectedCategory, searchTags]);
 
   const fetchTreatments = async () => {
     setLoading(true);
     setError(""); // Limpiar errores previos
     try {
       console.log("🏥 Loading treatments...");
-      const response = await fetch('/api/treatments')
+      
+      // Build query params
+      const params = new URLSearchParams();
+      if (selectedCategory && selectedCategory !== 'all') {
+        params.append('category', selectedCategory);
+      }
+      if (searchTags) {
+        params.append('tags', searchTags);
+      }
+      
+      const url = `/api/treatments${params.toString() ? `?${params.toString()}` : ''}`;
+      const response = await fetch(url);
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -190,6 +218,14 @@ export default function TreatmentsPage() {
         </Link>
       </div>
 
+      {/* Category Filters */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <CategoryFilterTabs
+          selectedCategory={selectedCategory}
+          onCategoryChange={setSelectedCategory}
+        />
+      </div>
+
       {loading && (
         <div className="flex items-center justify-center py-12">
           <div className="text-lg text-gray-600">Cargando tratamientos...</div>
@@ -207,12 +243,20 @@ export default function TreatmentsPage() {
           {treatments.map((treatment) => (
             <Card key={treatment.id} className="bg-white shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
               <CardHeader className="pb-3 border-b border-gray-100">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 bg-gradient-to-br from-emerald-500 to-green-600 rounded-lg flex items-center justify-center">
-                    <Stethoscope className="h-5 w-5 text-white" />
+                <div className="flex items-center justify-between gap-3 mb-2">
+                  <div className="flex items-center gap-3 flex-1">
+                    <div className="h-10 w-10 bg-gradient-to-br from-emerald-500 to-green-600 rounded-lg flex items-center justify-center">
+                      <Stethoscope className="h-5 w-5 text-white" />
+                    </div>
+                    <CardTitle className="text-lg font-semibold text-gray-900">{treatment.nombre}</CardTitle>
                   </div>
-                  <CardTitle className="text-lg font-semibold text-gray-900">{treatment.nombre}</CardTitle>
+                  {treatment.category && (
+                    <CategoryBadgeList category={treatment.category as TreatmentCategory} />
+                  )}
                 </div>
+                {treatment.tags && treatment.tags.length > 0 && (
+                  <TagsDisplay tags={treatment.tags} className="mt-2" />
+                )}
               </CardHeader>
               <CardContent className="p-4 space-y-4">
                 <div className="grid grid-cols-2 gap-4">

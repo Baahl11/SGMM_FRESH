@@ -11,11 +11,37 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { data: treatments, error } = await supabase
+    // Get query parameters for filtering
+    const searchParams = request.nextUrl.searchParams;
+    const category = searchParams.get('category');
+    const tagsParam = searchParams.get('tags');
+
+    // Start building query
+    let query = supabase
       .from('treatments')
       .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
+      .eq('user_id', user.id);
+
+    // Filter by category if provided
+    if (category && category !== 'all') {
+      query = query.eq('category', category);
+    }
+
+    // Filter by tags if provided (comma-separated)
+    if (tagsParam) {
+      const tags = tagsParam.split(',').map(t => t.trim()).filter(Boolean);
+      if (tags.length > 0) {
+        // Use array overlap operator to find treatments with any of the tags
+        query = query.overlaps('tags', tags);
+      }
+    }
+
+    // Order by created_at
+    query = query.order('created_at', { ascending: false });
+
+    const { data: treatments, error } = await query;
+
+    console.log("📦 /api/treatments returning", treatments?.length ?? 0, "rows for user", user.id);
 
     if (error) {
       console.error('Error fetching treatments:', error);
@@ -42,7 +68,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     console.log('📦 Received body:', JSON.stringify(body, null, 2));
     
-    const { nombre, descripcion, precio, costo_unitario, duracion_minutos, categoria, activo = true } = body;
+    const { nombre, descripcion, precio, costo_unitario, duracion_minutos, categoria, activo = true, category, tags } = body;
 
     // Validate required fields (descripcion is optional)
     if (!nombre || precio === undefined) {
@@ -75,6 +101,12 @@ export async function POST(request: NextRequest) {
     }
     if (activo !== undefined) {
       insertData.activo = Boolean(activo);
+    }
+    if (category) {
+      insertData.category = category;
+    }
+    if (tags && Array.isArray(tags)) {
+      insertData.tags = tags;
     }
 
     console.log('💾 Attempting to insert:', JSON.stringify(insertData, null, 2));

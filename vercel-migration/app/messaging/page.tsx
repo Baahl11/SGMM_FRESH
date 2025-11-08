@@ -1,14 +1,30 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { MessageSquare, Mail, Send, AlertCircle, Settings, TrendingUp, Clock, CheckCircle2 } from 'lucide-react';
+import { useState, useEffect, Suspense } from 'react';
+import {
+  MessageSquare,
+  Mail,
+  Send,
+  AlertCircle,
+  Settings,
+  TrendingUp,
+  Clock,
+  CheckCircle2,
+} from 'lucide-react';
 import Link from 'next/link';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
+import { MainNav } from '@/components/layout/main-nav';
+import { SmsReminderSettings } from '@/components/settings/sms-reminder-settings';
+import { SmsRemindersGuide } from '@/components/sms/sms-reminders-guide';
+import { useSmsReminders } from '@/hooks/use-sms-reminders';
+import { GuideToggle } from '@/components/settings/guide-toggle';
+import { TIMING_OPTIONS } from '@/lib/utils/sms-reminders';
 
 interface MessagingStats {
   total_sent: number;
@@ -31,14 +47,46 @@ interface RecentMessage {
   error_message?: string;
 }
 
-export default function MessagingPage() {
+const TIMING_DESCRIPTIONS: Record<keyof typeof TIMING_OPTIONS, string> = {
+  '24h': 'Recordatorio principal un día antes de la cita.',
+  '12h': 'Mantiene al paciente al tanto medio día antes.',
+  '6h': 'Refuerza la asistencia el mismo día de la cita.',
+  '2h': 'Último empujón dos horas antes de la cita.',
+  '1h': 'Aviso final una hora antes de que inicie la consulta.',
+  custom: 'Horario personalizado definido al programar la cita.',
+};
+
+function MessagingContent() {
   const [stats, setStats] = useState<MessagingStats | null>(null);
   const [recentMessages, setRecentMessages] = useState<RecentMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState('whatsapp');
+  const { config: smsConfig, updateConfig: updateSmsConfig } = useSmsReminders();
 
   useEffect(() => {
     loadMessagingData();
   }, []);
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (!tabParam) {
+      return;
+    }
+
+    const allowed = ['whatsapp', 'sms', 'email', 'reminders'];
+    if (allowed.includes(tabParam) && tabParam !== activeTab) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams, activeTab]);
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('tab', value);
+    router.replace(`/messaging?${params.toString()}`, { scroll: false });
+  };
 
   const loadMessagingData = async () => {
     try {
@@ -98,11 +146,67 @@ export default function MessagingPage() {
   }
 
   const isWhatsAppConfigured = stats?.whatsapp_enabled && stats?.connection_status === 'connected';
+  const hasSmsEnabled = smsConfig.enabled;
+  const smsTimingCards = smsConfig.default_timings.map((timing) => {
+    const timingKey = timing as keyof typeof TIMING_OPTIONS;
+    const option = TIMING_OPTIONS[timingKey];
+    const label = option?.label ?? timing.toUpperCase();
+    const description = TIMING_DESCRIPTIONS[timingKey] ?? 'Recordatorio programado automáticamente.';
+
+    return (
+      <Card key={timing}>
+        <CardHeader>
+          <CardTitle className="text-base">{label}</CardTitle>
+          <CardDescription>{description}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            El sistema agenda el SMS y respeta tus horarios de silencio configurados.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  });
+
+  const smsOptionsSummary = [
+    {
+      id: 'send_confirmation',
+      enabled: smsConfig.send_confirmation,
+      on: 'Envía confirmación al agendar la cita.',
+      off: 'Sin confirmación automática al crear la cita.',
+    },
+    {
+      id: 'include_doctor_name',
+      enabled: smsConfig.include_doctor_name,
+      on: 'Incluye el nombre del doctor en cada SMS.',
+      off: 'No agrega el nombre del doctor.',
+    },
+    {
+      id: 'require_confirmation',
+      enabled: smsConfig.require_confirmation,
+      on: 'Solicita que el paciente responda "SI" para confirmar.',
+      off: 'No solicita confirmación por respuesta.',
+    },
+    {
+      id: 'business_hours_only',
+      enabled: smsConfig.business_hours_only,
+      on: `Respeta el horario comercial de ${smsConfig.quiet_hours_start} a ${smsConfig.quiet_hours_end}.`,
+      off: 'Puede enviar SMS en cualquier horario.',
+    },
+  ];
 
   return (
-    <div className="space-y-6">
-      {/* Header con gradiente */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-green-500 via-emerald-500 to-teal-600 p-8 text-white shadow-xl">
+    <div className="min-h-screen bg-gray-50/50">
+      {/* Main Navigation */}
+      <div className="bg-white border-b">
+        <div className="container mx-auto px-6 py-4">
+          <MainNav />
+        </div>
+      </div>
+
+      <div className="container mx-auto px-6 py-8 space-y-6">
+        {/* Header con gradiente */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-green-500 via-emerald-500 to-teal-600 p-8 text-white shadow-xl">
         <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10"></div>
         <div className="relative flex items-center justify-between">
           <div className="space-y-2">
@@ -211,11 +315,15 @@ export default function MessagingPage() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="whatsapp" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
         <TabsList>
           <TabsTrigger value="whatsapp">
             <MessageSquare className="h-4 w-4 mr-2" />
             WhatsApp
+          </TabsTrigger>
+          <TabsTrigger value="sms">
+            <Send className="h-4 w-4 mr-2" />
+            SMS
           </TabsTrigger>
           <TabsTrigger value="email">
             <Mail className="h-4 w-4 mr-2" />
@@ -280,6 +388,29 @@ export default function MessagingPage() {
           </Card>
         </TabsContent>
 
+        {/* SMS Tab */}
+        <TabsContent value="sms">
+          <div className="space-y-6">
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Integración en progreso</AlertTitle>
+              <AlertDescription>
+                Los recordatorios SMS todavía usan un entorno simulado. Las credenciales quedan guardadas,
+                pero el envío real se activará cuando terminemos la conexión con los proveedores.
+              </AlertDescription>
+            </Alert>
+
+            <SmsReminderSettings
+              config={smsConfig}
+              onConfigChange={updateSmsConfig}
+            />
+
+            <GuideToggle label="¿Cómo funcionan los recordatorios por SMS?">
+              <SmsRemindersGuide />
+            </GuideToggle>
+          </div>
+        </TabsContent>
+
         {/* Email Tab */}
         <TabsContent value="email">
           <Card>
@@ -303,63 +434,102 @@ export default function MessagingPage() {
               <CardTitle>Configuración de Recordatorios</CardTitle>
               <CardDescription>Gestiona los recordatorios automáticos para citas</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {!isWhatsAppConfigured ? (
+            <CardContent className="space-y-6">
+              {!hasSmsEnabled && (
                 <Alert>
                   <AlertCircle className="h-4 w-4" />
-                  <AlertTitle>Configura WhatsApp primero</AlertTitle>
+                  <AlertTitle>Activa los recordatorios por SMS</AlertTitle>
                   <AlertDescription>
-                    Necesitas configurar tu cuenta de WhatsApp Business antes de activar recordatorios automáticos
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <span>Ve a la pestaña SMS para elegir horarios y guardar tus credenciales.</span>
+                      <Button size="sm" asChild>
+                        <Link href="/messaging?tab=sms">Abrir pestaña SMS</Link>
+                      </Button>
+                    </div>
                   </AlertDescription>
                 </Alert>
-              ) : (
+              )}
+
+              {hasSmsEnabled && (
                 <div className="space-y-4">
                   <Alert>
                     <CheckCircle2 className="h-4 w-4" />
-                    <AlertTitle>Recordatorios activos</AlertTitle>
+                    <AlertTitle>Recordatorios SMS activos</AlertTitle>
                     <AlertDescription>
-                      Los recordatorios automáticos están configurados. Los pacientes recibirán mensajes antes de sus citas.
+                      Tus pacientes recibirán mensajes en los horarios configurados. Puedes ajustar el contenido en la pestaña SMS.
                     </AlertDescription>
                   </Alert>
 
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-base">Recordatorio 24h</CardTitle>
-                        <CardDescription>Un día antes de la cita</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-sm text-muted-foreground">
-                          Se envía automáticamente 24 horas antes de cada cita confirmada
-                        </p>
-                      </CardContent>
-                    </Card>
+                  {smsTimingCards.length > 0 ? (
+                    <div className="grid gap-4 md:grid-cols-2">
+                      {smsTimingCards}
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-muted-foreground">
+                      Activa al menos un horario en la pestaña SMS para comenzar a enviar recordatorios.
+                    </div>
+                  )}
 
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-base">Recordatorio 1h</CardTitle>
-                        <CardDescription>Una hora antes de la cita</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-sm text-muted-foreground">
-                          Se envía automáticamente 1 hora antes de cada cita confirmada
-                        </p>
-                      </CardContent>
-                    </Card>
+                  <div className="rounded-lg border border-slate-200 bg-white p-4">
+                    <p className="mb-3 text-sm font-medium text-slate-900">Opciones habilitadas</p>
+                    <ul className="space-y-2 text-sm text-muted-foreground">
+                      {smsOptionsSummary.map((option) => (
+                        <li key={option.id} className="flex items-start gap-2">
+                          {option.enabled ? (
+                            <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-500" />
+                          ) : (
+                            <Clock className="mt-0.5 h-4 w-4 text-slate-400" />
+                          )}
+                          <span>{option.enabled ? option.on : option.off}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-
-                  <Button variant="outline" asChild className="w-full">
-                    <Link href="/settings/mensajeria">
-                      <Settings className="mr-2 h-4 w-4" />
-                      Ajustar configuración de recordatorios
-                    </Link>
-                  </Button>
                 </div>
+              )}
+
+              {isWhatsAppConfigured ? (
+                <Alert>
+                  <CheckCircle2 className="h-4 w-4" />
+                  <AlertTitle>WhatsApp conectado</AlertTitle>
+                  <AlertDescription>
+                    Tus mensajes de WhatsApp se envían desde el número configurado. Consulta el historial en la pestaña WhatsApp.
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Conecta WhatsApp Business</AlertTitle>
+                  <AlertDescription>
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <span>Completa tus credenciales en Configuración → Mensajería para habilitar WhatsApp.</span>
+                      <Button size="sm" asChild>
+                        <Link href="/settings/mensajeria">Configurar WhatsApp</Link>
+                      </Button>
+                    </div>
+                  </AlertDescription>
+                </Alert>
               )}
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
+      </div>
     </div>
+  );
+}
+
+export default function MessagingPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-96 items-center justify-center">
+        <div className="text-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-4"></div>
+          <p className="text-sm text-muted-foreground">Cargando mensajería...</p>
+        </div>
+      </div>
+    }>
+      <MessagingContent />
+    </Suspense>
   );
 }

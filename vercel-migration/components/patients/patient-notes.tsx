@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +24,8 @@ import { Plus, Edit, Trash2, Check, X } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { formatDistanceToNow } from "date-fns";
+import { QuickPhraseSelector } from "@/components/quick-phrases/quick-phrase-selector";
+import { QuickPhraseManager } from "@/components/quick-phrases/quick-phrase-manager";
 
 interface PatientNote {
   id: string;
@@ -94,10 +96,43 @@ export function PatientNotes({ patientId }: PatientNotesProps) {
   const [tipoNota, setTipoNota] = useState<PatientNote['tipo_nota']>('general');
   const [titulo, setTitulo] = useState('');
   const [contenido, setContenido] = useState('');
+  
+  // Quick Phrases state
+  const [quickPhraseOpen, setQuickPhraseOpen] = useState(false);
+  const [managePhrasesOpen, setManagePhrasesOpen] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     fetchNotes();
   }, [patientId]);
+
+  // Insert quick phrase at cursor position
+  const handleQuickPhraseSelect = (phraseContent: string, phraseId: string) => {
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      // Fallback: append to end
+      setContenido(prev => prev ? `${prev}\n\n${phraseContent}` : phraseContent);
+      return;
+    }
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = contenido;
+
+    // Insert phrase at cursor position
+    const before = text.substring(0, start);
+    const after = text.substring(end);
+    const newText = before + phraseContent + after;
+
+    setContenido(newText);
+
+    // Set cursor position after inserted text
+    setTimeout(() => {
+      textarea.focus();
+      const newPosition = start + phraseContent.length;
+      textarea.setSelectionRange(newPosition, newPosition);
+    }, 0);
+  };
 
   const fetchNotes = async () => {
     setLoading(true);
@@ -257,14 +292,29 @@ export function PatientNotes({ patientId }: PatientNotesProps) {
               </div>
               
               <div>
-                <label className="text-sm font-medium mb-2 block">Contenido</label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium">Contenido</label>
+                  <div className="flex items-center gap-2">
+                    <QuickPhraseSelector
+                      context="medical_record"
+                      onSelect={handleQuickPhraseSelect}
+                      onManage={() => setManagePhrasesOpen(true)}
+                      open={quickPhraseOpen}
+                      onOpenChange={setQuickPhraseOpen}
+                    />
+                  </div>
+                </div>
                 <Textarea
+                  ref={textareaRef}
                   value={contenido}
                   onChange={(e) => setContenido(e.target.value)}
-                  placeholder="Escribe tu nota aquí..."
+                  placeholder="Escribe tu nota aquí... o usa frases rápidas"
                   rows={5}
                   className="resize-none"
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  💡 Usa el botón "Frase rápida" para insertar textos predefinidos
+                </p>
               </div>
               
               <div className="flex gap-2 justify-end">
@@ -392,6 +442,13 @@ export function PatientNotes({ patientId }: PatientNotesProps) {
           })}
         </div>
       )}
+
+      {/* Quick Phrase Manager Modal */}
+      <QuickPhraseManager
+        open={managePhrasesOpen}
+        onOpenChange={setManagePhrasesOpen}
+        defaultContext="medical_record"
+      />
     </div>
   );
 }

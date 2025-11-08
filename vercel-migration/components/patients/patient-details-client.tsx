@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TagManager } from "@/components/patients/tag-manager";
-import { MedicalTimeline } from "@/components/patients/medical-record/medical-timeline";
 import { QuickAppointmentModal } from "@/components/patients/quick-appointment-modal";
 import { UploadPhotoModal } from "@/components/patients/upload-photo-modal";
 import { QuickInvoiceModal } from "@/components/patients/quick-invoice-modal";
@@ -51,7 +50,14 @@ import { InlineEditField } from '@/components/patients/inline-edit-field';
 import { EditRecordModal } from '@/components/records/edit-record-modal';
 import { DeleteRecordDialog } from '@/components/records/delete-record-dialog';
 import { PatientNotes } from '@/components/patients/patient-notes';
-import { MedicalRecordSummary } from '@/components/patients/medical-record-summary';
+import { MedicalRecordComplete } from '@/components/patients/medical-record-complete';
+import { SendFormModal } from '@/components/patients/send-form-modal';
+import type { 
+  MedicalHistory, 
+  PatientAllergy, 
+  CurrentMedication,
+  PatientDemographics 
+} from '@/lib/types/medical-history';
 
 interface Patient {
   id: number;
@@ -107,6 +113,9 @@ export default function PatientDetailsClient({ patientId }: PatientDetailsClient
   const [photos, setPhotos] = useState<any[]>([]);
   const [medicalNotes, setMedicalNotes] = useState<any[]>([]);
   const [totalConsultations, setTotalConsultations] = useState<number>(0);
+  const [medicalHistory, setMedicalHistory] = useState<MedicalHistory | undefined>(undefined);
+  const [allergies, setAllergies] = useState<PatientAllergy[]>([]);
+  const [medications, setMedications] = useState<CurrentMedication[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -116,12 +125,13 @@ export default function PatientDetailsClient({ patientId }: PatientDetailsClient
   const [selectedRecord, setSelectedRecord] = useState<Record | null>(null);
   
   // Medical record modal state
-  const [medicalTimelineOpen, setMedicalTimelineOpen] = useState(false);
+  // Medical record state managed by MedicalRecordComplete component
   
   // Quick action modals
   const [appointmentModalOpen, setAppointmentModalOpen] = useState(false);
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
   const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
+  const [sendFormModalOpen, setSendFormModalOpen] = useState(false);
 
   useEffect(() => {
     const getUser = async () => {
@@ -183,22 +193,59 @@ export default function PatientDetailsClient({ patientId }: PatientDetailsClient
         setPhotos([]);
       }
 
-      // Fetch medical notes (expediente médico with notas_privadas)
+      // Fetch medical notes (expediente médico - TODAS las consultas)
       console.log(`🔥 PatientDetailsClient: Fetching medical notes for patient ${patientId}`);
       const notesResponse = await fetch(`/api/medical-records?patient_id=${patientId}`);
       
       if (notesResponse.ok) {
         const notesData = await notesResponse.json();
-        // Guardar total de consultas
+        // Guardar todas las consultas (no filtrar por notas privadas)
         setTotalConsultations(notesData.length);
-        // Filtrar solo las que tienen notas privadas
-        const recordsWithNotes = notesData.filter((record: any) => record.notas_privadas);
-        console.log(`✅ Medical notes loaded: ${recordsWithNotes.length} records with notes (${notesData.length} total consultations)`);
-        setMedicalNotes(recordsWithNotes);
+        setMedicalNotes(notesData); // Mostrar TODAS las consultas
+        console.log(`✅ Medical notes loaded: ${notesData.length} consultations`);
       } else {
         console.warn('⚠️ Could not load medical notes');
         setMedicalNotes([]);
         setTotalConsultations(0);
+      }
+
+      // Fetch medical history (NOM-004 data)
+      console.log(`🔥 PatientDetailsClient: Fetching medical history for patient ${patientId}`);
+      const historyResponse = await fetch(`/api/medical-history?patient_id=${patientId}`);
+      
+      if (historyResponse.ok) {
+        const historyData = await historyResponse.json();
+        console.log('✅ Medical history loaded:', historyData.data ? 'exists' : 'none');
+        setMedicalHistory(historyData.data);
+      } else {
+        console.warn('⚠️ Could not load medical history');
+        setMedicalHistory(undefined);
+      }
+
+      // Fetch patient allergies
+      console.log(`🔥 PatientDetailsClient: Fetching allergies for patient ${patientId}`);
+      const allergiesResponse = await fetch(`/api/allergies?patient_id=${patientId}`);
+      
+      if (allergiesResponse.ok) {
+        const allergiesData = await allergiesResponse.json();
+        console.log(`✅ Allergies loaded: ${allergiesData.data?.length || 0} allergies`);
+        setAllergies(allergiesData.data || []);
+      } else {
+        console.warn('⚠️ Could not load allergies');
+        setAllergies([]);
+      }
+
+      // Fetch current medications
+      console.log(`🔥 PatientDetailsClient: Fetching medications for patient ${patientId}`);
+      const medicationsResponse = await fetch(`/api/medications?patient_id=${patientId}`);
+      
+      if (medicationsResponse.ok) {
+        const medicationsData = await medicationsResponse.json();
+        console.log(`✅ Medications loaded: ${medicationsData.data?.length || 0} medications`);
+        setMedications(medicationsData.data || []);
+      } else {
+        console.warn('⚠️ Could not load medications');
+        setMedications([]);
       }
     } catch (err) {
       console.error('❌ Error loading patient data:', err);
@@ -555,6 +602,14 @@ export default function PatientDetailsClient({ patientId }: PatientDetailsClient
                   Programar Cita
                 </Link>
               </Button>
+              <Button 
+                onClick={() => setSendFormModalOpen(true)}
+                className="w-full justify-start" 
+                variant="outline"
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Enviar Formulario
+              </Button>
               <Button asChild className="w-full justify-start" variant="outline">
                 <Link href={`/patients/${patientId}/edit`}>
                   <Edit className="h-4 w-4 mr-2" />
@@ -689,15 +744,32 @@ export default function PatientDetailsClient({ patientId }: PatientDetailsClient
             </Card>
           </TabsContent>
 
-          {/* Expediente Médico Tab - NUEVO */}
+          {/* Expediente Médico Tab - NOM-004 Compliant */}
           <TabsContent value="medical-record" className="mt-6">
-            <MedicalRecordSummary
-              patientId={patientId}
-              patientName={patient.nombre}
-              medicalNotes={medicalNotes}
-              totalConsultations={totalConsultations}
-              onOpenFullRecord={() => setMedicalTimelineOpen(true)}
-            />
+            {patient ? (
+              <MedicalRecordComplete
+                patientId={patientId}
+                patientName={patient.nombre}
+                patientData={{
+                  domicilio: patient.direccion,
+                  estado_civil: (patient as any).estado_civil,
+                  ocupacion: (patient as any).ocupacion,
+                  lugar_nacimiento: (patient as any).lugar_nacimiento,
+                  religion: (patient as any).religion,
+                }}
+                medicalHistory={medicalHistory}
+                allergies={allergies}
+                medications={medications}
+                medicalNotes={medicalNotes}
+                totalConsultations={totalConsultations}
+              />
+            ) : (
+              <Card>
+                <CardContent className="p-6">
+                  <p className="text-center text-gray-500">Cargando expediente médico...</p>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           {/* Notas Personales Tab - NUEVO */}
@@ -842,10 +914,14 @@ export default function PatientDetailsClient({ patientId }: PatientDetailsClient
                   <Button 
                     className="h-20 flex-col gap-2" 
                     variant="outline"
-                    onClick={() => setMedicalTimelineOpen(true)}
+                    onClick={() => {
+                      // Click on the expediente tab
+                      const expedienteTab = document.querySelector('[value="expediente"]') as HTMLElement;
+                      expedienteTab?.click();
+                    }}
                   >
                     <Activity className="h-6 w-6" />
-                    Ver Expediente
+                    Ver Expediente NOM-004
                   </Button>
                   <Button 
                     className="h-20 flex-col gap-2" 
@@ -913,17 +989,9 @@ export default function PatientDetailsClient({ patientId }: PatientDetailsClient
           />
         )}
 
-        {/* Medical Timeline Modal */}
+        {/* Modals */}
         {patient && (
           <>
-            <MedicalTimeline
-              patientId={patientId}
-              patientName={patient.nombre}
-              open={medicalTimelineOpen}
-              onClose={() => setMedicalTimelineOpen(false)}
-              onSuccess={fetchData}
-            />
-            
             <QuickAppointmentModal
               patientId={patientId}
               patientName={patient.nombre}
@@ -946,6 +1014,13 @@ export default function PatientDetailsClient({ patientId }: PatientDetailsClient
               open={invoiceModalOpen}
               onClose={() => setInvoiceModalOpen(false)}
               onSuccess={fetchData}
+            />
+            
+            <SendFormModal
+              isOpen={sendFormModalOpen}
+              onClose={() => setSendFormModalOpen(false)}
+              patientId={patientId}
+              patientName={patient.nombre}
             />
           </>
         )}

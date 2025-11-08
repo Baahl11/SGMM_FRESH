@@ -2,13 +2,15 @@
   "name": "AgendaMedPro - Sistema Médico Profesional",
   "short_name": "AgendaMedPro",
   "description": "Sistema completo de gestión para clínicas y consultorios médicos. Agenda, expediente electrónico, WhatsApp y más.",
-  "start_url": "/",
+  "version": "2.1.0",
+  "start_url": "/?v=2.1.0",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#10b981",
-  "orientation": "portrait-primary",
+  "orientation": "any",
   "scope": "/",
   "categories": ["medical", "productivity", "business", "health"],
+  "display_override": ["window-controls-overlay", "standalone"],
   "icons": [
     {
       "src": "/icons/icon-72x72.svg",

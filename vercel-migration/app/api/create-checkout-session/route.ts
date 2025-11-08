@@ -85,7 +85,16 @@ export async function POST(request: NextRequest) {
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       mode,
-      payment_method_types: ['card'],
+      payment_method_types: ['card'], // Acepta todas las tarjetas (crédito y débito)
+      payment_method_options: {
+        card: {
+          request_three_d_secure: 'automatic', // Seguridad 3D cuando sea necesario
+          installments: {
+            enabled: true, // 🇲🇽 Habilita meses sin intereses para México
+          },
+        },
+      },
+      billing_address_collection: 'auto', // Recopilar dirección de facturación cuando sea necesario
       line_items: [
         {
           price: priceId,

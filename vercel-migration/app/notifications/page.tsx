@@ -19,6 +19,7 @@ import {
 import { NotificationList } from '@/components/notifications/notification-list';
 import { toast } from 'sonner';
 import type { Notification, NotificationType, NotificationCategory } from '@/lib/types/notifications';
+import { MainNav } from '@/components/layout/main-nav';
 
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -150,13 +151,21 @@ export default function NotificationsPage() {
   const unreadCount = notifications.filter(n => !n.read).length;
 
   return (
-    <div className="container mx-auto p-6 max-w-6xl">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-2">Notificaciones</h1>
-        <p className="text-muted-foreground">
-          Gestiona tus notificaciones y recordatorios
-        </p>
+    <div className="min-h-screen bg-gray-50/50">
+      {/* Main Navigation */}
+      <div className="bg-white border-b">
+        <div className="container mx-auto px-6 py-4">
+          <MainNav />
+        </div>
       </div>
+
+      <div className="container mx-auto p-6 max-w-6xl">
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold mb-2">Notificaciones</h1>
+          <p className="text-muted-foreground">
+            Gestiona tus notificaciones y recordatorios
+          </p>
+        </div>
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-3 mb-6">
@@ -319,6 +328,7 @@ export default function NotificationsPage() {
           )}
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

@@ -42,7 +42,14 @@ export default function DoctorsPage() {
       if (!response.ok) throw new Error('Error al cargar doctores')
       const data = await response.json()
       console.log('🔥 [doctors-page] Doctors loaded:', data)
-      setDoctors(data.doctors || [])
+
+      const doctorsData = Array.isArray(data)
+        ? data
+        : Array.isArray((data as { doctors?: Doctor[] })?.doctors)
+          ? (data as { doctors: Doctor[] }).doctors
+          : []
+
+      setDoctors(doctorsData)
     } catch (error) {
       toast.error('Error al cargar doctores')
       console.error(error)

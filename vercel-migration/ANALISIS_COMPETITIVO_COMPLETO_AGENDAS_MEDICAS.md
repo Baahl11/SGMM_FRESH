@@ -9,7 +9,31 @@
 
 ## ✅ Estado al 28 Oct 2025
 
-### 🎉 Avances recientes (2 Noviembre 2025)
+### 🎉 Avances recientes (3 Noviembre 2025)
+- ✅ **Sistema de Notificaciones Avanzado COMPLETO** 📧📊
+  - **Dashboard de Métricas de Notificaciones** (`/dashboard/analytics/notifications`)
+    - Analytics en tiempo real con filtros por período (hoy/semana/mes/custom)
+    - 6 tipos de gráficas: línea temporal, área, distribución pie, comparación de proveedores, funnel de conversión
+    - Métricas comparativas (vs período anterior) con porcentajes de cambio
+    - Estimación de costos por proveedor (SMTP gratuito, Resend $0.0001, WhatsApp $0.005)
+    - Top 5 destinatarios más frecuentes
+    - Service completo en `lib/analytics/notification-metrics.ts`
+    - API endpoint: `/api/analytics/notifications`
+  - **Historial Completo de Notificaciones** (`/dashboard/notification-logs`)
+    - Tabla filtrable con 5 filtros: tipo, estado, proveedor, rango de fechas, búsqueda
+    - Exportación a CSV (máx 1000 registros) con encoding UTF-8 BOM para Excel
+    - Paginación con límite configurable
+    - API endpoints: `/api/notification-logs`, `/api/notification-logs/export`
+  - **Navegación integrada al Dashboard principal**
+    - Tarjetas de acceso rápido con gradientes (purple para analytics, teal para logs)
+    - Iconos descriptivos y features destacadas
+  - **Configuración SMTP mejorada**
+    - Ícono de ayuda (?) con popover hover explicativo
+    - Guía paso a paso para usuarios no técnicos
+    - Detección automática de proveedor (Gmail/Outlook/Yahoo)
+    - 0 errores TypeScript, 100% funcional
+    - **Estado:** ✅ Listo para deploy a producción
+
 - ✅ **Onboarding comercial con Stripe LIVE (trial de 7 días)**
    - Checkout en modo producción con nuevos price IDs mensuales/anuales
    - Middleware actualizado para permitir acceso mientras se habilita paywall definitivo
@@ -62,13 +86,14 @@
 
 ### Pendientes detectados (prioridad descendente)
 1. **Testing end-to-end Stripe trial (7 días)** - Validar checkout, webhooks, creación de suscripción y expiración de trial con clínica piloto
-2. **Testing end-to-end WhatsApp** - Probar flujo completo de recordatorios con clínica piloto
-3. **Instrumentar seguimiento comercial del pricing** - Embudos, métricas de conversión y comunicación en landing/app ya con planes Básico/Pro/Lifetime/Enterprise
-4. **Desarrollar PWA móvil** con push y modo offline (Fase 1 del roadmap)
-5. **Lanzar beta con 50 clínicas piloto** y recoger métricas (acción inmediata recomendada)
-6. **Monitorear costos y crons bajo Vercel Pro** (ya activo) para planear escalamiento
-7. **Kickoff AI Assistant MVP** (Fase 2) aprovechando base de datos de tratamientos/records ya trazable
-8. **Multi-ubicación y multi-zona horaria** (Fase 4) – definir alcance técnico tras concluir AI
+2. **Deploy Sistema de Notificaciones Avanzado** - Llevar a producción el dashboard de métricas y logs completos
+3. **Testing end-to-end WhatsApp** - Probar flujo completo de recordatorios con clínica piloto
+4. **Instrumentar seguimiento comercial del pricing** - Embudos, métricas de conversión y comunicación en landing/app ya con planes Básico/Pro/Lifetime/Enterprise
+5. **Mejoras al módulo de Pacientes** - Ver sección "🩺 ROADMAP PACIENTES" más abajo
+6. **Lanzar beta con 50 clínicas piloto** y recoger métricas (acción inmediata recomendada)
+7. **Monitorear costos y crons bajo Vercel Pro** (ya activo) para planear escalamiento
+8. **Kickoff AI Assistant MVP** (Fase 2) aprovechando base de datos de tratamientos/records ya trazable
+9. **Multi-ubicación y multi-zona horaria** (Fase 4) – definir alcance técnico tras concluir AI
 
 ### ✅ Completado en Octubre 2025
 - ✅ **Expediente Médico Electrónico** conforme a NOM-004-SSA3-2012
@@ -3455,18 +3480,40 @@ Development: 8 weeks full-time
 
 ---
 
+### **✅ COMPLETADO RECIENTEMENTE (3 Nov 2025)**
+
+#### **✅ Sistema de Formularios de Intake - LIVE** 📋✨
+```
+✅ Form Builder con drag & drop (@dnd-kit)
+✅ 10 tipos de campos (text, textarea, email, phone, number, date, select, radio, checkbox, file)
+✅ File Upload integrado (Supabase Storage, max 5 archivos/10MB)
+✅ Token-based public access (1-720h expiration configurable)
+✅ Envío multi-canal integrado en expediente:
+   • Manual: Copiar link
+   • WhatsApp: Deep link con mensaje pre-llenado
+   • Email: Placeholder (próximamente)
+✅ Submissions Dashboard con review workflow (submitted → reviewed → approved/rejected)
+✅ Templates pre-cargados (Historia Clínica General, Consentimiento Informado)
+✅ 3 puntos de acceso en UI (MainNav, Dashboard card, Settings)
+✅ Features opcionales: require_signature, allow_file_upload
+✅ Documentation completa (4 guías)
+✅ Database Migration 009 (3 tablas, 15 índices, 10 RLS policies)
+✅ 8 REST APIs funcionando
+✅ Ahorro vs competencia: $99-199/mes (JotForm Health, SimplePractice add-on)
+```
+
 ### **❌ LO QUE NOS FALTA EN NUESTRO MÓDULO PACIENTES ACTUAL:**
 
 #### **CRÍTICO (implementar Q1 2026):**
 ```
 1. ❌ Patient portal completo (solo tenemos vista básica de records)
 2. ❌ Online appointment booking por paciente (tenemos que book nosotros)
-3. ❌ Digital intake forms (usamos papel o Google Forms)
-4. ❌ Consent form management con e-signatures
-5. ❌ Document upload por pacientes (insurance cards, IDs)
+3. ✅ Digital intake forms - **COMPLETADO 3 NOV 2025** 🎉
+4. ❌ Consent form management con e-signatures (parcial: forms tienen firma opcional)
+5. ✅ Document upload por pacientes - **COMPLETADO 3 NOV 2025** (via file upload en forms) 🎉
 6. ❌ Secure patient messaging (no existe comunicación 2-way)
 7. ❌ Payment por patient portal (tienen que pagar en clínica)
-8. ❌ Medical history structured templates
+8. ❌ Medical history structured templates (problema lists, medications, allergies)
 9. ❌ Family accounts (cada paciente = cuenta separada)
 10. ❌ Patient communication preferences (no hay opt-in/opt-out)
 ```
@@ -3500,6 +3547,266 @@ Development: 8 weeks full-time
 ---
 
 ### **🎯 ROADMAP DE IMPLEMENTACIÓN - PACIENTES**
+
+---
+
+## 🩺 **ESTADO ACTUAL DEL MÓDULO PACIENTES (3 Nov 2025)**
+
+### ✅ **COMPLETADO (100% funcional)**
+
+**Gestión Básica de Pacientes:**
+- ✅ CRUD completo (crear, leer, actualizar, eliminar/desactivar)
+- ✅ Búsqueda y filtros avanzados
+- ✅ Tags personalizables con colores
+- ✅ Timeline de historial completo
+- ✅ Datos demográficos completos (CURP, RFC, NSS, contactos de emergencia)
+- ✅ 6 tabs especializados en detalle del paciente:
+  - 📋 Tratamientos - Historial de tratamientos y pagos
+  - 🩺 Expediente Médico - Resumen clínico y consultas NOM-004
+  - 📝 Notas Personales - 5 tipos de notas del médico
+  - 💵 Facturación - Paquetes y facturación pendiente
+  - 📸 Fotos - Galería de imágenes
+  - ➕ Acciones - Quick actions (citas, facturas, fotos)
+
+**Expediente Médico Electrónico (NOM-004-SSA3-2012):**
+- ✅ Historia clínica inicial completa
+- ✅ Notas de evolución por consulta
+- ✅ Interconsultas médicas
+- ✅ Signos vitales (presión, frecuencia cardíaca, temperatura, etc.)
+- ✅ Diagnósticos CIE-10 con búsqueda
+- ✅ Tratamientos prescritos por consulta
+- ✅ Notas privadas médicas (solo visibles para el doctor)
+- ✅ Timeline chronológico de consultas
+- ✅ Modal expandido (98vw) con layout de 2 columnas
+- ✅ Edición completa de consultas (PUT endpoint)
+
+**Sistema de Notas Personales:**
+- ✅ 5 tipos de notas: pendiente, idea, importante, general, completada
+- ✅ CRUD completo con RLS (Row Level Security)
+- ✅ Interfaz con gradientes y glassmorphism
+- ✅ Toggle de completado para notas tipo "pendiente"
+- ✅ Timestamps automáticos
+
+**Galería de Fotos:**
+- ✅ Upload de imágenes con metadata
+- ✅ Visualización en grid responsivo
+- ✅ Lightbox para ver imágenes a tamaño completo
+- ✅ Eliminación de imágenes
+- ✅ Categorización por tipo (antes/después, progreso, documentos)
+
+**Quick Actions:**
+- ✅ Crear cita rápida desde detalle del paciente
+- ✅ Generar factura rápida
+- ✅ Upload de fotos
+- ✅ Navegación contextual mejorada
+
+---
+
+## 🚀 **MEJORAS SUGERIDAS PARA EL MÓDULO PACIENTES**
+
+> **NOTA IMPORTANTE:** AgendaMedPro es un sistema B2B para profesionales de salud (médicos, nutriólogos, psicólogos, dentistas). Los pacientes solo pueden agendar citas vía página pública de reservas (ya implementado ✅). No necesitamos "portal del paciente" con login.
+
+### **PRIORIDAD ALTA (Impacto inmediato en workflow del profesional)**
+
+#### 1. **Formularios de Admisión Digital (Intake Forms)** ⚠️ ALTA
+**Gap:** No hay forms digitales pre-cita que el **doctor pueda enviar/llenar**  
+**Competencia:** SimplePractice (2,808 reviews lo mencionan), Jane, Carepatron  
+**Impacto:** -2 horas/día de trabajo administrativo por clínica  
+**Features necesarias:**
+- Form builder en dashboard del doctor con drag & drop
+- Templates pre-cargados (10+ formularios comunes: historial médico, consentimiento, etc.)
+- Doctor puede enviar link vía WhatsApp/email al paciente
+- Paciente llena el form desde link público (sin login)
+- Data se auto-populate en expediente del paciente
+- Tracking de completado en dashboard del doctor
+- Multi-idioma (español/inglés)
+**Inversión estimada:** 5-6 semanas desarrollo  
+**ROI:** -2hrs admin/día, 100% paperless, +mejor experiencia
+
+#### 2. **Link de Pago Compartible (Payment Links)** ⚠️ ALTA
+**Gap:** Doctor no puede enviar links de pago directo al paciente  
+**Competencia:** Jane, SimplePractice, Carepatron tienen payment links  
+**Impacto:** +40% de cobros on-time  
+**Features necesarias:**
+- Doctor genera link de pago desde dashboard (monto específico)
+- Envía link por WhatsApp/SMS/email al paciente
+- Paciente paga desde link público (sin login) con Stripe
+- Pago se registra automáticamente en sistema
+- Recordatorios automáticos de links no pagados
+- Recibos automáticos por email
+**Inversión estimada:** 3-4 semanas desarrollo  
+**Costo API:** Variable (Stripe 2.9% + $0.30 por transacción)  
+**ROI:** +40% cobros on-time, -60% seguimiento manual
+
+#### 3. **Sistema de Consentimientos y Firmas Digitales** ⚠️ ALTA
+**Gap:** No hay gestión de consentimientos médicos digitales  
+**Competencia:** SimplePractice, AestheticsPro, Jane tienen e-signatures  
+**Impacto:** Compliance legal + 100% paperless  
+**Features necesarias:**
+- Doctor crea templates de consentimientos por tipo de tratamiento
+- Doctor envía link de consentimiento al paciente vía WhatsApp/email
+- Paciente firma digitalmente desde link público (sin login)
+- Firma con timestamp, IP tracking y audit trail completo
+- Almacenamiento seguro en expediente del paciente
+- Expiración de consentimientos (re-firmar cada X meses)
+- Multi-idioma
+**Inversión estimada:** 3-4 semanas desarrollo  
+**Costo API:** $20-30/mes (DocuSign o HelloSign API)  
+**ROI:** 100% paperless, compliance legal mejorado
+
+### **PRIORIDAD MEDIA (Mejoras incrementales)**
+
+#### 4. **Cuentas Familiares (Family Accounts)**
+**Gap:** No se pueden vincular familiares en el dashboard del doctor  
+**Competencia:** Jane, SimplePractice tienen family linking  
+**Impacto:** +20% eficiencia en clínicas pediátricas/familiares  
+**Features necesarias:**
+- Doctor puede vincular múltiples pacientes en una familia
+- Vista rápida de todos los miembros de la familia
+- Notas compartidas de familia
+- Expedientes separados pero navegación rápida entre familiares
+- Historial de citas de toda la familia en un lugar
+**Inversión estimada:** 2-3 semanas desarrollo  
+**ROI:** +20% eficiencia en clínicas familiares
+
+#### 5. **Historial Médico Estructurado Mejorado**
+**Gap:** Expediente actual es narrativo, no estructurado para análisis  
+**Competencia:** SimplePractice, TherapyNotes tienen problem lists estructurados  
+**Impacto:** +50% calidad de datos para reportes/AI  
+**Features necesarias:**
+- Problem list (lista de diagnósticos activos) con ICD-10 buscable
+- Medication list management (lista de medicamentos actuales del paciente)
+- Allergy tracking con alertas visuales al abrir expediente
+- Immunization record (cartilla de vacunación)
+- Past medical history estructurado (antecedentes)
+- Family history estructurado (antecedentes familiares)
+- Social history (hábitos: tabaquismo, alcohol, ejercicio, ocupación)
+**Inversión estimada:** 4-5 semanas desarrollo  
+**ROI:** +50% calidad de datos, base para AI features futuras
+
+#### 6. **Sistema de Tareas y Seguimientos (Care Plan)**
+**Gap:** No hay sistema de tareas pendientes por paciente  
+**Competencia:** SimplePractice, Jane tienen care plan reminders  
+**Impacto:** +30% compliance del doctor en seguimientos  
+**Features necesarias:**
+- Doctor puede crear tareas pendientes por paciente (llamar, enviar estudios, agendar consulta de seguimiento)
+- Recordatorios automáticos al doctor de tareas vencidas
+- Dashboard de pacientes con tareas pendientes
+- Tracking de estudios/vacunas que el paciente debe realizarse
+- Envío automático de recordatorios al paciente vía WhatsApp/email
+**Inversión estimada:** 3-4 semanas desarrollo  
+**ROI:** +30% compliance en seguimientos, mejor outcomes
+
+#### 7. **Recordatorios de Estudios/Vacunas Pendientes (para el doctor)**
+**Gap:** No hay dashboard de seguimientos pendientes  
+**Competencia:** SimplePractice, Jane tienen care plan reminders  
+**Impacto:** +30% compliance del doctor en seguimientos  
+**Features necesarias:**
+- Dashboard de pacientes con seguimiento pendiente
+- Alertas visuales de estudios vencidos
+- Tracking de completado (marcar estudio como recibido)
+- Envío masivo de recordatorios a pacientes con pendientes
+**Inversión estimada:** 2-3 semanas desarrollo  
+**ROI:** +30% compliance en seguimientos, mejor outcomes
+
+#### 8. **Multi-Idioma en Sistema (Español/Inglés)**
+**Gap:** Solo español actualmente en toda la interfaz  
+**Competencia:** Carepatron, Jane, SimplePractice tienen multi-language  
+**Impacto:** +15% accesibilidad, posibilidad de vender en USA  
+**Features necesarias:**
+- Toggle español/inglés en dashboard del doctor
+- Traducción de emails automáticos (notificaciones, recordatorios)
+- Templates de forms en ambos idiomas
+- Página de reservas públicas bilingüe
+**Inversión estimada:** 3-4 semanas desarrollo (traducción completa del sistema)  
+**ROI:** +15% accesibilidad, expansión a mercado USA
+
+### **PRIORIDAD BAJA (Nice-to-have, futuro/AI)**
+
+#### 9. **AI Scribe (Voz a Texto para Notas Clínicas)**
+**Gap:** Transcripción manual de consultas  
+**Competencia:** SimplePractice, Mend exploran AI scribes  
+**Impacto:** -30 min/día por doctor  
+**Features necesarias:**
+- Grabar audio de consulta desde expediente
+- Transcripción automática con OpenAI Whisper
+- Auto-populate expediente con datos estructurados (diagnóstico, tratamiento, signos vitales)
+- Edición manual post-transcripción
+**Inversión estimada:** 3-4 semanas + $50-100/mes (OpenAI Whisper API)  
+**ROI:** -30min/día por doctor
+
+#### 10. **Predictor de No-Shows con ML**
+**Gap:** No hay scoring de riesgo de inasistencia  
+**Competencia:** Solo clínicas enterprise lo tienen  
+**Impacto:** -20% no-shows con recordatorios proactivos  
+**Features necesarias:**
+- Score de riesgo por paciente basado en historial
+- Identificar patrones (día de la semana, hora, doctor, etc.)
+- Recordatorios extra automáticos para pacientes de alto riesgo
+- Dashboard de citas en riesgo
+**Inversión estimada:** 4-5 semanas + data science setup  
+**ROI:** -20% no-shows
+
+#### 11. **Analytics de Pacientes (Patient Insights)**
+**Gap:** No hay métricas de comportamiento del paciente  
+**Competencia:** vCita BizAI tiene algo similar  
+**Impacto:** Identificar pacientes en riesgo de abandono  
+**Features necesarias:**
+- Score de engagement basado en: asistencia, frecuencia de citas, pagos on-time
+- Dashboard de pacientes inactivos (no vienen hace X meses)
+- Campañas automáticas de re-engagement
+- Predicción de lifetime value del paciente
+**Inversión estimada:** 3-4 semanas desarrollo  
+**ROI:** -15% churn de pacientes
+
+---
+
+## 📊 **PRIORIZACIÓN RECOMENDADA (2026)**
+
+### **✅ COMPLETADO (Nov 2025) - DIGITAL PAPERWORK**
+1. ✅ Intake Forms Builder - **COMPLETADO 3 NOV 2025** (6 semanas → 2 semanas! 🚀)
+   - Form builder con 10 field types + drag & drop
+   - File upload con Supabase Storage
+   - Token-based public access
+   - Review workflow completo
+   - WhatsApp integration
+
+### **Q1 2026 (Enero-Marzo) - DIGITAL SIGNATURES & PAYMENTS**
+2. E-Signatures System (4 semanas) - **NEXT PRIORITY**
+   - Canvas component (react-signature-canvas)
+   - Integrate en forms cuando require_signature=true
+   - Save as base64 PNG
+3. Payment Links Compartibles (3 semanas)
+   - Stripe Checkout integration
+   - Payment link generation UI
+   - Public payment page
+   - Tracking y webhooks
+**Total:** 7 semanas | **ROI:** 100% paperless, +40% cobros on-time
+
+### **Q1-Q2 2026 (Diciembre 2025 - Marzo 2026) - STRUCTURED DATA**
+4. Historial Médico Estructurado (5 semanas) - **PRIORIDAD ALTA**
+   - Problem list con ICD-10 buscable
+   - Medication list management
+   - Allergy tracking con alertas
+   - Immunization records
+   - Structured templates (antecedentes, historial social)
+5. Cuentas Familiares (3 semanas)
+6. Sistema de Tareas y Seguimientos (4 semanas)
+**Total:** 12 semanas | **ROI:** +50% calidad de datos, +20% eficiencia
+
+### **Q3 2026 (Julio-Sept) - COMPLIANCE & INTERNATIONALIZATION**
+7. Recordatorios de Estudios Pendientes (3 semanas)
+8. Multi-Idioma (Español/Inglés) (4 semanas)
+9. Mejoras a Reportes de Pacientes (3 semanas)
+**Total:** 10 semanas | **ROI:** +30% compliance, expansión USA
+
+### **Q4 2026 (Oct-Dic) - AI & ADVANCED FEATURES**
+10. AI Scribe (4 semanas)
+11. Predictor de No-Shows (5 semanas)
+12. Analytics de Pacientes (3 semanas)
+**Total:** 12 semanas | **ROI:** -30min/día doctor, -20% no-shows
+
+---
 
 #### **FASE 1: Q1 2026 (Enero - Marzo) - PATIENT PORTAL FOUNDATION**
 ```

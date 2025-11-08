@@ -87,7 +87,8 @@ export async function POST(request: NextRequest) {
         meses_sin_intereses: body.meses_sin_intereses || 0,
         tasa_comision: body.tasa_comision || 0,
         comision_monto: body.comision_monto || 0,
-        notas: body.notas || ''
+        notas: body.notas || '',
+        user_id: user.id
       }])
       .select()
       .single()

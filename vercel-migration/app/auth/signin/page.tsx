@@ -1,16 +1,21 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
-export default function SignIn() {
+function SignInContent() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [message, setMessage] = useState('')
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
+
+  // Obtener parámetros del plan seleccionado
+  const planParam = searchParams.get('plan')
+  const billingParam = searchParams.get('billing')
 
   useEffect(() => {
     // Check if user is already signed in with Supabase
@@ -51,10 +56,19 @@ export default function SignIn() {
   const handleGoogleSignIn = async () => {
     setIsLoading(true)
     try {
+      // Construir URL de callback con parámetros del plan
+      let callbackUrl = `${window.location.origin}/auth/callback`
+      if (planParam || billingParam) {
+        const params = new URLSearchParams()
+        if (planParam) params.append('plan', planParam)
+        if (billingParam) params.append('billing', billingParam)
+        callbackUrl += `?${params.toString()}`
+      }
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: callbackUrl,
         },
       })
 
@@ -183,7 +197,20 @@ export default function SignIn() {
             )}
           </form>
 
-          <div className="text-center mt-6 space-y-2">
+          <div className="text-center mt-6 space-y-3">
+            {/* Link para crear cuenta nueva */}
+            <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-4">
+              <p className="text-white/80 text-sm mb-2">
+                ¿No tienes cuenta todavía?
+              </p>
+              <a 
+                href="/select-trial-plan"
+                className="inline-block bg-white text-purple-600 hover:bg-gray-100 font-semibold py-2 px-6 rounded-lg transition-all duration-200 hover:shadow-lg"
+              >
+                Crear Cuenta Gratis
+              </a>
+            </div>
+
             <a 
               href="/"
               className="block text-sm text-white/80 hover:text-white transition-colors"
@@ -191,11 +218,23 @@ export default function SignIn() {
               ← Volver al inicio
             </a>
             <p className="text-xs text-white/60">
-              ¿Problemas para acceder? Contacta al soporte técnico
+              ¿Problemas para acceder? Contacta a soporte@agendamedpro.com
             </p>
           </div>
         </div>
       </div>
     </div>
+  )
+}
+
+export default function SignIn() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 via-purple-600 to-blue-800">
+        <div className="text-white">Cargando...</div>
+      </div>
+    }>
+      <SignInContent />
+    </Suspense>
   )
 }

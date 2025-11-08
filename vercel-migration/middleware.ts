@@ -145,7 +145,7 @@ export async function middleware(request: NextRequest) {
       // -------------------------------------------------
       const { data: subscription, error: subscriptionError } = await supabase
         .from('subscriptions')
-        .select('plan_tier, status, max_doctors, max_locations, trial_ends_at, current_period_end')
+        .select('plan_tier, status, max_doctors, max_locations, trial_end, current_period_end')
         .eq('user_id', user.id)
         .in('status', ['active', 'trialing'])
         .maybeSingle()
@@ -161,12 +161,53 @@ export async function middleware(request: NextRequest) {
       }
 
       // -------------------------------------------------
+      // 2.5) NUEVO: Verificar si el trial sin tarjeta ha expirado
+      // -------------------------------------------------
+      if (subscription.status === 'trialing' && subscription.trial_end) {
+        const trialEnd = new Date(subscription.trial_end)
+        const now = new Date()
+        
+        // Si el trial expiró, verificar si tiene método de pago
+        if (now > trialEnd) {
+          // Verificar si tiene método de pago en Stripe
+          const { data: stripeData } = await supabase
+            .from('subscriptions')
+            .select('stripe_customer_id')
+            .eq('user_id', user.id)
+            .single()
+
+          if (stripeData?.stripe_customer_id) {
+            // Verificar con Stripe si tiene método de pago
+            try {
+              const response = await fetch(`${request.nextUrl.origin}/api/check-payment-method`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ customerId: stripeData.stripe_customer_id })
+              })
+              
+              const { hasPaymentMethod } = await response.json()
+              
+              if (!hasPaymentMethod) {
+                // Trial expirado y sin método de pago → Bloquear acceso
+                const addPaymentUrl = new URL('/select-trial-plan', request.url)
+                addPaymentUrl.searchParams.set('reason', 'trial_expired')
+                addPaymentUrl.searchParams.set('message', 'Tu periodo de prueba ha terminado. Agrega un método de pago para continuar.')
+                return NextResponse.redirect(addPaymentUrl)
+              }
+            } catch (err) {
+              console.warn('⚠️ Error verificando método de pago:', err)
+            }
+          }
+        }
+      }
+
+      // -------------------------------------------------
       // 3) Subir metadata mínima para el resto de la app
       // -------------------------------------------------
       response.headers.set('x-subscription-tier', subscription.plan_tier || 'basico')
       response.headers.set('x-subscription-status', subscription.status || 'inactive')
-      if (subscription.trial_ends_at) {
-        response.headers.set('x-subscription-trial-end', subscription.trial_ends_at)
+      if (subscription.trial_end) {
+        response.headers.set('x-subscription-trial-end', subscription.trial_end)
       }
       if (subscription.current_period_end) {
         response.headers.set('x-subscription-current-period-end', subscription.current_period_end)

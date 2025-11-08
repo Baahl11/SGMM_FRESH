@@ -6,9 +6,11 @@ import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Users, Stethoscope, Package, TrendingUp, Calendar, DollarSign, CreditCard, Banknote, ArrowUpRight, ArrowDownRight, Clock, AlertTriangle, TrendingDown, Activity, BarChart3, PieChart, Target, CheckCircle, Minus, Settings, UserX } from "lucide-react";
+import { Users, Stethoscope, Package, TrendingUp, Calendar, DollarSign, CreditCard, Banknote, ArrowUpRight, ArrowDownRight, Clock, AlertTriangle, TrendingDown, Activity, BarChart3, PieChart, Target, CheckCircle, Minus, Settings, UserX, FileText } from "lucide-react";
 import AppLayout from "@/components/layout/app-layout";
 import { MiniAgenda } from "@/components/agenda/mini-agenda";
+import BookingsWidget from "@/components/dashboard/BookingsWidget";
+import TrialBadge from "@/components/TrialBadge";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart as RechartsChart, Pie, Cell, Legend } from 'recharts';
 
 interface DashboardStats {
@@ -557,40 +559,43 @@ export default function DashboardPage() {
 
   return (
     <AppLayout>
-      <div className="space-y-8 p-6 bg-gradient-to-br from-blue-50/50 to-indigo-50/50 min-h-screen">
+      <TrialBadge />
+      <div className="space-y-8 p-4 md:p-6 bg-gradient-to-br from-blue-50/50 to-indigo-50/50 min-h-screen w-full overflow-x-hidden">
         {/* Header Section */}
-        <div className="flex justify-between items-center bg-white rounded-xl p-6 shadow-sm border border-blue-100">
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 bg-white rounded-xl p-4 md:p-6 shadow-sm border border-blue-100">
         <div className="flex items-center gap-4">
-          <div className="h-12 w-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
+          <div className="h-12 w-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center flex-shrink-0">
             <Activity className="h-6 w-6 text-white" />
           </div>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+          <div className="min-w-0">
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
               Dashboard
             </h1>
-            <p className="text-gray-600">Resumen de tu consulorio médico</p>
+            <p className="text-sm md:text-base text-gray-600 truncate">Resumen de tu consulorio médico</p>
           </div>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-2 md:gap-3 w-full md:w-auto">
           <Button 
             variant="outline" 
             onClick={loadDashboardData}
             disabled={loading}
-            className="flex items-center space-x-2"
+            className="flex items-center space-x-2 flex-1 md:flex-initial"
           >
             <Activity className="h-4 w-4" />
-            <span>{loading ? 'Cargando...' : 'Actualizar'}</span>
+            <span className="hidden sm:inline">{loading ? 'Cargando...' : 'Actualizar'}</span>
+            <span className="sm:hidden">{loading ? '...' : '↻'}</span>
           </Button>
-          <Button asChild variant="outline" className="flex items-center space-x-2">
+          <Button asChild variant="outline" className="flex items-center space-x-2 flex-1 md:flex-initial">
             <Link href="/dashboard/settings/doctors">
               <Settings className="h-4 w-4" />
-              <span>Configuración</span>
+              <span className="hidden sm:inline">Configuración</span>
             </Link>
           </Button>
-          <Button asChild className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-sm">
-            <Link href="/patients/new">
+          <Button asChild className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-sm w-full md:w-auto">
+            <Link href="/patients/new" className="flex items-center justify-center">
               <Users className="h-4 w-4 mr-2" />
-              Nuevo Paciente
+              <span className="hidden sm:inline">Nuevo Paciente</span>
+              <span className="sm:hidden">Nuevo</span>
             </Link>
           </Button>
         </div>
@@ -865,6 +870,113 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
+      {/* Widget de Reservas Online */}
+      <BookingsWidget />
+
+      {/* === Analytics & Logs Cards === */}
+      <div className="grid md:grid-cols-2 gap-6">
+        {/* Analytics Dashboard Card */}
+        <Link href="/dashboard/analytics/notifications" className="block group">
+          <div className="bg-gradient-to-br from-purple-500 via-purple-600 to-indigo-700 rounded-xl p-6 shadow-lg hover:shadow-xl transition-all hover:scale-[1.02] cursor-pointer relative overflow-hidden">
+            <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10"></div>
+            <div className="relative">
+              <div className="flex items-center justify-between mb-4">
+                <div className="h-12 w-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                  <BarChart3 className="h-6 w-6 text-white" />
+                </div>
+                <ArrowUpRight className="h-5 w-5 text-white/70 group-hover:text-white transition-colors" />
+              </div>
+              <h3 className="text-2xl font-bold text-white mb-2">Analytics de Notificaciones</h3>
+              <p className="text-purple-100 text-sm mb-4">
+                Métricas detalladas, gráficas interactivas y estadísticas de tus notificaciones por email y WhatsApp
+              </p>
+              <div className="flex items-center gap-4 text-white/90 text-sm">
+                <div className="flex items-center gap-1">
+                  <Activity className="h-4 w-4" />
+                  <span>Tendencias</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <PieChart className="h-4 w-4" />
+                  <span>Distribución</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Target className="h-4 w-4" />
+                  <span>Conversión</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Link>
+
+        {/* Notification Logs Card */}
+        <Link href="/dashboard/notification-logs" className="block group">
+          <div className="bg-gradient-to-br from-teal-500 via-emerald-600 to-green-700 rounded-xl p-6 shadow-lg hover:shadow-xl transition-all hover:scale-[1.02] cursor-pointer relative overflow-hidden">
+            <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10"></div>
+            <div className="relative">
+              <div className="flex items-center justify-between mb-4">
+                <div className="h-12 w-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                  <Clock className="h-6 w-6 text-white" />
+                </div>
+                <ArrowUpRight className="h-5 w-5 text-white/70 group-hover:text-white transition-colors" />
+              </div>
+              <h3 className="text-2xl font-bold text-white mb-2">Historial de Notificaciones</h3>
+              <p className="text-emerald-100 text-sm mb-4">
+                Registro completo de todas las notificaciones enviadas con filtros avanzados y exportación a CSV
+              </p>
+              <div className="flex items-center gap-4 text-white/90 text-sm">
+                <div className="flex items-center gap-1">
+                  <CheckCircle className="h-4 w-4" />
+                  <span>Filtros</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Settings className="h-4 w-4" />
+                  <span>Búsqueda</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <DollarSign className="h-4 w-4" />
+                  <span>Exportar</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Link>
+
+        {/* Intake Forms Card - NEW */}
+        <Link href="/dashboard/settings/forms" className="block group">
+          <div className="bg-gradient-to-br from-purple-500 via-indigo-600 to-blue-700 rounded-xl p-6 shadow-lg hover:shadow-xl transition-all hover:scale-[1.02] cursor-pointer relative overflow-hidden">
+            <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10"></div>
+            <div className="relative">
+              <div className="flex items-center justify-between mb-4">
+                <div className="h-12 w-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                  <svg className="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <ArrowUpRight className="h-5 w-5 text-white/70 group-hover:text-white transition-colors" />
+              </div>
+              <h3 className="text-2xl font-bold text-white mb-2">Formularios de Admisión</h3>
+              <p className="text-indigo-100 text-sm mb-4">
+                Crea formularios personalizados y envíalos a tus pacientes por WhatsApp o Email
+              </p>
+              <div className="flex items-center gap-4 text-white/90 text-sm">
+                <div className="flex items-center gap-1">
+                  <CheckCircle className="h-4 w-4" />
+                  <span>Form Builder</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Target className="h-4 w-4" />
+                  <span>Templates</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Activity className="h-4 w-4" />
+                  <span>Tracking</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Link>
+      </div>
 
       {/* === QUICK WIN 6: Gráfico Métodos de Pago === */}
       {(stats.paymentMethods.efectivo > 0 || stats.paymentMethods.tarjeta > 0 || stats.paymentMethods.transferencia > 0) && (

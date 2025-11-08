@@ -1,10 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Save, Trash2, Plus, Package, X } from "lucide-react";
 import AppLayout from "@/components/layout/app-layout";
+import { TagsInput } from "@/components/treatments/tags-input";
+import { TREATMENT_CATEGORIES, type TreatmentCategory } from "@/lib/types/treatment";
+import { QuickPhraseSelector } from "@/components/quick-phrases/quick-phrase-selector";
+import { QuickPhraseManager } from "@/components/quick-phrases/quick-phrase-manager";
 
 // UI Components
 const Card = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
@@ -64,6 +68,8 @@ interface Treatment {
   descripcion?: string;
   duracion_minutos?: number;
   activo?: boolean;
+  category?: string | null;
+  tags?: string[] | null;
 }
 
 interface InventoryItem {
@@ -105,6 +111,12 @@ export default function EditTreatmentPage() {
   const [precio, setPrecio] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [duracionMinutos, setDuracionMinutos] = useState("");
+  const [category, setCategory] = useState<TreatmentCategory | "">("");
+  const [tags, setTags] = useState<string[]>([]);
+
+  // Quick Phrases state
+  const [managePhrasesOpen, setManagePhrasesOpen] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (treatmentId) {
@@ -113,6 +125,31 @@ export default function EditTreatmentPage() {
       fetchAssignedItems();
     }
   }, [treatmentId]);
+
+  // Insert quick phrase at cursor position
+  const handleQuickPhraseSelect = (phraseContent: string) => {
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      setDescripcion(prev => prev ? `${prev}\n\n${phraseContent}` : phraseContent);
+      return;
+    }
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = descripcion;
+
+    const before = text.substring(0, start);
+    const after = text.substring(end);
+    const newText = before + phraseContent + after;
+
+    setDescripcion(newText);
+
+    setTimeout(() => {
+      textarea.focus();
+      const newPosition = start + phraseContent.length;
+      textarea.setSelectionRange(newPosition, newPosition);
+    }, 0);
+  };
 
   const fetchTreatment = async () => {
     try {
@@ -126,6 +163,8 @@ export default function EditTreatmentPage() {
       setNombre(data.nombre || "");
       setCostoUnitario(data.costo_unitario?.toString() || "");
       setPrecio((data.precio || data.precio_base)?.toString() || "");
+      setCategory(data.category || "");
+      setTags(data.tags || []);
       setDescripcion(data.descripcion || "");
       setDuracionMinutos(data.duracion_minutos?.toString() || "");
       
@@ -177,6 +216,8 @@ export default function EditTreatmentPage() {
           descripcion,
           duracion_minutos: parseInt(duracionMinutos) || 30,
           activo: true,
+          category: category || null,
+          tags: tags.length > 0 ? tags : null,
         }),
       });
 
@@ -347,14 +388,56 @@ export default function EditTreatmentPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="descripcion">Descripción</Label>
+                  <div className="flex items-center justify-between mb-2">
+                    <Label htmlFor="descripcion">Descripción</Label>
+                    <QuickPhraseSelector
+                      context="treatment"
+                      onSelect={handleQuickPhraseSelect}
+                      onManage={() => setManagePhrasesOpen(true)}
+                    />
+                  </div>
                   <textarea
+                    ref={textareaRef}
                     id="descripcion"
                     value={descripcion}
                     onChange={(e) => setDescripcion(e.target.value)}
-                    placeholder="Descripción del tratamiento..."
+                    placeholder="Descripción del tratamiento... o usa frases rápidas"
                     className="flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[100px]"
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    💡 Usa frases rápidas para indicaciones, contraindicaciones o cuidados comunes
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="category">Categoría</Label>
+                  <select
+                    id="category"
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value as TreatmentCategory)}
+                    className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Sin categoría</option>
+                    {TREATMENT_CATEGORIES.map((cat) => (
+                      <option key={cat.value} value={cat.value}>
+                        {cat.icon} {cat.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">Organiza tus tratamientos por tipo</p>
+                </div>
+
+                <div>
+                  <Label>Etiquetas (Tags)</Label>
+                  <TagsInput
+                    value={tags}
+                    onChange={setTags}
+                    placeholder="Agregar etiquetas (ej: botox, facial, antiaging)..."
+                    maxTags={10}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Agrega etiquetas para facilitar la búsqueda. Presiona Enter para agregar.
+                  </p>
                 </div>
 
                 {error && (
@@ -480,6 +563,13 @@ export default function EditTreatmentPage() {
             </div>
           </div>
         )}
+
+        {/* Quick Phrase Manager Modal */}
+        <QuickPhraseManager
+          open={managePhrasesOpen}
+          onOpenChange={setManagePhrasesOpen}
+          defaultContext="treatment"
+        />
       </div>
     </AppLayout>
   );
