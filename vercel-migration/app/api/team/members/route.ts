@@ -26,20 +26,16 @@ export async function GET(request: NextRequest) {
     // Get team members where user is the owner
     const { data: members, error: membersError } = await supabase
       .from('team_members')
-      .select(`
-        *,
-        member:member_user_id (
-          id,
-          email,
-          raw_user_meta_data
-        )
-      `)
+      .select('*')
       .eq('owner_user_id', user.id)
       .order('created_at', { ascending: false });
 
     if (membersError) {
       console.error('❌ Error fetching team members:', membersError);
-      return NextResponse.json({ error: 'Error al cargar miembros del equipo' }, { status: 500 });
+      return NextResponse.json({ 
+        error: 'Error al cargar miembros del equipo',
+        details: membersError.message 
+      }, { status: 500 });
     }
 
     // Get subscription limits
