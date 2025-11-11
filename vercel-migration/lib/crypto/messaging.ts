@@ -1,79 +1,85 @@
-import sodium from 'libsodium-wrappers';
+import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
 import type { EncryptedSecretEnvelope } from '@/types/messaging';
 
 const ENVELOPE_VERSION = 1;
-const BASE64_VARIANT = sodium.base64_variants.ORIGINAL;
-const ALGORITHM: EncryptedSecretEnvelope['algorithm'] = 'xchacha20poly1305';
+const ALGORITHM: EncryptedSecretEnvelope['algorithm'] = 'chacha20poly1305';
+const KEY_LENGTH = 32; // 256 bits
+const NONCE_LENGTH = 12; // 96 bits required by chacha20-poly1305
+const AUTH_TAG_LENGTH = 16;
 
 export type MessagingSecretPayload = Record<string, unknown>;
 
-function normalizeKey(key: string | Uint8Array): Uint8Array {
+function normalizeKey(key: string | Buffer): Buffer {
   if (typeof key === 'string') {
-    return sodium.from_base64(key.trim(), BASE64_VARIANT);
+    return Buffer.from(key, 'base64');
   }
   return key;
 }
 
-function assertKeyLength(key: Uint8Array) {
-  const required = sodium.crypto_aead_xchacha20poly1305_ietf_KEYBYTES;
-  if (key.length !== required) {
-    throw new Error(`Messaging cipher key must be ${required} bytes; received ${key.length}.`);
+function assertKeyLength(key: Buffer) {
+  if (key.length !== KEY_LENGTH) {
+    throw new Error(`Messaging cipher key must be ${KEY_LENGTH} bytes; received ${key.length}.`);
   }
 }
 
 export async function encryptMessagingSecret(
   payload: MessagingSecretPayload,
-  key: string | Uint8Array,
+  key: string | Buffer,
 ): Promise<EncryptedSecretEnvelope> {
-  await sodium.ready;
   const normalizedKey = normalizeKey(key);
   assertKeyLength(normalizedKey);
 
-  const message = new TextEncoder().encode(JSON.stringify(payload));
-  const nonce = sodium.randombytes_buf(
-    sodium.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES,
-  );
-  const ciphertext = sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(
-    message,
-    null,
-    null,
-    nonce,
-    normalizedKey,
-  );
+  const message = Buffer.from(JSON.stringify(payload), 'utf8');
+  const nonce = randomBytes(NONCE_LENGTH);
+  
+  // Using chacha20-poly1305 (Node.js doesn't support xchacha20 directly, but chacha20-poly1305 is very similar)
+  const cipher = createCipheriv('chacha20-poly1305', normalizedKey, nonce, {
+    authTagLength: AUTH_TAG_LENGTH,
+  });
+  
+  const ciphertext = Buffer.concat([cipher.update(message), cipher.final()]);
+  const authTag = cipher.getAuthTag();
+  
+  // Combine ciphertext and auth tag
+  const combined = Buffer.concat([ciphertext, authTag]);
 
   return {
     version: ENVELOPE_VERSION,
     algorithm: ALGORITHM,
-    nonce: sodium.to_base64(nonce, BASE64_VARIANT),
-    ciphertext: sodium.to_base64(ciphertext, BASE64_VARIANT),
+    nonce: nonce.toString('base64'),
+    ciphertext: combined.toString('base64'),
     created_at: new Date().toISOString(),
   };
 }
 
 export async function decryptMessagingSecret<T extends MessagingSecretPayload>(
   envelope: EncryptedSecretEnvelope,
-  key: string | Uint8Array,
+  key: string | Buffer,
 ): Promise<T> {
-  await sodium.ready;
   if (envelope.algorithm !== ALGORITHM) {
+    if (envelope.algorithm === 'xchacha20poly1305') {
+      throw new Error('Legacy xchacha20poly1305 data found. Please re-save messaging credentials.');
+    }
     throw new Error(`Unsupported algorithm ${envelope.algorithm}`);
   }
 
   const normalizedKey = normalizeKey(key);
   assertKeyLength(normalizedKey);
 
-  const nonce = sodium.from_base64(envelope.nonce, BASE64_VARIANT);
-  const ciphertext = sodium.from_base64(envelope.ciphertext, BASE64_VARIANT);
+  const nonce = Buffer.from(envelope.nonce, 'base64');
+  const combined = Buffer.from(envelope.ciphertext, 'base64');
+  
+  // Split combined buffer into ciphertext and auth tag
+  const ciphertext = combined.subarray(0, combined.length - AUTH_TAG_LENGTH);
+  const authTag = combined.subarray(combined.length - AUTH_TAG_LENGTH);
 
-  const decrypted = sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(
-    null,
-    ciphertext,
-    null,
-    nonce,
-    normalizedKey,
-  );
+  const decipher = createDecipheriv('chacha20-poly1305', normalizedKey, nonce, {
+    authTagLength: AUTH_TAG_LENGTH,
+  });
+  decipher.setAuthTag(authTag);
 
-  const json = new TextDecoder().decode(decrypted);
+  const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+  const json = decrypted.toString('utf8');
   return JSON.parse(json) as T;
 }
 

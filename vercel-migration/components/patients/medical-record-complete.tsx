@@ -6,7 +6,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -21,11 +21,9 @@ import {
   Heart, 
   Pill, 
   AlertTriangle, 
-  FileText, 
   Stethoscope,
   Calendar,
   Activity,
-  Syringe,
   ClipboardList,
   ChevronRight,
 } from 'lucide-react';
@@ -37,30 +35,139 @@ import type {
   CurrentMedication,
   PatientDemographics,
 } from '@/lib/types/medical-history';
+import type { Antecedentes, MedicalRecord, Medicamento } from '@/types/medical-record';
+
+type NoteMedication = Medicamento & {
+  medicamento?: string;
+  via_administracion?: string;
+  indicacion?: string;
+  activo?: boolean;
+};
+
+type MedicalNote = MedicalRecord & {
+  plan_tratamiento?: string;
+  cie10_code?: string;
+  notasPrivadas?: string;
+  medico?: string;
+  medicoEspecialidad?: string;
+  presion_arterial?: string;
+  presion_arterial_sistolica?: number;
+  presion_arterial_diastolica?: number;
+  frecuencia_cardiaca?: number;
+  temperatura?: number;
+  peso?: number;
+  saturacion_oxigeno?: number;
+  talla?: number;
+  tratamiento?: NoteMedication[];
+  antecedentes?: Antecedentes & { alergias?: string[] };
+};
 
 interface MedicalRecordCompleteProps {
   patientId: string;
-  patientName: string;
   patientData?: PatientDemographics;
   medicalHistory?: MedicalHistory;
   allergies: PatientAllergy[];
   medications: CurrentMedication[];
-  medicalNotes: any[]; // Timeline de consultas
+  medicalNotes: MedicalNote[];
   totalConsultations: number;
+  onOpenTimeline?: () => void;
+  onCreateConsultation?: () => void;
 }
 
 export function MedicalRecordComplete({
   patientId,
-  patientName,
   patientData,
   medicalHistory,
   allergies,
   medications,
   medicalNotes,
   totalConsultations,
+  onOpenTimeline,
+  onCreateConsultation,
 }: MedicalRecordCompleteProps) {
   // Default: Consultas open, others can be expanded by user
   const [activeSections, setActiveSections] = useState<string[]>(['consultas']);
+
+  const sortedNotes = useMemo<MedicalNote[]>(() => {
+    const notesArray = Array.isArray(medicalNotes) ? medicalNotes : [];
+    return [...notesArray].sort((a, b) => {
+      const dateA = new Date(a?.fecha_consulta ?? a?.created_at ?? 0).getTime();
+      const dateB = new Date(b?.fecha_consulta ?? b?.created_at ?? 0).getTime();
+      return dateB - dateA;
+    });
+  }, [medicalNotes]);
+
+  const latestNote = sortedNotes[0];
+
+  const antecedentesFallback = useMemo<Antecedentes | undefined>(() => {
+    if (!latestNote?.antecedentes) {
+      return undefined;
+    }
+    return latestNote.antecedentes;
+  }, [latestNote]);
+
+  const resolvedAllergies = useMemo<PatientAllergy[]>(() => {
+    if (Array.isArray(allergies) && allergies.length > 0) {
+      return allergies;
+    }
+    if (!antecedentesFallback?.alergias || antecedentesFallback.alergias.length === 0) {
+      return [];
+    }
+
+    const timestamp = latestNote?.fecha_consulta ?? latestNote?.created_at ?? new Date().toISOString();
+
+    return antecedentesFallback.alergias
+      .filter((alergia) => typeof alergia === 'string' && alergia.trim().length > 0)
+      .map((alergia, index) => ({
+        id: `${latestNote?.id ?? 'note'}-alergia-${index}`,
+        patient_id: patientId,
+        user_id: latestNote?.user_id ?? '',
+        tipo_alergia: 'otro',
+        alergeno: alergia,
+        severidad: undefined,
+        reaccion: undefined,
+        notas: undefined,
+        fecha_descubrimiento: timestamp,
+        created_at: timestamp,
+        updated_at: timestamp,
+      }));
+  }, [allergies, antecedentesFallback, latestNote, patientId]);
+
+  const resolvedMedications = useMemo<CurrentMedication[]>(() => {
+    if (Array.isArray(medications) && medications.length > 0) {
+      return medications;
+    }
+
+    const tratamientos: NoteMedication[] = Array.isArray(latestNote?.tratamiento)
+      ? (latestNote.tratamiento as NoteMedication[])
+      : [];
+    if (tratamientos.length === 0) {
+      return [];
+    }
+
+    const baseTimestamp = latestNote?.fecha_consulta ?? latestNote?.created_at ?? new Date().toISOString();
+
+    return tratamientos
+      .filter((med) => med && (med.nombre || med.medicamento))
+      .map((med, index) => ({
+        id: `${latestNote?.id ?? 'note'}-med-${index}`,
+        patient_id: patientId,
+        user_id: latestNote?.user_id ?? '',
+        medicamento: med.nombre ?? med.medicamento ?? '',
+        dosis: med.dosis ?? '',
+        frecuencia: med.frecuencia ?? '',
+        via_administracion: med.via ?? med.via_administracion ?? undefined,
+        indicacion: med.duracion ?? med.indicacion ?? undefined,
+        fecha_inicio: baseTimestamp,
+        activo: med.activo ?? true,
+        created_at: baseTimestamp,
+        updated_at: baseTimestamp,
+      }));
+  }, [medications, latestNote, patientId]);
+
+  const consultationsCount = totalConsultations || sortedNotes.length;
+  const activeMedicationCount = resolvedMedications.filter((med) => med.activo).length;
+  const allergyCount = resolvedAllergies.length;
 
   return (
     <div className="space-y-4">
@@ -76,7 +183,30 @@ export function MedicalRecordComplete({
                 NOM-004-SSA3-2012 • Sistema de Gestión Médica
               </p>
             </div>
-            {/* Botón "Abrir Completo" removido - todo está aquí */}
+            {(onOpenTimeline || onCreateConsultation) && (
+              <div className="flex flex-wrap gap-2">
+                {onCreateConsultation && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="bg-white/20 text-white border-white/40 hover:bg-white/30"
+                    onClick={onCreateConsultation}
+                  >
+                    Registrar consulta
+                  </Button>
+                )}
+                {onOpenTimeline && (
+                  <Button
+                    size="sm"
+                    variant="default"
+                    className="bg-white text-blue-600 hover:bg-blue-50"
+                    onClick={onOpenTimeline}
+                  >
+                    Ver expediente completo
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -128,6 +258,7 @@ export function MedicalRecordComplete({
               <AccordionContent className="px-4 pb-4">
                 <MedicalHistorySection 
                   medicalHistory={medicalHistory}
+                  antecedentesFallback={antecedentesFallback}
                 />
               </AccordionContent>
             </AccordionItem>
@@ -142,22 +273,22 @@ export function MedicalRecordComplete({
                   <div className="text-left">
                     <div className="font-semibold">Alergias</div>
                     <div className="text-xs text-gray-500">
-                      {allergies.length > 0 
-                        ? `${allergies.length} alergia${allergies.length > 1 ? 's' : ''} registrada${allergies.length > 1 ? 's' : ''}`
+                      {allergyCount > 0 
+                        ? `${allergyCount} alergia${allergyCount > 1 ? 's' : ''} registrada${allergyCount > 1 ? 's' : ''}`
                         : 'Sin alergias registradas'
                       }
                     </div>
                   </div>
-                  {allergies.length > 0 && (
+                  {allergyCount > 0 && (
                     <Badge variant="destructive" className="ml-auto mr-2">
-                      {allergies.length}
+                      {allergyCount}
                     </Badge>
                   )}
                 </div>
               </AccordionTrigger>
               <AccordionContent className="px-4 pb-4">
                 <AllergiesSection 
-                  allergies={allergies}
+                  allergies={resolvedAllergies}
                 />
               </AccordionContent>
             </AccordionItem>
@@ -172,22 +303,22 @@ export function MedicalRecordComplete({
                   <div className="text-left">
                     <div className="font-semibold">Medicamentos Actuales</div>
                     <div className="text-xs text-gray-500">
-                      {medications.filter(m => m.activo).length > 0
-                        ? `${medications.filter(m => m.activo).length} medicamento${medications.filter(m => m.activo).length > 1 ? 's' : ''} activo${medications.filter(m => m.activo).length > 1 ? 's' : ''}`
+                      {activeMedicationCount > 0
+                        ? `${activeMedicationCount} medicamento${activeMedicationCount > 1 ? 's' : ''} activo${activeMedicationCount > 1 ? 's' : ''}`
                         : 'Sin medicamentos activos'
                       }
                     </div>
                   </div>
-                  {medications.filter(m => m.activo).length > 0 && (
+                  {activeMedicationCount > 0 && (
                     <Badge variant="secondary" className="ml-auto mr-2">
-                      {medications.filter(m => m.activo).length}
+                      {activeMedicationCount}
                     </Badge>
                   )}
                 </div>
               </AccordionTrigger>
               <AccordionContent className="px-4 pb-4">
                 <MedicationsSection 
-                  medications={medications}
+                  medications={resolvedMedications}
                 />
               </AccordionContent>
             </AccordionItem>
@@ -202,18 +333,20 @@ export function MedicalRecordComplete({
                   <div className="text-left">
                     <div className="font-semibold">Consultas y Evolución</div>
                     <div className="text-xs text-gray-500">
-                      {totalConsultations} consulta{totalConsultations !== 1 ? 's' : ''} registrada{totalConsultations !== 1 ? 's' : ''}
+                      {consultationsCount} consulta{consultationsCount !== 1 ? 's' : ''} registrada{consultationsCount !== 1 ? 's' : ''}
                     </div>
                   </div>
-                  <Badge variant="outline" className="ml-auto mr-2">
-                    {totalConsultations}
-                  </Badge>
+                  {consultationsCount > 0 && (
+                    <Badge variant="outline" className="ml-auto mr-2">
+                      {consultationsCount}
+                    </Badge>
+                  )}
                 </div>
               </AccordionTrigger>
               <AccordionContent className="px-4 pb-4">
                 <ConsultationsTimeline 
-                  medicalNotes={medicalNotes}
-                  totalConsultations={totalConsultations}
+                  medicalNotes={sortedNotes}
+                  totalConsultations={consultationsCount}
                 />
               </AccordionContent>
             </AccordionItem>
@@ -267,11 +400,13 @@ function DemographicSection({
 }
 
 function MedicalHistorySection({ 
-  medicalHistory
+  medicalHistory,
+  antecedentesFallback,
 }: { 
   medicalHistory?: MedicalHistory;
+  antecedentesFallback?: Antecedentes;
 }) {
-  if (!medicalHistory) {
+  if (!medicalHistory && !antecedentesFallback) {
     return (
       <div className="text-center py-8 text-gray-500">
         <Heart className="w-12 h-12 mx-auto mb-3 opacity-50" />
@@ -279,6 +414,68 @@ function MedicalHistorySection({
         <p className="text-xs text-gray-400 mt-2">La información se completará en consultas futuras</p>
       </div>
     );
+  }
+
+  if (!medicalHistory && antecedentesFallback) {
+    return (
+      <div className="space-y-6">
+        <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg text-xs text-purple-800">
+          Información tomada de la última historia clínica registrada en consultas.
+        </div>
+
+        {antecedentesFallback.heredo_familiares && (
+          <div>
+            <h4 className="font-semibold mb-3 flex items-center gap-2">
+              <Heart className="w-4 h-4" />
+              Antecedentes Heredo-Familiares
+            </h4>
+            <p className="text-sm text-gray-700 whitespace-pre-wrap border rounded-lg p-3 bg-white">
+              {antecedentesFallback.heredo_familiares}
+            </p>
+          </div>
+        )}
+
+        {antecedentesFallback.personales_no_patologicos && (
+          <div>
+            <h4 className="font-semibold mb-3 flex items-center gap-2">
+              <Activity className="w-4 h-4" />
+              Antecedentes Personales No Patológicos
+            </h4>
+            <p className="text-sm text-gray-700 whitespace-pre-wrap border rounded-lg p-3 bg-white">
+              {antecedentesFallback.personales_no_patologicos}
+            </p>
+          </div>
+        )}
+
+        {antecedentesFallback.personales_patologicos && (
+          <div>
+            <h4 className="font-semibold mb-3 flex items-center gap-2">
+              <ClipboardList className="w-4 h-4" />
+              Antecedentes Personales Patológicos
+            </h4>
+            <p className="text-sm text-gray-700 whitespace-pre-wrap border rounded-lg p-3 bg-white">
+              {antecedentesFallback.personales_patologicos}
+            </p>
+          </div>
+        )}
+
+        {antecedentesFallback.gineco_obstetricos && (
+          <div>
+            <h4 className="font-semibold mb-3 flex items-center gap-2">
+              <Calendar className="w-4 h-4" />
+              Antecedentes Gineco-Obstétricos
+            </h4>
+            <p className="text-sm text-gray-700 whitespace-pre-wrap border rounded-lg p-3 bg-white">
+              {antecedentesFallback.gineco_obstetricos}
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (!medicalHistory) {
+    return null;
   }
 
   return (
@@ -500,6 +697,16 @@ function ConsultationsTimeline({
   totalConsultations: number;
 }) {
   const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set());
+  const tipoLabels: Record<string, string> = {
+    primera_vez: 'Historia Clínica Inicial',
+    evolucion: 'Nota de Evolución',
+    interconsulta: 'Interconsulta',
+  };
+  const tipoBadgeClasses: Record<string, string> = {
+    primera_vez: 'bg-green-100 text-green-700 border-green-300',
+    evolucion: 'bg-blue-100 text-blue-700 border-blue-300',
+    interconsulta: 'bg-purple-100 text-purple-700 border-purple-300',
+  };
 
   const toggleNote = (noteId: string) => {
     setExpandedNotes(prev => {
@@ -528,12 +735,33 @@ function ConsultationsTimeline({
   return (
     <div className="space-y-4">
       {medicalNotes.map((note, index) => {
-        const noteId = note.id || `note-${index}`;
+        const noteId = note?.id ? String(note.id) : `note-${index}`;
         const isExpanded = expandedNotes.has(noteId);
-        
+        const diagnosis = note?.diagnostico_descripcion ?? note?.diagnostico ?? '';
+        const cie10 = note?.diagnostico_cie10 ?? note?.cie10_code ?? '';
+        const planContent = note?.indicaciones_generales ?? note?.plan_tratamiento ?? '';
+        const vitals = note?.signos_vitales ?? {};
+        const presionSistolica = vitals?.presion_arterial_sistolica ?? note?.presion_arterial_sistolica ?? null;
+        const presionDiastolica = vitals?.presion_arterial_diastolica ?? note?.presion_arterial_diastolica ?? null;
+        const presionArterial = presionSistolica !== null && presionDiastolica !== null
+          ? `${presionSistolica}/${presionDiastolica} mmHg`
+          : note?.presion_arterial ?? null;
+        const frecuenciaCardiaca = vitals?.frecuencia_cardiaca ?? note?.frecuencia_cardiaca ?? null;
+        const temperatura = vitals?.temperatura ?? note?.temperatura ?? null;
+        const peso = vitals?.peso ?? note?.peso ?? null;
+        const saturacion = vitals?.saturacion_oxigeno ?? note?.saturacion_oxigeno ?? null;
+        const talla = vitals?.talla ?? note?.talla ?? null;
+        const tipo = note?.tipo_consulta as keyof typeof tipoLabels | undefined;
+        const tipoLabel = tipo ? tipoLabels[tipo] ?? note?.tipo_consulta : note?.tipo_consulta;
+        const tipoBadgeClass = tipo ? tipoBadgeClasses[tipo] ?? 'bg-gray-100 text-gray-700 border-gray-300' : 'bg-gray-100 text-gray-700 border-gray-300';
+        const tratamiento = Array.isArray(note?.tratamiento) ? note.tratamiento : [];
+        const notasPrivadas = note?.notas_privadas ?? note?.notasPrivadas ?? '';
+        const medicoNombre = note?.medico_nombre ?? note?.medico ?? '';
+        const medicoEspecialidad = note?.medico_especialidad ?? note?.medicoEspecialidad ?? '';
+
         return (
-          <Card 
-            key={noteId} 
+          <Card
+            key={noteId}
             className="overflow-hidden hover:shadow-md transition-all cursor-pointer"
             onClick={() => toggleNote(noteId)}
           >
@@ -544,14 +772,16 @@ function ConsultationsTimeline({
                     <Calendar className="w-6 h-6 text-indigo-600" />
                   </div>
                 </div>
-                
+
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2 flex-wrap">
-                      {note.tipo_consulta && (
-                        <Badge variant="outline">{note.tipo_consulta}</Badge>
+                      {note?.tipo_consulta && (
+                        <Badge className={`border ${tipoBadgeClass}`}>
+                          {tipoLabel}
+                        </Badge>
                       )}
-                      {note.fecha_consulta && (
+                      {note?.fecha_consulta && (
                         <span className="text-sm text-gray-500">
                           {format(new Date(note.fecha_consulta), "d 'de' MMMM, yyyy", { locale: es })}
                         </span>
@@ -564,96 +794,122 @@ function ConsultationsTimeline({
                     />
                   </div>
 
-                  {/* Vista Previa - Siempre visible */}
-                  {note.diagnostico && (
+                  {diagnosis && (
                     <div className="mb-2">
                       <p className="text-sm font-medium text-gray-900 line-clamp-1">
-                        {note.diagnostico}
+                        {diagnosis}
                       </p>
                     </div>
                   )}
 
-                  {/* Contenido Expandible */}
                   {isExpanded && (
                     <div className="mt-4 space-y-3 animate-in slide-in-from-top-2">
-                      {/* Diagnóstico Completo */}
-                      {note.diagnostico && (
+                      {diagnosis && (
                         <div className="p-3 bg-blue-50 rounded-lg">
                           <div className="flex items-start gap-2">
                             <Stethoscope className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
                             <div className="min-w-0 flex-1">
                               <span className="text-xs font-medium text-blue-600">Diagnóstico:</span>
-                              <p className="text-sm font-medium text-gray-900 mt-1">{note.diagnostico}</p>
-                              {note.cie10_code && (
-                                <p className="text-xs text-gray-500 mt-1">CIE-10: {note.cie10_code}</p>
+                              <p className="text-sm font-medium text-gray-900 mt-1">{diagnosis}</p>
+                              {cie10 && (
+                                <p className="text-xs text-gray-500 mt-1">CIE-10: {cie10}</p>
                               )}
                             </div>
                           </div>
                         </div>
                       )}
 
-                      {/* Plan de Tratamiento */}
-                      {note.plan_tratamiento && (
+                      {planContent && (
                         <div className="p-3 bg-green-50 rounded-lg">
                           <div className="flex items-start gap-2">
                             <ClipboardList className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
                             <div className="min-w-0 flex-1">
                               <span className="text-xs font-medium text-green-600">Plan de Tratamiento:</span>
-                              <p className="text-sm text-gray-700 whitespace-pre-wrap mt-1">{note.plan_tratamiento}</p>
+                              <p className="text-sm text-gray-700 whitespace-pre-wrap mt-1">{planContent}</p>
                             </div>
                           </div>
                         </div>
                       )}
 
-                      {/* Notas Privadas */}
-                      {note.notas_privadas && (
+                      {tratamiento.length > 0 && (
+                        <div className="p-3 bg-green-100 rounded-lg">
+                          <span className="text-xs font-medium text-green-700">Prescripciones:</span>
+                          <div className="space-y-2 mt-1">
+                            {tratamiento.map((med: any, medIndex: number) => (
+                              <div key={medIndex} className="text-xs bg-white rounded border border-green-200 p-2 shadow-sm">
+                                <p className="font-semibold text-gray-800">{med.nombre}</p>
+                                <p className="text-gray-600">
+                                  {[med.dosis, med.via, med.frecuencia, med.duracion]
+                                    .filter(Boolean)
+                                    .join(' • ')}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {notasPrivadas && (
                         <div className="p-3 bg-gray-50 rounded-lg">
                           <span className="text-xs font-medium text-gray-600">Notas Privadas:</span>
                           <div className="text-sm text-gray-700 whitespace-pre-wrap mt-1">
-                            {note.notas_privadas}
+                            {notasPrivadas}
                           </div>
                         </div>
                       )}
 
-                      {/* Signos Vitales */}
-                      {(note.presion_arterial || note.frecuencia_cardiaca || note.temperatura || note.peso) && (
+                      {(presionArterial || frecuenciaCardiaca || temperatura || peso || saturacion || talla) && (
                         <div className="p-3 bg-purple-50 rounded-lg">
                           <span className="text-xs font-medium text-purple-600 mb-2 block">Signos Vitales:</span>
                           <div className="flex flex-wrap gap-4">
-                            {note.presion_arterial && (
+                            {presionArterial && (
                               <div className="flex items-center gap-1 text-xs">
                                 <Activity className="w-3 h-3 text-red-500" />
                                 <span className="text-gray-600">PA:</span>
-                                <span className="font-medium">{note.presion_arterial}</span>
+                                <span className="font-medium">{presionArterial}</span>
                               </div>
                             )}
-                            {note.frecuencia_cardiaca && (
+                            {frecuenciaCardiaca && (
                               <div className="flex items-center gap-1 text-xs">
                                 <Heart className="w-3 h-3 text-pink-500" />
                                 <span className="text-gray-600">FC:</span>
-                                <span className="font-medium">{note.frecuencia_cardiaca} bpm</span>
+                                <span className="font-medium">{frecuenciaCardiaca} bpm</span>
                               </div>
                             )}
-                            {note.temperatura && (
+                            {temperatura && (
                               <div className="flex items-center gap-1 text-xs">
                                 <span className="text-gray-600">Temp:</span>
-                                <span className="font-medium">{note.temperatura}°C</span>
+                                <span className="font-medium">{temperatura}°C</span>
                               </div>
                             )}
-                            {note.peso && (
+                            {peso && (
                               <div className="flex items-center gap-1 text-xs">
                                 <span className="text-gray-600">Peso:</span>
-                                <span className="font-medium">{note.peso} kg</span>
+                                <span className="font-medium">{peso} kg</span>
+                              </div>
+                            )}
+                            {talla && (
+                              <div className="flex items-center gap-1 text-xs">
+                                <span className="text-gray-600">Talla:</span>
+                                <span className="font-medium">{talla} cm</span>
+                              </div>
+                            )}
+                            {saturacion && (
+                              <div className="flex items-center gap-1 text-xs">
+                                <span className="text-gray-600">SpO₂:</span>
+                                <span className="font-medium">{saturacion}%</span>
                               </div>
                             )}
                           </div>
                         </div>
                       )}
 
-                      {/* Footer con médico */}
-                      {note.medico && (
+                      {(medicoNombre || medicoEspecialidad) && (
                         <div className="pt-3 border-t text-xs text-gray-500">
-                          <span className="font-medium">Médico:</span> {note.medico}
+                          <span className="font-medium">Médico:</span> {medicoNombre}
+                          {medicoEspecialidad && (
+                            <span className="text-gray-400"> • {medicoEspecialidad}</span>
+                          )}
                         </div>
                       )}
                     </div>

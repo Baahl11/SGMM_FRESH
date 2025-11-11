@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Users, Stethoscope, Package, TrendingUp, Calendar, DollarSign, CreditCard, Banknote, ArrowUpRight, ArrowDownRight, Clock, AlertTriangle, TrendingDown, Activity, BarChart3, PieChart, Target, CheckCircle, Minus, Settings, UserX, FileText } from "lucide-react";
+import { Users, Stethoscope, Package, TrendingUp, Calendar, DollarSign, CreditCard, Banknote, ArrowUpRight, ArrowDownRight, Clock, AlertTriangle, TrendingDown, Activity, BarChart3, PieChart, Target, CheckCircle, Minus, Settings, UserX, FileText, Receipt } from "lucide-react";
 import AppLayout from "@/components/layout/app-layout";
 import { MiniAgenda } from "@/components/agenda/mini-agenda";
 import BookingsWidget from "@/components/dashboard/BookingsWidget";
@@ -23,6 +23,7 @@ interface DashboardStats {
   monthlyRevenue: number;
   monthlyGrossProfit: number;
   monthlyFixedCosts: number;
+  monthlyVariableCosts: number;
   monthlyNetProfit: number;
   monthlyMarginPercentage: number;
   upcomingPayments: number;
@@ -114,6 +115,7 @@ export default function DashboardPage() {
     monthlyRevenue: 0,
     monthlyGrossProfit: 0,
     monthlyFixedCosts: 0,
+    monthlyVariableCosts: 0,
     monthlyNetProfit: 0,
     monthlyMarginPercentage: 0,
     upcomingPayments: 0,
@@ -247,7 +249,25 @@ export default function DashboardPage() {
         console.warn('No se pudieron cargar los gastos fijos:', error);
       }
 
-      const monthlyNetProfit = monthlyGrossProfit - monthlyFixedCosts;
+      // Obtener gastos variables del mes actual
+      let monthlyVariableCosts = 0;
+      try {
+        const currentDate = new Date();
+        const mes = currentDate.getMonth() + 1;
+        const año = currentDate.getFullYear();
+        
+        const gastosVariablesResponse = await fetch(
+          `/api/gastos-variables/stats?mes=${mes}&año=${año}`
+        ).then(r => r.json()).catch(() => null);
+        
+        if (gastosVariablesResponse && gastosVariablesResponse.total) {
+          monthlyVariableCosts = gastosVariablesResponse.total;
+        }
+      } catch (error) {
+        console.warn('No se pudieron cargar los gastos variables:', error);
+      }
+
+      const monthlyNetProfit = monthlyGrossProfit - monthlyFixedCosts - monthlyVariableCosts;
       const monthlyMarginPercentage = monthlyRevenue > 0 ? (monthlyNetProfit / monthlyRevenue) * 100 : 0;
 
       // Registros recientes
@@ -435,6 +455,7 @@ export default function DashboardPage() {
         monthlyRevenue,
         monthlyGrossProfit,
         monthlyFixedCosts,
+        monthlyVariableCosts,
         monthlyNetProfit,
         monthlyMarginPercentage,
         upcomingPayments: 0,
@@ -1183,7 +1204,7 @@ export default function DashboardPage() {
           </div>
         </div>
         
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
           <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
               <CardTitle className="text-sm font-medium text-green-700">Ingresos Mes</CardTitle>
@@ -1209,7 +1230,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-blue-900">${(stats?.monthlyGrossProfit || 0).toLocaleString()}</div>
-              <p className="text-xs text-blue-600 mt-1 font-medium">Sin gastos fijos</p>
+              <p className="text-xs text-blue-600 mt-1 font-medium">Sin gastos</p>
             </CardContent>
           </Card>
 
@@ -1222,7 +1243,20 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-red-900">${(stats?.monthlyFixedCosts || 0).toLocaleString()}</div>
-              <p className="text-xs text-red-600 mt-1 font-medium">Mensuales</p>
+              <p className="text-xs text-red-600 mt-1 font-medium">Recurrentes</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200 shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+              <CardTitle className="text-sm font-medium text-orange-700">Gastos Variables</CardTitle>
+              <div className="h-8 w-8 bg-orange-500 rounded-lg flex items-center justify-center">
+                <Receipt className="h-4 w-4 text-white" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-orange-900">${(stats?.monthlyVariableCosts || 0).toLocaleString()}</div>
+              <p className="text-xs text-orange-600 mt-1 font-medium">Este mes</p>
             </CardContent>
           </Card>
 

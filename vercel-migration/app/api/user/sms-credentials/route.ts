@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { query } from '@/lib/db';
 import { createClient } from '@/lib/supabase/server';
 import {
   encryptMessagingSecret,
@@ -101,18 +100,23 @@ export async function GET() {
       return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
     }
 
-    const { rows } = await query(
-      `SELECT id, provider, credentials_encrypted, config, status, last_synced_at, created_at, updated_at
-       FROM messaging_providers
-       WHERE user_id = $1 AND channel = $2`,
-      [user.id, CHANNEL]
-    );
+    const supabase = await createClient();
+    const { data: rows, error: queryError } = await supabase
+      .from('messaging_providers')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('channel', CHANNEL);
 
-    if (rows.length === 0) {
+    if (queryError) {
+      console.error('Error querying providers:', queryError);
+      return NextResponse.json({ error: 'Error al consultar credenciales' }, { status: 500 });
+    }
+
+    if (!rows || rows.length === 0) {
       return NextResponse.json({ provider: null, has_credentials: false });
     }
 
-  const providerRow = rows[0] as ProviderRow;
+    const providerRow = rows[0] as ProviderRow;
 
     const providerConfig = (() => {
       if (!providerRow.config) {
@@ -201,24 +205,30 @@ export async function POST(request: Request) {
 
     const key = getCipherKey();
     const envelope = await encryptMessagingSecret(credentials as Record<string, unknown>, key);
-    const status: MessagingProviderStatus = body.status && body.status !== '' ? body.status : 'pending';
-  const config = body.config ?? {};
+  const status: MessagingProviderStatus = body.status && body.status !== '' ? body.status : 'active';
+    const config = body.config ?? {};
 
-    const result = await query(
-      `INSERT INTO messaging_providers (user_id, account_id, channel, provider, credentials_encrypted, config, status)
-       VALUES ($1, NULL, $2, $3, $4, $5::jsonb, $6)
-       ON CONFLICT (user_id, channel)
-       DO UPDATE SET
-         provider = EXCLUDED.provider,
-         credentials_encrypted = EXCLUDED.credentials_encrypted,
-         config = EXCLUDED.config,
-         status = EXCLUDED.status,
-         updated_at = NOW()
-       RETURNING id, provider, status, created_at, updated_at`,
-  [user.id, CHANNEL, provider, JSON.stringify(envelope), JSON.stringify(config), status]
-    );
+    const supabase = await createClient();
+    const { data: row, error: insertError } = await supabase
+      .from('messaging_providers')
+      .upsert({
+        user_id: user.id,
+        account_id: null,
+        channel: CHANNEL,
+        provider,
+        credentials_encrypted: JSON.stringify(envelope),
+        config,
+        status,
+      }, {
+        onConflict: 'user_id,channel'
+      })
+      .select()
+      .single();
 
-    const row = result.rows[0];
+    if (insertError || !row) {
+      console.error('Error upserting provider:', insertError);
+      return NextResponse.json({ error: 'Error al guardar credenciales' }, { status: 500 });
+    }
 
     return NextResponse.json({
       success: true,
@@ -241,7 +251,17 @@ export async function DELETE() {
       return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
     }
 
-    await query('DELETE FROM messaging_providers WHERE user_id = $1 AND channel = $2', [user.id, CHANNEL]);
+    const supabase = await createClient();
+    const { error: deleteError } = await supabase
+      .from('messaging_providers')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('channel', CHANNEL);
+
+    if (deleteError) {
+      console.error('Error deleting provider:', deleteError);
+      return NextResponse.json({ error: 'Error al eliminar credenciales' }, { status: 500 });
+    }
 
     return NextResponse.json({
       success: true,

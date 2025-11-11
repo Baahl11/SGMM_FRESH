@@ -20,14 +20,14 @@ const FALLBACK_PRICE_IDS = {
   },
 } as const
 
-function normalizePlan(plan: string | null): SupportedPlan {
+function normalizePlan(plan: string | null | undefined): SupportedPlan {
   if (plan === 'pro') {
     return 'pro'
   }
   return 'basico'
 }
 
-function normalizeBilling(billing: string | null): BillingCycle {
+function normalizeBilling(billing: string | null | undefined): BillingCycle {
   if (billing === 'annual' || billing === 'yearly' || billing === 'anual') {
     return 'annual'
   }
@@ -76,16 +76,32 @@ export async function GET(request: NextRequest) {
   const planParam = requestUrl.searchParams.get('plan')
   const billingParam = requestUrl.searchParams.get('billing')
 
-  const plan = normalizePlan(planParam)
-  const billing = normalizeBilling(billingParam)
+  const cookieStore = await cookies()
+  const trialSelectionCookie = cookieStore.get('trial_selection')?.value
+  let cookiePlan: string | null = null
+  let cookieBilling: string | null = null
+
+  if (trialSelectionCookie) {
+    try {
+      const decoded = decodeURIComponent(trialSelectionCookie)
+      const parsed = JSON.parse(decoded) as { plan?: string; billing?: string }
+      cookiePlan = parsed.plan ?? null
+      cookieBilling = parsed.billing ?? null
+    } catch (error) {
+      console.warn('[Auth Callback] Unable to parse trial selection cookie', {
+        errorMessage: (error as Error).message,
+      })
+    }
+  }
+
+  const plan = normalizePlan(planParam ?? cookiePlan)
+  const billing = normalizeBilling(billingParam ?? cookieBilling)
   const planConfig = resolvePlanConfig(plan, billing)
 
   if (!code) {
     console.warn('[Auth Callback] Missing authorization code', { plan, billing })
     return NextResponse.redirect(`${origin}/auth/auth-code-error`)
   }
-
-  const cookieStore = await cookies()
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -257,6 +273,22 @@ export async function GET(request: NextRequest) {
 
   const redirectPath = isFirstLogin ? '/welcome' : ensureSafePath(nextParam)
 
-  console.log('[Auth Callback] Redirecting user', { userId, redirectPath })
-  return NextResponse.redirect(`${origin}${redirectPath}`)
+  console.log('[Auth Callback] Redirecting user', {
+    userId,
+    redirectPath,
+    planSource: planParam ? 'query' : cookiePlan ? 'cookie' : 'default',
+  })
+
+  const response = NextResponse.redirect(`${origin}${redirectPath}`)
+
+  if (trialSelectionCookie) {
+    response.cookies.set({
+      name: 'trial_selection',
+      value: '',
+      maxAge: 0,
+      path: '/',
+    })
+  }
+
+  return response
 }

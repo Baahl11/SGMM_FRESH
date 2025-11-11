@@ -170,8 +170,13 @@ export function ConsultationWizard({
       const response = await fetch('/api/doctors');
       if (response.ok) {
         const data = await response.json();
-        console.log('📋 Doctores cargados:', data.doctors);
-        setDoctors(data.doctors || []);
+        const doctorList = Array.isArray(data) ? data : data?.doctors ?? [];
+        const normalizedDoctors = doctorList.map((doctor: any) => ({
+          ...doctor,
+          id: doctor?.id != null ? String(doctor.id) : undefined,
+        }));
+        console.log('📋 Doctores cargados:', normalizedDoctors.length);
+        setDoctors(normalizedDoctors);
       } else {
         console.error('Error al cargar doctores:', response.status);
       }
@@ -183,10 +188,10 @@ export function ConsultationWizard({
   // Cuando se selecciona un doctor del dropdown
   const handleDoctorSelect = (doctorId: string) => {
     setSelectedDoctorId(doctorId);
-    const doctor = doctors.find((d) => d.id === doctorId);
+    const doctor = doctors.find((d) => String(d.id) === doctorId);
     if (doctor) {
       setMedicoNombre(doctor.nombre || '');
-      setMedicoCedula(doctor.cedula || '');
+      setMedicoCedula(doctor.cedula_profesional || doctor.cedula || '');
       setMedicoEspecialidad(doctor.especialidad || '');
     }
   };

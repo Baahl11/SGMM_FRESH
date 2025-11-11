@@ -9,6 +9,14 @@
 
 ## ✅ Estado al 28 Oct 2025
 
+### 🎉 Avances recientes (10 Noviembre 2025)
+- ✅ **Módulo integral de gastos fijos y variables**
+   - Backend completo para gastos variables: migración `supabase/migrations/20251110_create_variable_expenses.sql`, bucket con RLS (`supabase/storage/setup-gastos-facturas-bucket.sql`), endpoints REST (`/api/gastos-variables`, `/api/gastos-variables/[id]`, `/api/gastos-variables/stats`, `/api/gastos-variables/upload`).
+   - Modal avanzado para gastos variables con carga de comprobantes y validaciones (`components/gastos/gasto-variable-modal.tsx`).
+   - Rebuild de `/gastos-fijos`: tabs fijos/variables, filtros, KPI cards, acciones, integración de `GastoVariableModal` y `GastoFijoModal` para CRUD consistente.
+   - Protección RLS en APIs de gastos fijos (POST/PUT/DELETE/GET por id) usando `createClient` server-side y filtrado por `user_id`.
+   - Dashboard y Reports actualizados para incluir gastos variables y recalcular utilidades en tiempo real (`app/dashboard/page.tsx`, `app/reports/page.tsx`).
+
 ### 🎉 Avances recientes (3 Noviembre 2025)
 - ✅ **Sistema de Notificaciones Avanzado COMPLETO** 📧📊
   - **Dashboard de Métricas de Notificaciones** (`/dashboard/analytics/notifications`)

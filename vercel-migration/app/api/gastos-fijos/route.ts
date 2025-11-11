@@ -46,11 +46,19 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
+    
+    // Verificar autenticación
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    
     const body = await request.json()
 
     const { data, error } = await supabase
       .from('gastos_fijos')
       .insert([{
+        user_id: user.id,
         concepto: body.concepto,
         monto: body.monto,
         frecuencia: body.frecuencia || 'mensual',

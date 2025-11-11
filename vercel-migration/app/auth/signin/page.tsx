@@ -4,6 +4,23 @@ import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
+const rememberTrialSelection = (plan: string | null, billing: string | null) => {
+  if (!plan && !billing) {
+    return
+  }
+
+  try {
+    const payload = encodeURIComponent(
+      JSON.stringify({ plan: plan ?? null, billing: billing ?? null, recordedAt: Date.now() })
+    )
+    document.cookie = `trial_selection=${payload}; path=/; max-age=600; SameSite=Lax`
+  } catch (error) {
+    console.warn('[Auth Signin] Unable to persist plan selection cookie', {
+      errorMessage: (error as Error).message,
+    })
+  }
+}
+
 function SignInContent() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -27,6 +44,10 @@ function SignInContent() {
     }
     checkUser()
   }, [router])
+
+  useEffect(() => {
+    rememberTrialSelection(planParam, billingParam)
+  }, [planParam, billingParam])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -64,6 +85,8 @@ function SignInContent() {
         if (billingParam) params.append('billing', billingParam)
         callbackUrl += `?${params.toString()}`
       }
+
+      rememberTrialSelection(planParam, billingParam)
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',

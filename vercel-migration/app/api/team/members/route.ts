@@ -17,11 +17,17 @@ export async function GET(request: NextRequest) {
 
     // Get current user
     const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
+    if (authError) {
+      console.error('❌ Auth error:', authError);
+      return NextResponse.json({ error: 'Error de autenticación', details: authError.message }, { status: 401 });
+    }
+    
+    if (!user) {
+      console.error('❌ No user found');
       return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
     }
 
-    console.log('📋 Fetching team members for user:', user.id);
+    console.log('📋 GET /api/team/members - User:', user.id, user.email);
 
     // Get team members where user is the owner
     const { data: members, error: membersError } = await supabase
@@ -31,19 +37,33 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: false });
 
     if (membersError) {
-      console.error('❌ Error fetching team members:', membersError);
+      console.error('❌ Error fetching team members:', {
+        message: membersError.message,
+        code: membersError.code,
+        details: membersError.details,
+        hint: membersError.hint
+      });
       return NextResponse.json({ 
         error: 'Error al cargar miembros del equipo',
-        details: membersError.message 
+        details: membersError.message,
+        code: membersError.code
       }, { status: 500 });
     }
 
+    console.log('✅ Found members:', members?.length || 0);
+
+    console.log('✅ Found members:', members?.length || 0);
+
     // Get subscription limits
-    const { data: subscription } = await supabase
+    const { data: subscription, error: subError } = await supabase
       .from('subscriptions')
       .select('max_doctors, plan_tier')
       .eq('user_id', user.id)
       .single();
+
+    if (subError) {
+      console.error('❌ Error fetching subscription:', subError);
+    }
 
     const max_allowed = subscription?.max_doctors || 2;
     const total_members = members?.length || 0;

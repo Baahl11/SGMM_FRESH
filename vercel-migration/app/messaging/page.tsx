@@ -18,6 +18,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { MainNav } from '@/components/layout/main-nav';
 import { SmsReminderSettings } from '@/components/settings/sms-reminder-settings';
@@ -60,6 +63,9 @@ function MessagingContent() {
   const [stats, setStats] = useState<MessagingStats | null>(null);
   const [recentMessages, setRecentMessages] = useState<RecentMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSendingTest, setIsSendingTest] = useState(false);
+  const [testPhone, setTestPhone] = useState('');
+  const [testMessage, setTestMessage] = useState('Hola! Este es un mensaje de prueba desde AgendaMedPro 🏥');
   const searchParams = useSearchParams();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('whatsapp');
@@ -111,6 +117,40 @@ function MessagingContent() {
       toast.error('Error al cargar datos de mensajería');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const sendTestMessage = async () => {
+    if (!testPhone || !testMessage) {
+      toast.error('Ingresa un teléfono y mensaje');
+      return;
+    }
+
+    setIsSendingTest(true);
+    try {
+      const response = await fetch('/api/messaging/test-send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: testPhone,
+          message: testMessage
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success('¡Mensaje de prueba encolado! Se enviará en menos de 60 segundos.');
+        setTestPhone('');
+        // Recargar mensajes después de 2 segundos
+        setTimeout(() => loadMessagingData(), 2000);
+      } else {
+        toast.error(data.error || 'Error al enviar mensaje');
+      }
+    } catch (error) {
+      toast.error('Error de conexión');
+    } finally {
+      setIsSendingTest(false);
     }
   };
 
@@ -391,12 +431,69 @@ function MessagingContent() {
         {/* SMS Tab */}
         <TabsContent value="sms">
           <div className="space-y-6">
+            {/* Formulario de prueba */}
+            <Card className="border-green-200 bg-green-50/50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Send className="h-5 w-5 text-green-600" />
+                  Enviar SMS de Prueba
+                </CardTitle>
+                <CardDescription>
+                  Envía un mensaje de prueba para validar tu configuración de Twilio
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="test-phone">Teléfono (con código de país)</Label>
+                  <Input
+                    id="test-phone"
+                    type="tel"
+                    placeholder="+521234567890"
+                    value={testPhone}
+                    onChange={(e) => setTestPhone(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Ejemplo: +52 para México, +1 para USA
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="test-message">Mensaje</Label>
+                  <Textarea
+                    id="test-message"
+                    placeholder="Escribe tu mensaje..."
+                    value={testMessage}
+                    onChange={(e) => setTestMessage(e.target.value)}
+                    rows={3}
+                  />
+                </div>
+
+                <Button
+                  onClick={sendTestMessage}
+                  disabled={isSendingTest || !testPhone || !testMessage}
+                  className="w-full"
+                >
+                  {isSendingTest ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2" />
+                      Enviando...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4 mr-2" />
+                      Enviar Mensaje de Prueba
+                    </>
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+
             <Alert>
               <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Integración en progreso</AlertTitle>
+              <AlertTitle>Configuración de credenciales</AlertTitle>
               <AlertDescription>
-                Los recordatorios SMS todavía usan un entorno simulado. Las credenciales quedan guardadas,
-                pero el envío real se activará cuando terminemos la conexión con los proveedores.
+                Las credenciales de Twilio ya están guardadas. El sistema enviará el SMS automáticamente.
+                Si necesitas cambiarlas, ve a Configuración → Mensajería.
               </AlertDescription>
             </Alert>
 

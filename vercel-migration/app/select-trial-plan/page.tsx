@@ -88,6 +88,19 @@ const plans: Plan[] = [
   },
 ]
 
+const rememberTrialSelection = (planId: Plan['id'], cycle: 'monthly' | 'annual') => {
+  try {
+    const payload = encodeURIComponent(
+      JSON.stringify({ plan: planId, billing: cycle, recordedAt: Date.now() })
+    )
+    document.cookie = `trial_selection=${payload}; path=/; max-age=600; SameSite=Lax`
+  } catch (error) {
+    console.warn('[Select Trial Plan] Unable to persist plan choice', {
+      errorMessage: (error as Error).message,
+    })
+  }
+}
+
 function SelectTrialPlanContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -133,6 +146,7 @@ function SelectTrialPlanContent() {
       } else {
         // Usuario nuevo: Redirigir a signin para que haga OAuth
         // El OAuth callback creará el trial automáticamente
+        rememberTrialSelection(plan.id, billingCycle)
         const redirectUrl = `/auth/signin?plan=${plan.id}&billing=${billingCycle}`
         router.push(redirectUrl)
       }

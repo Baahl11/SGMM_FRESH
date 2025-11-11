@@ -51,6 +51,8 @@ import { EditRecordModal } from '@/components/records/edit-record-modal';
 import { DeleteRecordDialog } from '@/components/records/delete-record-dialog';
 import { PatientNotes } from '@/components/patients/patient-notes';
 import { MedicalRecordComplete } from '@/components/patients/medical-record-complete';
+import { MedicalTimeline } from '@/components/patients/medical-record/medical-timeline';
+import { ConsultationWizard } from '@/components/patients/medical-record/consultation-wizard';
 import { SendFormModal } from '@/components/patients/send-form-modal';
 import type { 
   MedicalHistory, 
@@ -108,6 +110,7 @@ export default function PatientDetailsClient({ patientId }: PatientDetailsClient
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
+  const [activeTab, setActiveTab] = useState<string>('treatments');
   const [patient, setPatient] = useState<Patient | null>(null);
   const [records, setRecords] = useState<Record[]>([]);
   const [photos, setPhotos] = useState<any[]>([]);
@@ -132,6 +135,8 @@ export default function PatientDetailsClient({ patientId }: PatientDetailsClient
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
   const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
   const [sendFormModalOpen, setSendFormModalOpen] = useState(false);
+  const [medicalTimelineOpen, setMedicalTimelineOpen] = useState(false);
+  const [consultationWizardOpen, setConsultationWizardOpen] = useState(false);
 
   useEffect(() => {
     const getUser = async () => {
@@ -621,7 +626,7 @@ export default function PatientDetailsClient({ patientId }: PatientDetailsClient
         </div>
 
         {/* Tabs for all sections */}
-        <Tabs defaultValue="treatments" className="w-full">
+  <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="bg-white rounded-xl shadow-sm border border-gray-200 grid w-full grid-cols-6">
             <TabsTrigger value="treatments" className="flex items-center gap-2">
               <Stethoscope className="h-4 w-4" />
@@ -749,7 +754,6 @@ export default function PatientDetailsClient({ patientId }: PatientDetailsClient
             {patient ? (
               <MedicalRecordComplete
                 patientId={patientId}
-                patientName={patient.nombre}
                 patientData={{
                   domicilio: patient.direccion,
                   estado_civil: (patient as any).estado_civil,
@@ -762,6 +766,8 @@ export default function PatientDetailsClient({ patientId }: PatientDetailsClient
                 medications={medications}
                 medicalNotes={medicalNotes}
                 totalConsultations={totalConsultations}
+                onOpenTimeline={() => setMedicalTimelineOpen(true)}
+                onCreateConsultation={() => setConsultationWizardOpen(true)}
               />
             ) : (
               <Card>
@@ -914,11 +920,7 @@ export default function PatientDetailsClient({ patientId }: PatientDetailsClient
                   <Button 
                     className="h-20 flex-col gap-2" 
                     variant="outline"
-                    onClick={() => {
-                      // Click on the expediente tab
-                      const expedienteTab = document.querySelector('[value="expediente"]') as HTMLElement;
-                      expedienteTab?.click();
-                    }}
+                    onClick={() => setActiveTab('medical-record')}
                   >
                     <Activity className="h-6 w-6" />
                     Ver Expediente NOM-004
@@ -1021,6 +1023,25 @@ export default function PatientDetailsClient({ patientId }: PatientDetailsClient
               onClose={() => setSendFormModalOpen(false)}
               patientId={patientId}
               patientName={patient.nombre}
+            />
+
+            <MedicalTimeline
+              patientId={patientId}
+              patientName={patient.nombre}
+              open={medicalTimelineOpen}
+              onClose={() => setMedicalTimelineOpen(false)}
+              onSuccess={fetchData}
+            />
+
+            <ConsultationWizard
+              open={consultationWizardOpen}
+              onClose={() => setConsultationWizardOpen(false)}
+              patientId={patientId}
+              patientName={patient.nombre}
+              onSuccess={() => {
+                fetchData();
+                setConsultationWizardOpen(false);
+              }}
             />
           </>
         )}

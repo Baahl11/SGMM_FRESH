@@ -43,11 +43,12 @@ export default function BookingsWidget() {
 
       const data = await response.json();
       
-      // Show only recent pending and today's bookings
+      // Show only future bookings or today's bookings (exclude past dates)
+      const today = new Date().toISOString().split('T')[0];
       const relevant = data.bookings
         .filter((b: Booking) => {
-          const today = new Date().toISOString().split('T')[0];
-          return b.status === 'pending' || b.booking_date === today;
+          // Only show bookings from today onwards (exclude past dates)
+          return b.booking_date >= today;
         })
         .slice(0, 5);
       

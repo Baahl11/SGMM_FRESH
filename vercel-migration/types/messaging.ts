@@ -35,7 +35,7 @@ export type MessagingJobStatus =
 
 export interface EncryptedSecretEnvelope {
   version: number;
-  algorithm: 'xchacha20poly1305' | 'aes-256-gcm';
+  algorithm: 'xchacha20poly1305' | 'chacha20poly1305' | 'aes-256-gcm';
   nonce: string;
   ciphertext: string;
   created_at?: string;

@@ -135,8 +135,13 @@ export class MessagingWorker {
         credentials
       );
 
+      const destination = msg.to_contact?.phone || msg.to_contact?.email;
+      if (!destination) {
+        throw new Error('Mensaje sin destino (phone o email)');
+      }
+
       const sendResult = await adapter.send({
-        to: msg.to_contact.phone || '',
+        to: destination,
         message: msg.body || '',
       });
 
@@ -148,8 +153,8 @@ export class MessagingWorker {
             status: 'sent',
             sent_at: new Date().toISOString(),
             provider_message_id: sendResult.messageId,
-            metadata: {
-              ...(message.metadata || {}),
+            payload: {
+              ...(message.payload || {}),
               provider_response: sendResult.rawResponse,
             },
           })
@@ -226,7 +231,7 @@ export class MessagingWorker {
       : encryptedData;
 
     const decrypted = await decryptMessagingSecret(envelope, cipherKey);
-    return decrypted.credentials;
+    return decrypted;
   }
 }
 
