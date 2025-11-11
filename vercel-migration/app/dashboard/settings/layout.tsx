@@ -3,10 +3,16 @@
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Users, Building2, Calendar, ArrowLeft, Clock, CalendarX, Globe, Mail, FileText } from 'lucide-react'
+import { Users, Building2, Calendar, ArrowLeft, Clock, CalendarX, Globe, Mail, FileText, UserPlus } from 'lucide-react'
 import AppLayout from '@/components/layout/app-layout'
 
 const sections = [
+  {
+    name: 'Equipo',
+    href: '/dashboard/settings/team',
+    icon: UserPlus,
+    description: 'Invita colaboradores'
+  },
   {
     name: 'Doctores',
     href: '/dashboard/settings/doctors',
