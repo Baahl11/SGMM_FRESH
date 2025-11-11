@@ -319,6 +319,7 @@ function InviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [invitationLink, setInvitationLink] = useState<string | null>(null);
+  const [emailSent, setEmailSent] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -340,8 +341,8 @@ function InviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
       }
 
       // Show invitation link
-      const fullLink = `${window.location.origin}${data.invitation_url}`;
-      setInvitationLink(fullLink);
+      setInvitationLink(data.invitation_url);
+      setEmailSent(data.email_sent || false);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -410,12 +411,20 @@ function InviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-3">
               <div className="flex items-center gap-2">
                 <CheckCircle className="h-5 w-5 text-green-600" />
-                <p className="font-medium text-green-900">¡Invitación creada!</p>
+                <p className="font-medium text-green-900">
+                  {emailSent ? '✉️ ¡Email enviado!' : '¡Invitación creada!'}
+                </p>
               </div>
+              
+              {emailSent && (
+                <p className="text-sm text-green-700">
+                  Se ha enviado un correo electrónico a <strong>{formData.email}</strong> con las instrucciones para aceptar la invitación.
+                </p>
+              )}
               
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-green-900">
-                  Comparte este link con {formData.email}:
+                  También puedes compartir este link manualmente:
                 </label>
                 <div className="flex gap-2">
                   <input
@@ -428,7 +437,7 @@ function InviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
                   <button
                     type="button"
                     onClick={copyToClipboard}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium whitespace-nowrap"
                   >
                     {copied ? '✓ Copiado' : 'Copiar'}
                   </button>
