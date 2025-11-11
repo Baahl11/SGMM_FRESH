@@ -1,24 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { safeSort, asArray } from "@/lib/safe";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  PieChart, Pie, Cell, LineChart, Line, AreaChart, Area
-} from "recharts";
-import { 
-  TrendingUp, DollarSign, Calendar, BarChart3, PieChart as PieChartIcon, 
+import { motion } from "framer-motion";
+import { Chart as ChartJSChart, Doughnut, Line } from "react-chartjs-2";
+import type { ChartData, ChartOptions, TooltipItem } from "chart.js";
+import "chart.js/auto";
+import {
+  TrendingUp, DollarSign, Calendar, BarChart3, PieChart as PieChartIcon,
   TrendingDown, Users, Stethoscope, CreditCard, Banknote, ArrowUpRight, Receipt, AlertCircle, Activity,
   FileText, Download, Mail
 } from "lucide-react";
 
 // Using standard fetch for Vercel APIs
 import AppLayout from "@/components/layout/app-layout";
+import ChartEmptyState from "@/components/reports/chart-empty-state";
 
 interface ReportData {
   daily7Revenue: Array<{ date: string; revenue: number; profit: number; costs: number }>;
@@ -46,6 +47,7 @@ interface ReportData {
     profit: number;
     costs: number;
   };
+  gastosVariablesByCategory?: Array<{ name: string; value: number; color: string }>;
 }
 
 interface BillingStats {
@@ -77,6 +79,7 @@ interface BillingStats {
 }
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
+type MixedBarLineChartType = "bar" | "line";
 
 export default function ReportsPage() {
   const [reportData, setReportData] = useState<ReportData>({
@@ -110,14 +113,16 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState("monthly12");
-  const [chartType, setChartType] = useState<"bar" | "line">("bar");
   const [billingStats, setBillingStats] = useState<BillingStats | null>(null);
   const [loadingBilling, setLoadingBilling] = useState(false);
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
+    setIsClient(true);
     loadReportData();
     loadBillingStats();
   }, []);
+
 
   const loadBillingStats = async () => {
     try {
@@ -171,17 +176,32 @@ export default function ReportsPage() {
       };
 
       // Load data with robust fallbacks - some APIs might not be ready yet
-      const [patientsData, treatmentsData, recordsData, gastosFijosData] = await Promise.allSettled([
+      const settledResults = await Promise.allSettled([
         fetchWithFallback('/api/patients'),
         fetchWithFallback('/api/treatments'),
         fetchWithFallback('/api/records'),
-        fetchWithFallback('/api/gastos-fijos')
-      ]).then(results => [
-        results[0].status === 'fulfilled' ? results[0].value : [],
-        results[1].status === 'fulfilled' ? results[1].value : [],
-        results[2].status === 'fulfilled' ? results[2].value : [],
-        results[3].status === 'fulfilled' ? results[3].value : []
+        fetchWithFallback('/api/gastos-fijos'),
+        fetchWithFallback('/api/gastos-variables')
       ]);
+
+      const extractArray = (result: PromiseSettledResult<any>) => {
+        if (result.status !== 'fulfilled') {
+          return [];
+        }
+
+        const value = result.value;
+        if (Array.isArray(value)) {
+          return value;
+        }
+
+        if (value && Array.isArray(value.data)) {
+          return value.data;
+        }
+
+        return [];
+      };
+
+      const [patientsData, treatmentsData, recordsData, gastosFijosData, gastosVariablesData] = settledResults.map(extractArray);
 
       console.log("📊 Report data summary:", {
         patients: {
@@ -203,6 +223,11 @@ export default function ReportsPage() {
           count: gastosFijosData?.length || 0,
           available: !!gastosFijosData?.length,
           note: gastosFijosData?.length ? 'Data loaded' : 'Using empty data (API not ready)'
+        },
+        gastosVariables: {
+          count: gastosVariablesData?.length || 0,
+          available: !!gastosVariablesData?.length,
+          note: gastosVariablesData?.length ? 'Data loaded' : 'Using empty data (API not ready)'
         }
       });
 
@@ -211,9 +236,10 @@ export default function ReportsPage() {
       const treatments = treatmentsData || [];
       const records = recordsData || [];
       const gastosFijos = gastosFijosData || [];
+      const gastosVariables = gastosVariablesData || [];
 
       // Process data for reports
-      const processedData = processReportData(patients, treatments, records, gastosFijos);
+      const processedData = processReportData(patients, treatments, records, gastosFijos, gastosVariables);
       setReportData(processedData);
       
     } catch (error) {
@@ -253,7 +279,7 @@ export default function ReportsPage() {
     }
   };
 
-  const processReportData = (patients: any[], treatments: any[], records: any[], gastosFijos: any[]): ReportData => {
+  const processReportData = (patients: any[], treatments: any[], records: any[], gastosFijos: any[], gastosVariables: any[]): ReportData => {
     // Función para calcular gastos fijos diarios
     const calculateDailyFixedCosts = (date: Date): number => {
       if (!Array.isArray(gastosFijos)) {
@@ -265,22 +291,39 @@ export default function ReportsPage() {
         .filter(gasto => {
           // Como el backend ya filtra por activo=1, todos los gastos están activos
           // Verificamos que la fecha del gasto sea anterior o igual a la fecha dada
-          const gastoDate = new Date(gasto.fecha);
+          const gastoDate = new Date(gasto.fecha ?? gasto.fecha_inicio ?? Date.now());
           return gastoDate <= date;
         })
         .reduce((total, gasto) => {
-          const frecuencia = gasto.categoria || 'mensual'; // categoria contiene la frecuencia
+          const frecuencia = gasto.categoria || gasto.frecuencia || 'mensual';
+          const monto = toNumber(gasto.monto);
           switch (frecuencia) {
             case 'mensual':
-              return total + (gasto.monto / 30); // Aproximación diaria
+              return total + monto / 30; // Aproximación diaria
             case 'trimestral':
-              return total + (gasto.monto / 90); // Aproximación diaria
+              return total + monto / 90; // Aproximación diaria
             case 'anual':
-              return total + (gasto.monto / 365); // Aproximación diaria
+              return total + monto / 365; // Aproximación diaria
             default:
-              return total + (gasto.monto / 30); // Default mensual
+              return total + monto / 30; // Default mensual
           }
         }, 0);
+    };
+
+    // Función para calcular gastos variables por fecha
+    const calculateVariableCosts = (startDate: Date, endDate: Date): number => {
+      if (!Array.isArray(gastosVariables)) {
+        console.warn('gastosVariables is not an array:', typeof gastosVariables, gastosVariables);
+        return 0;
+      }
+      
+      return gastosVariables
+        .filter(gasto => {
+          if (!gasto.fecha) return false;
+          const gastoDate = new Date(gasto.fecha);
+          return gastoDate >= startDate && gastoDate <= endDate && !gasto.deleted_at;
+        })
+        .reduce((total, gasto) => total + toNumber(gasto.monto), 0);
     };
 
     // Calcular ingresos de hoy con gastos fijos - FIXED timezone handling
@@ -317,12 +360,14 @@ export default function ReportsPage() {
         
         const isToday = recordDate === todayStr;
         
-        if (isToday && record.monto_pagado > 0) {
+        const montoPagado = toNumber(record.monto_pagado);
+
+        if (isToday && montoPagado > 0) {
           console.log('✅ Found TODAY record with payment:', {
             id: record.id,
             fecha: record.fecha,
             recordDate,
-            monto_pagado: record.monto_pagado,
+            monto_pagado: montoPagado,
             ganancia: record.ganancia
           });
         }
@@ -337,18 +382,26 @@ export default function ReportsPage() {
     console.log('📊 Today records count:', todayRecords.length);
     console.log('💰 Today records data:', todayRecords.map(r => ({
       id: r.id,
-      monto: r.monto_pagado,
+      monto: toNumber(r.monto_pagado),
       ganancia: r.ganancia
     })));
     
-    const todayRevenue = todayRecords.reduce((sum, record) => sum + (record.monto_pagado || 0), 0);
+  const todayRevenue = todayRecords.reduce((sum, record) => sum + toNumber(record.monto_pagado), 0);
     console.log('💵 Today revenue calculated:', todayRevenue);
     
     const todayVariableCosts = todayRecords.reduce((sum, record) => 
-      sum + (record.costo_unitario || 0) + (record.comision_monto || 0), 0
+      sum + toNumber(record.costo_unitario) + toNumber(record.comision_monto), 0
     );
     const todayFixedCosts = calculateDailyFixedCosts(new Date());
-    const todayCosts = todayVariableCosts + todayFixedCosts;
+    
+    // Calcular gastos variables del día
+    const todayStart = new Date(today);
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date(today);
+    todayEnd.setHours(23, 59, 59, 999);
+    const todayGastosVariables = calculateVariableCosts(todayStart, todayEnd);
+    
+    const todayCosts = todayVariableCosts + todayFixedCosts + todayGastosVariables;
     const todayProfit = todayRevenue - todayCosts;
 
     // Generate sample monthly data for the last 12 months
@@ -365,8 +418,18 @@ export default function ReportsPage() {
                recordDate.getMonth() === date.getMonth();
       });
       
-      const monthRevenue = monthRecords.reduce((sum, record) => sum + (record.monto_pagado || 0), 0);
-      const monthCosts = monthRecords.reduce((sum, record) => sum + (record.costo_unitario || 0), 0);
+  const monthRevenue = monthRecords.reduce((sum, record) => sum + toNumber(record.monto_pagado), 0);
+  const monthVariableCosts = monthRecords.reduce((sum, record) => sum + toNumber(record.costo_unitario), 0);
+      
+      // Calcular gastos fijos del mes (30 días aprox)
+      const monthFixedCosts = calculateDailyFixedCosts(date) * 30;
+      
+      // Calcular gastos variables del mes
+      const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
+      const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59);
+      const monthGastosVariables = calculateVariableCosts(monthStart, monthEnd);
+      
+  const monthCosts = monthVariableCosts + monthFixedCosts + monthGastosVariables;
       
       monthly12Revenue.push({
         month: date.toLocaleDateString('es-MX', { month: 'short', year: 'numeric' }),
@@ -380,12 +443,12 @@ export default function ReportsPage() {
     const paymentMethodCounts: { [key: string]: number } = {};
     records.forEach(record => {
       const method = record.metodo_pago || 'efectivo';
-      paymentMethodCounts[method] = (paymentMethodCounts[method] || 0) + (record.monto_pagado || 0);
+      paymentMethodCounts[method] = (paymentMethodCounts[method] || 0) + toNumber(record.monto_pagado);
     });
 
     const paymentMethods = Object.entries(paymentMethodCounts).map(([name, value], index) => ({
       name: name.charAt(0).toUpperCase() + name.slice(1),
-      value,
+      value: toNumber(value),
       color: COLORS[index % COLORS.length]
     }));
 
@@ -393,12 +456,13 @@ export default function ReportsPage() {
     const treatmentStats: { [key: number]: { count: number; revenue: number } } = {};
     records.forEach(record => {
       const treatmentId = record.treatment_id;
-      if (treatmentId && record.monto_pagado > 0) {
+      const montoPagado = toNumber(record.monto_pagado);
+      if (treatmentId && montoPagado > 0) {
         if (!treatmentStats[treatmentId]) {
           treatmentStats[treatmentId] = { count: 0, revenue: 0 };
         }
         treatmentStats[treatmentId].count += 1;
-        treatmentStats[treatmentId].revenue += record.monto_pagado || 0;
+        treatmentStats[treatmentId].revenue += montoPagado;
       }
     });
 
@@ -415,7 +479,7 @@ export default function ReportsPage() {
       .slice(0, 5);
 
     // Billing analysis - use mock data if no records
-    const totalRevenue = records.reduce((sum, record) => sum + (record.monto_pagado || 0), 0);
+  const totalRevenue = records.reduce((sum, record) => sum + toNumber(record.monto_pagado), 0);
     const hasRealData = totalRevenue > 0 && records.length > 0;
     
     const billingAnalysis = hasRealData ? {
@@ -435,6 +499,52 @@ export default function ReportsPage() {
       nonBilledPatients: 0,
     };
 
+    // Procesar gastos variables por categoría
+    const CATEGORY_COLORS: { [key: string]: string } = {
+      reparacion: '#EF4444',
+      mantenimiento: '#F97316',
+      compras_equipo: '#3B82F6',
+      insumos_extraordinarios: '#06B6D4',
+      servicios_profesionales: '#8B5CF6',
+      marketing: '#EC4899',
+      capacitacion: '#6366F1',
+      tecnologia: '#10B981',
+      viajes: '#FBBF24',
+      otros: '#6B7280',
+    };
+
+    const CATEGORY_LABELS: { [key: string]: string } = {
+      reparacion: 'Reparación',
+      mantenimiento: 'Mantenimiento',
+      compras_equipo: 'Compra de Equipo',
+      insumos_extraordinarios: 'Insumos Extraordinarios',
+      servicios_profesionales: 'Servicios Profesionales',
+      marketing: 'Marketing',
+      capacitacion: 'Capacitación',
+      tecnologia: 'Tecnología',
+      viajes: 'Viajes',
+      otros: 'Otros',
+    };
+
+    const gastosVariablesByCategory = Array.isArray(gastosVariables) 
+      ? Object.entries(
+          gastosVariables
+            .filter(gasto => !gasto.deleted_at)
+            .reduce((acc: { [key: string]: number }, gasto: any) => {
+              const categoria = gasto.categoria || 'otros';
+              const monto = toNumber(gasto.monto);
+              acc[categoria] = (acc[categoria] || 0) + monto;
+              return acc;
+            }, {})
+        )
+        .map(([categoria, total]) => ({
+          name: CATEGORY_LABELS[categoria] || categoria,
+          value: total,
+          color: CATEGORY_COLORS[categoria] || '#6B7280'
+        }))
+        .sort((a, b) => b.value - a.value)
+      : [];
+
     return {
       daily7Revenue: [],
       daily15Revenue: [],
@@ -453,7 +563,8 @@ export default function ReportsPage() {
         revenue: todayRevenue,
         profit: todayProfit,
         costs: todayCosts,
-      }
+      },
+      gastosVariablesByCategory
     };
   };
 
@@ -462,6 +573,58 @@ export default function ReportsPage() {
       style: 'currency',
       currency: 'MXN',
     }).format(value);
+  };
+
+  const formatCurrencyCompact = (value: number) => {
+    return new Intl.NumberFormat('es-MX', {
+      style: 'currency',
+      currency: 'MXN',
+      notation: 'compact',
+      maximumFractionDigits: 1
+    }).format(value);
+  };
+
+  const toNumber = (value: unknown) => {
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? value : 0;
+    }
+
+    const parsed = Number(value ?? 0);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  const hasDataPoints = (data: Array<Record<string, unknown>> | null | undefined, keys: string[]) => {
+    if (!Array.isArray(data) || data.length === 0) {
+      return false;
+    }
+
+    let hasNumericValue = false;
+    let hasNonZero = false;
+
+    for (const item of data) {
+      for (const key of keys) {
+        const rawValue = (item as Record<string, unknown>)[key];
+        const numericValue = toNumber(rawValue);
+
+        if (Number.isFinite(numericValue)) {
+          hasNumericValue = true;
+          if (Math.abs(numericValue) > 0) {
+            hasNonZero = true;
+            break;
+          }
+        }
+      }
+
+      if (hasNonZero) {
+        break;
+      }
+    }
+
+    if (hasNonZero) {
+      return true;
+    }
+
+    return hasNumericValue && data.length >= 2;
   };
 
   const getCurrentData = () => {
@@ -482,6 +645,321 @@ export default function ReportsPage() {
     }
   };
 
+  const currentData = getCurrentData();
+  const totalRevenueSelected = currentData.reduce((sum, item) => sum + toNumber(item.revenue), 0);
+  const totalProfitSelected = currentData.reduce((sum, item) => sum + toNumber(item.profit), 0);
+  const totalCostsSelected = currentData.reduce((sum, item) => sum + toNumber(item.costs), 0);
+  const hasRevenueData = hasDataPoints(currentData, ["revenue", "costs", "profit"]);
+  const hasPaymentMethodsData = hasDataPoints(reportData.paymentMethods, ["value"]);
+  const variableExpensesByCategory = reportData.gastosVariablesByCategory ?? [];
+  const hasVariableExpensesData = hasDataPoints(variableExpensesByCategory, ["value"]);
+  const totalVariableExpenses = variableExpensesByCategory.reduce((sum, cat) => sum + toNumber(cat.value), 0);
+  const paymentMethodsTotal = reportData.paymentMethods.reduce((sum, method) => sum + toNumber(method.value), 0);
+  const hasBillingTrendData = hasDataPoints(billingStats?.monthlyTrend ?? [], ["total", "count"]);
+  const revenueLegendLabels: Record<string, string> = {
+    revenue: "Ingresos",
+    costs: "Costos",
+    profit: "Utilidad"
+  };
+  const revenueChartData = useMemo<ChartData<MixedBarLineChartType>>(() => ({
+    labels: currentData.map((item) => item.month),
+    datasets: [
+      {
+        type: "bar" as const,
+        label: revenueLegendLabels.costs,
+        data: currentData.map((item) => toNumber(item.costs)),
+        backgroundColor: "rgba(249, 115, 22, 0.35)",
+        borderRadius: 12,
+        borderSkipped: false,
+        maxBarThickness: 28
+      },
+      {
+        type: "line" as const,
+        label: revenueLegendLabels.revenue,
+        data: currentData.map((item) => toNumber(item.revenue)),
+        borderColor: "#4f46e5",
+        backgroundColor: "rgba(99, 102, 241, 0.2)",
+        tension: 0.35,
+        pointRadius: 4,
+        pointBackgroundColor: "#312e81",
+        pointBorderColor: "#ffffff",
+        fill: true,
+        borderWidth: 3
+      },
+      {
+        type: "line" as const,
+        label: revenueLegendLabels.profit,
+        data: currentData.map((item) => toNumber(item.profit)),
+        borderColor: "#10b981",
+        backgroundColor: "rgba(16, 185, 129, 0.15)",
+        tension: 0.35,
+        pointRadius: 4,
+        pointBackgroundColor: "#10b981",
+        pointBorderColor: "#ecfdf5",
+        fill: false,
+        borderWidth: 3
+      }
+    ]
+  }), [currentData, revenueLegendLabels.costs, revenueLegendLabels.profit, revenueLegendLabels.revenue]);
+
+  const revenueChartOptions = useMemo<ChartOptions<MixedBarLineChartType>>(() => {
+    const scales = {
+      x: {
+        grid: { display: false },
+        ticks: {
+          color: "#475569",
+          font: { size: 12, weight: 500 }
+        }
+      },
+      y: {
+        grid: { color: "rgba(148, 163, 184, 0.25)" },
+        ticks: {
+          color: "#475569",
+          callback: (value: number | string) => formatCurrencyCompact(Number(value))
+        }
+      }
+    } satisfies ChartOptions<MixedBarLineChartType>['scales'];
+
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      scales,
+      plugins: {
+        legend: {
+          labels: {
+            color: "#475569",
+            usePointStyle: true,
+            boxWidth: 10
+          }
+        },
+        tooltip: {
+          backgroundColor: "rgba(15, 23, 42, 0.92)",
+          borderColor: "rgba(99, 102, 241, 0.35)",
+          borderWidth: 1,
+          padding: 14,
+          titleColor: "#f8fafc",
+          bodyColor: "#f8fafc",
+          callbacks: {
+            label: (context: TooltipItem<MixedBarLineChartType>) => {
+              const value = context.parsed.y ?? Number(context.raw ?? 0);
+              return `${context.dataset.label}: ${formatCurrency(Number(value ?? 0))}`;
+            }
+          }
+        }
+      }
+    } satisfies ChartOptions<MixedBarLineChartType>;
+  }, [formatCurrency, formatCurrencyCompact]);
+
+  const paymentChartData = useMemo<ChartData<'doughnut'>>(() => ({
+    labels: reportData.paymentMethods.map((method) => method.name),
+    datasets: [
+      {
+        data: reportData.paymentMethods.map((method) => toNumber(method.value)),
+        backgroundColor: reportData.paymentMethods.map((method) => method.color),
+        borderColor: "#ffffff",
+        borderWidth: 2
+      }
+    ]
+  }), [reportData.paymentMethods]);
+
+  const paymentChartOptions = useMemo<ChartOptions<'doughnut'>>(() => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    cutout: "58%",
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: "rgba(15, 23, 42, 0.92)",
+        borderColor: "rgba(79, 70, 229, 0.35)",
+        borderWidth: 1,
+        padding: 12,
+        titleColor: "#f8fafc",
+        bodyColor: "#f8fafc",
+        callbacks: {
+          label: (context: any) => {
+            const value = typeof context.parsed === "number" ? context.parsed : context.raw;
+            const percentage = paymentMethodsTotal > 0 ? (Number(value ?? 0) / paymentMethodsTotal) * 100 : 0;
+            return `${context.label}: ${formatCurrency(Number(value ?? 0))} (${percentage.toFixed(1)}%)`;
+          }
+        }
+      }
+    }
+  }), [formatCurrency, paymentMethodsTotal]);
+
+  const billingTrendChartData = useMemo<ChartData<'line'>>(() => ({
+    labels: billingStats?.monthlyTrend?.map((item) => item.month) ?? [],
+    datasets: [
+      {
+        label: "Total Facturado",
+        data: billingStats?.monthlyTrend?.map((item) => toNumber(item.total)) ?? [],
+        borderColor: "#8b5cf6",
+        backgroundColor: "rgba(139, 92, 246, 0.2)",
+        tension: 0.35,
+        pointRadius: 4,
+        pointBackgroundColor: "#8b5cf6",
+        yAxisID: "y"
+      },
+      {
+        label: "Cantidad",
+        data: billingStats?.monthlyTrend?.map((item) => toNumber(item.count)) ?? [],
+        borderColor: "#3b82f6",
+        backgroundColor: "rgba(59, 130, 246, 0.2)",
+        tension: 0.35,
+        pointRadius: 4,
+        pointBackgroundColor: "#3b82f6",
+        yAxisID: "y1"
+      }
+    ]
+  }), [billingStats?.monthlyTrend]);
+
+  const billingTrendChartOptions = useMemo<ChartOptions<'line'>>(() => {
+    const scales = {
+      x: {
+        ticks: { color: "#475569" },
+        grid: { color: "rgba(148, 163, 184, 0.12)" }
+      },
+      y: {
+        type: "linear",
+        position: "left",
+        ticks: {
+          color: "#475569",
+          callback: (value: number | string) => formatCurrencyCompact(Number(value))
+        },
+        grid: { color: "rgba(148, 163, 184, 0.25)" }
+      },
+      y1: {
+        type: "linear",
+        position: "right",
+        grid: { drawOnChartArea: false },
+        ticks: {
+          color: "#6366f1",
+          callback: (value: number | string) => `${Number(value).toFixed(0)} casos`
+        }
+      }
+    } satisfies ChartOptions<'line'>['scales'];
+
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      scales,
+      plugins: {
+        legend: {
+          labels: {
+            color: "#475569",
+            usePointStyle: true
+          }
+        },
+        tooltip: {
+          backgroundColor: "rgba(255, 255, 255, 0.95)",
+          borderColor: "rgba(148, 163, 184, 0.35)",
+          borderWidth: 1,
+          titleColor: "#0f172a",
+          bodyColor: "#0f172a",
+          callbacks: {
+            label: (context: TooltipItem<'line'>) => {
+              const value = context.parsed.y ?? Number(context.raw ?? 0);
+              if (context.dataset.yAxisID === "y1") {
+                return `${context.dataset.label}: ${Number(value ?? 0).toFixed(0)} casos`;
+              }
+              return `${context.dataset.label}: ${formatCurrency(Number(value ?? 0))}`;
+            }
+          }
+        }
+      }
+    } satisfies ChartOptions<'line'>;
+  }, [formatCurrency, formatCurrencyCompact]);
+
+  const renderChartLoading = (message = "Cargando visualización…") => (
+    <div className="flex h-full items-center justify-center text-sm text-slate-400">
+      {message}
+    </div>
+  );
+
+  const renderRevenueChart = () => {
+    if (!hasRevenueData) {
+      return (
+        <ChartEmptyState
+          title="Aún no hay datos históricos"
+          description="Registra tratamientos o importa tus ventas para visualizar la evolución mensual de ingresos, costos y utilidad."
+          icon={<TrendingUp className="h-8 w-8" />}
+        />
+      );
+    }
+
+    return (
+      <div className="h-full">
+        <ChartJSChart type="bar" data={revenueChartData} options={revenueChartOptions} />
+      </div>
+    );
+  };
+
+  const renderPaymentMethodsChart = () => {
+    if (!hasPaymentMethodsData) {
+      return (
+        <ChartEmptyState
+          title="Sin cobros registrados"
+          description="Cuando registres pagos, verás la participación de efectivo, tarjeta y transferencia en esta gráfica."
+          icon={<CreditCard className="h-8 w-8" />}
+        />
+      );
+    }
+
+    return (
+      <div className="grid h-full gap-6 md:grid-cols-[1.2fr_1fr]">
+        <div className="relative h-full">
+          <Doughnut data={paymentChartData} options={paymentChartOptions} />
+        </div>
+        <div className="flex flex-col justify-center gap-3">
+          {reportData.paymentMethods.map((method, index) => {
+            const percentage = paymentMethodsTotal > 0 ? (method.value / paymentMethodsTotal) * 100 : 0;
+            return (
+              <motion.div
+                key={`${method.name}-${index}`}
+                initial={{ opacity: 0, x: 12 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.3, delay: 0.1 * index }}
+                className="flex items-center justify-between rounded-2xl bg-white/70 px-4 py-3 shadow-inner shadow-slate-200/50 backdrop-blur"
+              >
+                <div className="flex items-center gap-3">
+                  <span
+                    className="h-3.5 w-3.5 rounded-full"
+                    style={{ backgroundColor: method.color }}
+                  />
+                  <span className="text-sm font-medium text-slate-600">{method.name}</span>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-semibold text-slate-900">
+                    {formatCurrency(method.value)}
+                  </p>
+                  <p className="text-xs text-slate-500">{percentage.toFixed(1)}%</p>
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  const renderBillingTrendChart = () => {
+    if (!hasBillingTrendData || !billingStats) {
+      return (
+        <ChartEmptyState
+          title="Sin historial de facturación"
+          description="Cuando generes facturas verás aquí la tendencia mensual de montos y volúmenes emitidos."
+          icon={<FileText className="h-8 w-8" />}
+        />
+      );
+    }
+
+    return (
+      <div className="h-full">
+        <Line data={billingTrendChartData} options={billingTrendChartOptions} />
+      </div>
+    );
+  };
 
 
   return (
@@ -574,7 +1052,7 @@ export default function ReportsPage() {
                   <div>
                     <p className="text-sm font-medium text-gray-600 mb-1">Ingresos Totales</p>
                     <p className="text-2xl font-bold text-green-600">
-                      {formatCurrency(getCurrentData().reduce((sum, item) => sum + item.revenue, 0))}
+                      {formatCurrency(totalRevenueSelected)}
                     </p>
                   </div>
                   <div className="p-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 text-white">
@@ -590,7 +1068,7 @@ export default function ReportsPage() {
                   <div>
                     <p className="text-sm font-medium text-gray-600 mb-1">Ganancia Neta</p>
                     <p className="text-2xl font-bold text-purple-600">
-                      {formatCurrency(getCurrentData().reduce((sum, item) => sum + item.profit, 0))}
+                      {formatCurrency(totalProfitSelected)}
                     </p>
                   </div>
                   <div className="p-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white">
@@ -618,48 +1096,136 @@ export default function ReportsPage() {
               </div>
             </div>
 
-            {/* Charts Placeholder */}
+            {/* Visualizaciones principales */}
             <div className="grid gap-6 md:grid-cols-2 mb-8">
-              {/* Revenue Chart */}
-              <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg p-6 border border-white/20">
-                <h3 className="text-xl font-semibold text-gray-900 mb-4">
-                  Ingresos - {getPeriodLabel()}
-                </h3>
-                <div className="h-64 flex items-center justify-center bg-gray-50 rounded-xl">
-                  <div className="text-center">
-                    <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 00-2-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                    </svg>
-                    <p className="text-gray-600">Gráfico de ingresos</p>
-                    <p className="text-sm text-gray-500">En desarrollo</p>
+              <motion.div
+                className="relative overflow-hidden rounded-3xl border border-white/30 bg-white/80 p-6 shadow-xl shadow-indigo-500/5 backdrop-blur"
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.45, ease: "easeOut", delay: 0.05 }}
+              >
+                <div className="absolute inset-x-0 -top-16 h-32 bg-gradient-to-br from-indigo-200/30 via-transparent to-transparent blur-3xl" />
+                <div className="relative mb-6 flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.2em] text-indigo-500/80">Rendimiento consolidado</p>
+                    <h3 className="text-2xl font-semibold text-slate-900">
+                      Ingresos — {getPeriodLabel()}
+                    </h3>
+                    <p className="text-sm text-slate-500">Comparativa de ingresos, costos y utilidad neta</p>
                   </div>
-                </div>
-              </div>
-
-              {/* Payment Methods */}
-              <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg p-6 border border-white/20">
-                <h3 className="text-xl font-semibold text-gray-900 mb-4">
-                  Métodos de Pago
-                </h3>
-                <div className="space-y-4">
-                  {reportData.paymentMethods.length > 0 ? (
-                    reportData.paymentMethods.map((method, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <span className="font-medium">{method.name}</span>
-                        <span className="font-bold text-gray-900">{formatCurrency(method.value)}</span>
+                  {hasRevenueData && (
+                    <div className="grid gap-2 text-right text-xs font-medium text-slate-500">
+                      <div className="rounded-xl bg-indigo-50 px-3 py-2">
+                        <span className="block text-xs font-semibold uppercase tracking-widest text-indigo-500">Ingresos</span>
+                        <span className="text-sm font-bold text-indigo-600">{formatCurrencyCompact(totalRevenueSelected)}</span>
                       </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-8">
-                      <svg className="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                      </svg>
-                      <p className="text-gray-500">No hay datos de pagos</p>
+                      <div className="rounded-xl bg-rose-50 px-3 py-2">
+                        <span className="block text-xs font-semibold uppercase tracking-widest text-rose-500">Costos</span>
+                        <span className="text-sm font-bold text-rose-500">{formatCurrencyCompact(totalCostsSelected)}</span>
+                      </div>
+                      <div className="rounded-xl bg-emerald-50 px-3 py-2">
+                        <span className="block text-xs font-semibold uppercase tracking-widest text-emerald-500">Utilidad</span>
+                        <span className="text-sm font-bold text-emerald-500">{formatCurrencyCompact(totalProfitSelected)}</span>
+                      </div>
                     </div>
                   )}
                 </div>
-              </div>
+                <div className="relative h-72">
+                  {isClient ? renderRevenueChart() : renderChartLoading()}
+                </div>
+              </motion.div>
+
+              <motion.div
+                className="relative overflow-hidden rounded-3xl border border-white/30 bg-white/80 p-6 shadow-xl shadow-purple-500/5 backdrop-blur"
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.45, ease: "easeOut", delay: 0.12 }}
+              >
+                <div className="absolute inset-x-0 -top-16 h-32 bg-gradient-to-br from-purple-300/30 via-transparent to-transparent blur-3xl" />
+                <div className="relative mb-6 flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.2em] text-purple-500/80">Mix de pagos</p>
+                    <h3 className="text-2xl font-semibold text-slate-900">Métodos de Pago</h3>
+                    <p className="text-sm text-slate-500">Distribución y pesos relativos por canal de cobro</p>
+                  </div>
+                </div>
+                <div className="relative h-72">
+                  {isClient ? renderPaymentMethodsChart() : renderChartLoading()}
+                </div>
+              </motion.div>
             </div>
+
+            {/* Variable Expenses by Category */}
+            <motion.div
+              className="rounded-3xl border border-white/30 bg-white/80 p-6 shadow-xl shadow-orange-500/5 backdrop-blur"
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45, ease: "easeOut", delay: 0.18 }}
+            >
+              <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/30">
+                    <Receipt className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-semibold text-slate-900">Gastos variables por categoría</h3>
+                    <p className="text-sm text-slate-500">Visualiza dónde se concentran los gastos extraordinarios</p>
+                  </div>
+                </div>
+                {hasVariableExpensesData && (
+                  <span className="rounded-full bg-orange-50 px-4 py-2 text-sm font-semibold text-orange-600">
+                    Total: {formatCurrency(totalVariableExpenses)}
+                  </span>
+                )}
+              </div>
+
+              {hasVariableExpensesData ? (
+                <div className="space-y-5">
+                  {variableExpensesByCategory.map((category, index) => {
+                    const percentage = totalVariableExpenses > 0 ? (category.value / totalVariableExpenses) * 100 : 0;
+                    const clampedPercentage = Math.max(0, Math.min(percentage, 100));
+                    return (
+                      <motion.div
+                        key={`${category.name}-${index}`}
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.35, delay: index * 0.05 }}
+                        className="rounded-2xl border border-slate-100/70 bg-white/70 p-4 backdrop-blur"
+                      >
+                        <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-3">
+                            <span
+                              className="h-3.5 w-3.5 rounded-full"
+                              style={{ backgroundColor: category.color }}
+                            />
+                            <span className="font-medium text-slate-700">{category.name}</span>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-semibold text-slate-900">{formatCurrency(category.value)}</p>
+                            <p className="text-xs text-slate-500">{clampedPercentage.toFixed(1)}%</p>
+                          </div>
+                        </div>
+                        <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-slate-100/80">
+                          <motion.div
+                            className="h-full rounded-full"
+                            style={{ backgroundColor: category.color }}
+                            initial={{ width: 0 }}
+                            animate={{ width: `${clampedPercentage}%` }}
+                            transition={{ duration: 0.6, delay: index * 0.05 + 0.1 }}
+                          />
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <ChartEmptyState
+                  title="Aún no registras gastos variables"
+                  description="Conecta tus compras extraordinarias y adjunta comprobantes para monitorear cada categoría y detectar desvíos."
+                  icon={<Receipt className="h-8 w-8" />}
+                />
+              )}
+            </motion.div>
 
             {/* Top Treatments */}
             <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg p-6 border border-white/20">
@@ -794,47 +1360,7 @@ export default function ReportsPage() {
                   Tendencia de Facturación (Últimos 6 meses)
                 </h3>
                 <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={billingStats.monthlyTrend}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                      <XAxis 
-                        dataKey="month" 
-                        stroke="#666"
-                        style={{ fontSize: '12px' }}
-                      />
-                      <YAxis 
-                        stroke="#666"
-                        style={{ fontSize: '12px' }}
-                        tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
-                      />
-                      <Tooltip 
-                        formatter={(value: number) => formatCurrency(value)}
-                        contentStyle={{ 
-                          backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                          border: '1px solid #e0e0e0',
-                          borderRadius: '8px'
-                        }}
-                      />
-                      <Legend />
-                      <Line 
-                        type="monotone" 
-                        dataKey="total" 
-                        stroke="#8b5cf6" 
-                        strokeWidth={3}
-                        name="Total Facturado"
-                        dot={{ fill: '#8b5cf6', r: 4 }}
-                        activeDot={{ r: 6 }}
-                      />
-                      <Line 
-                        type="monotone" 
-                        dataKey="count" 
-                        stroke="#3b82f6" 
-                        strokeWidth={2}
-                        name="Cantidad"
-                        dot={{ fill: '#3b82f6', r: 3 }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
+                  {isClient ? renderBillingTrendChart() : renderChartLoading()}
                 </div>
               </div>
             </div>
