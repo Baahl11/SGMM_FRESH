@@ -318,6 +318,8 @@ function InviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [invitationLink, setInvitationLink] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -337,11 +339,21 @@ function InviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
         throw new Error(data.error || 'Error al enviar invitación');
       }
 
-      onSuccess();
+      // Show invitation link
+      const fullLink = `${window.location.origin}${data.invitation_url}`;
+      setInvitationLink(fullLink);
     } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const copyToClipboard = () => {
+    if (invitationLink) {
+      navigator.clipboard.writeText(invitationLink);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     }
   };
 
@@ -394,21 +406,81 @@ function InviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
             </div>
           )}
 
+          {invitationLink && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="h-5 w-5 text-green-600" />
+                <p className="font-medium text-green-900">¡Invitación creada!</p>
+              </div>
+              
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-green-900">
+                  Comparte este link con {formData.email}:
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={invitationLink}
+                    className="flex-1 px-3 py-2 bg-white border border-green-300 rounded-lg text-sm font-mono"
+                    onClick={(e) => e.currentTarget.select()}
+                  />
+                  <button
+                    type="button"
+                    onClick={copyToClipboard}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+                  >
+                    {copied ? '✓ Copiado' : 'Copiar'}
+                  </button>
+                </div>
+                <p className="text-xs text-green-700">
+                  El miembro debe abrir este link e iniciar sesión con {formData.email} para aceptar la invitación.
+                </p>
+              </div>
+            </div>
+          )}
+
           <div className="flex gap-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50"
-            >
-              {loading ? 'Enviando...' : 'Enviar Invitación'}
-            </button>
+            {!invitationLink && (
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancelar
+              </button>
+            )}
+            
+            {invitationLink ? (
+              <button
+                type="button"
+                onClick={() => {
+                  onSuccess();
+                  onClose();
+                }}
+                className="flex-1 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors font-medium"
+              >
+                Listo
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex-1 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                  <>
+                    <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Enviando...
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="h-4 w-4" />
+                    Crear Invitación
+                  </>
+                )}
+              </button>
+            )}
           </div>
         </form>
       </motion.div>
