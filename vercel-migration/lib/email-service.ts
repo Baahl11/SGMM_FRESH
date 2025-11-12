@@ -758,4 +758,6 @@ Equipo SGMM Pro`;
   }
 }
 
-export default new EmailService();
+const emailService = new EmailService();
+export { emailService };
+export default emailService;

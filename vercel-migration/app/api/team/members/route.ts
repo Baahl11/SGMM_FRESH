@@ -9,13 +9,8 @@ import { createClient } from '@/lib/supabase/server';
 import type { InviteTeamMemberInput, TeamMember } from '@/lib/types/team';
 import { ROLE_PERMISSIONS } from '@/lib/types/team';
 import crypto from 'crypto';
-import sgMail from '@sendgrid/mail';
 import { generateTeamInvitationEmail, teamInvitationText } from '@/lib/email-templates/team-invitation';
-
-// Initialize SendGrid
-if (process.env.SENDGRID_API_KEY) {
-  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-}
+import { emailService } from '@/lib/email-service';
 
 // GET /api/team/members - List team members
 export async function GET(request: NextRequest) {
@@ -201,6 +196,7 @@ export async function POST(request: NextRequest) {
     // Send invitation email
     const invitationUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://agendamedpro.com'}/team/accept?token=${invitation_token}`;
     
+    let emailSent = false;
     try {
       // Get owner's name from metadata
       const ownerName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0];
@@ -213,34 +209,27 @@ export async function POST(request: NextRequest) {
         invitationUrl,
       });
 
-      await sgMail.send({
-        to: email,
-        from: {
-          email: process.env.SENDGRID_FROM_EMAIL || 'noreply@agendamedpro.com',
-          name: 'AgendaMedPro'
-        },
-        subject: emailTemplate.subject,
-        html: emailTemplate.html,
-        text: teamInvitationText({
-          invitedEmail: email,
-          ownerEmail: user.email!,
-          ownerName,
-          role,
-          invitationUrl,
-        }),
-      });
+      // Use the email service (supports both SendGrid and SMTP)
+      await emailService.sendCustomEmail(
+        email,
+        emailTemplate.subject,
+        emailTemplate.html,
+        true // isHtml
+      );
 
+      emailSent = true;
       console.log('✅ Invitation email sent to:', email);
     } catch (emailError: any) {
       console.error('❌ Error sending invitation email:', emailError);
+      console.error('Stack:', emailError.stack);
       // Don't fail the invitation if email fails - user can still use the link
     }
 
     return NextResponse.json({
-      message: 'Invitación enviada exitosamente',
+      message: emailSent ? 'Invitación enviada exitosamente por email' : 'Invitación creada (email no configurado)',
       member: newMember,
-      invitation_url: invitationUrl, // For manual sharing if needed
-      email_sent: true,
+      invitation_url: invitationUrl,
+      email_sent: emailSent,
     }, { status: 201 });
 
   } catch (error) {
