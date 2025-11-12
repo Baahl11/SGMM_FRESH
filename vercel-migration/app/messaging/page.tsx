@@ -492,8 +492,13 @@ function MessagingContent() {
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>Configuración de credenciales</AlertTitle>
               <AlertDescription>
-                Las credenciales de Twilio ya están guardadas. El sistema enviará el SMS automáticamente.
-                Si necesitas cambiarlas, ve a Configuración → Mensajería.
+                Para enviar SMS, configura tus credenciales de Twilio en{' '}
+                <a 
+                  href="/dashboard/settings/notifications" 
+                  className="underline font-semibold text-blue-600 hover:text-blue-800"
+                >
+                  Configuración → Notificaciones
+                </a>
               </AlertDescription>
             </Alert>
 

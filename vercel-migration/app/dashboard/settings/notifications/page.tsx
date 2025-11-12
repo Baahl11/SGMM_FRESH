@@ -14,8 +14,10 @@ import {
   EyeOff,
   Loader2,
   Info,
-  HelpCircle
+  HelpCircle,
+  MessageSquare
 } from 'lucide-react';
+import { TwilioCredentialsSection } from '@/components/settings/twilio-credentials-section';
 
 interface EmailConfig {
   smtp_host: string;
@@ -455,6 +457,9 @@ export default function EmailConfigPage() {
           </div>
         )}
       </div>
+
+      {/* Twilio SMS Configuration */}
+      <TwilioCredentialsSection />
 
       {/* Test Email */}
       <div className="bg-gradient-to-br from-blue-50 to-teal-50 rounded-lg border-2 border-blue-200 p-6 mb-6">
