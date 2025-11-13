@@ -418,17 +418,19 @@ class EmailService {
         }),
       });
 
-      const data = await response.json();
+      const data = await response.json() as { id?: string; message?: string };
 
       if (!response.ok) {
-        throw new Error(data.message || 'Resend API error');
+        throw new Error(data?.message || 'Resend API error');
       }
 
-      console.log('✅ Email sent via Resend:', data.id);
+      const messageId = data?.id || `resend_${Date.now()}`;
+
+      console.log('✅ Email sent via Resend:', messageId);
 
       return {
         success: true,
-        messageId: data.id,
+        messageId,
         provider: 'resend',
         to,
       };

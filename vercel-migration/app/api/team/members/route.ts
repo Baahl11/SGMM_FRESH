@@ -197,6 +197,8 @@ export async function POST(request: NextRequest) {
     const invitationUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://agendamedpro.com'}/team/accept?token=${invitation_token}`;
     
     let emailSent = false;
+    let emailProvider = 'not_configured';
+    
     try {
       // Get owner's name from metadata
       const ownerName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0];
@@ -209,16 +211,59 @@ export async function POST(request: NextRequest) {
         invitationUrl,
       });
 
-      // Use the email service (supports both SendGrid and SMTP)
-      await emailService.sendCustomEmail(
-        email,
-        emailTemplate.subject,
-        emailTemplate.html,
-        true // isHtml
-      );
+      // Get user's email configuration
+      const { data: emailConfig } = await supabase
+        .from('email_config')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      let result;
+
+      // Try SMTP first if configured
+      if (emailConfig && emailConfig.smtp_host && emailConfig.smtp_user && emailConfig.smtp_password) {
+        console.log('📧 Using SMTP configuration for invitation email');
+        
+        const smtpConfig = {
+          smtp_host: emailConfig.smtp_host,
+          smtp_port: emailConfig.smtp_port,
+          smtp_secure: emailConfig.smtp_secure,
+          smtp_user: emailConfig.smtp_user,
+          smtp_password: emailConfig.smtp_password,
+          from_email: emailConfig.from_email,
+          from_name: emailConfig.from_name || 'AgendaMedPro',
+        };
+
+        result = await emailService.sendWithFallback(
+          smtpConfig,
+          emailConfig.resend_api_key,
+          email,
+          emailTemplate.subject,
+          emailTemplate.html,
+          teamInvitationText({
+            invitedEmail: email,
+            ownerEmail: user.email!,
+            ownerName,
+            role,
+            invitationUrl,
+          })
+        );
+        
+        emailProvider = result.provider;
+      } else {
+        // Fallback to SendGrid from env (if available)
+        console.log('📧 Using SendGrid/default email service for invitation');
+        result = await emailService.sendCustomEmail(
+          email,
+          emailTemplate.subject,
+          emailTemplate.html,
+          true
+        );
+        emailProvider = result.provider;
+      }
 
       emailSent = true;
-      console.log('✅ Invitation email sent to:', email);
+      console.log(`✅ Invitation email sent to ${email} via ${emailProvider}`);
     } catch (emailError: any) {
       console.error('❌ Error sending invitation email:', emailError);
       console.error('Stack:', emailError.stack);
@@ -226,10 +271,11 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({
-      message: emailSent ? 'Invitación enviada exitosamente por email' : 'Invitación creada (email no configurado)',
+      message: emailSent ? `Invitación enviada exitosamente por email (${emailProvider})` : 'Invitación creada (email no configurado)',
       member: newMember,
       invitation_url: invitationUrl,
       email_sent: emailSent,
+      email_provider: emailProvider,
     }, { status: 201 });
 
   } catch (error) {

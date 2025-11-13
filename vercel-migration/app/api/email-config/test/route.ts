@@ -14,8 +14,11 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { test_email } = body;
 
-    if (!test_email) {
-      return NextResponse.json({ error: 'Email is required' }, { status: 400 });
+    if (!test_email || !test_email.includes('@')) {
+      return NextResponse.json({ 
+        success: false,
+        error: 'Por favor proporciona un email válido para la prueba' 
+      }, { status: 400 });
     }
 
     // Get user's email config
@@ -23,14 +26,29 @@ export async function POST(request: NextRequest) {
       .from('email_config')
       .select('*')
       .eq('user_id', user.id)
-      .single();
+      .maybeSingle();
 
-    if (configError || !config) {
-      return NextResponse.json({ error: 'Email config not found. Please configure email first.' }, { status: 404 });
+    if (configError) {
+      console.error('Error fetching email config:', configError);
+      return NextResponse.json({ 
+        success: false,
+        error: 'Error al cargar configuración de email' 
+      }, { status: 500 });
     }
 
-    if (!config.email_enabled) {
-      return NextResponse.json({ error: 'Email is not enabled' }, { status: 400 });
+    if (!config) {
+      return NextResponse.json({ 
+        success: false,
+        error: 'No se encontró configuración de email. Por favor configura tu email primero en la pestaña de configuración.' 
+      }, { status: 400 });
+    }
+
+    // Validate required SMTP fields
+    if (!config.smtp_host || !config.smtp_user || !config.smtp_password || !config.from_email) {
+      return NextResponse.json({ 
+        success: false,
+        error: 'Configuración incompleta. Por favor completa todos los campos SMTP requeridos (servidor, usuario, contraseña, email remitente).' 
+      }, { status: 400 });
     }
 
     // Prepare test email
