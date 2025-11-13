@@ -65,6 +65,7 @@ export async function middleware(request: NextRequest) {
     '/book/',           // Páginas públicas de booking por clinic slug
     '/api/public/',     // APIs públicas (availability, booking)
     '/auth/',           // Login/signup pages
+    '/team/accept',     // Aceptar invitaciones de equipo (puede requerir login después)
   ]
 
   const isPublicRoute = publicRoutes.some(route => 

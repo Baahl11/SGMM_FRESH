@@ -38,8 +38,13 @@ function AcceptInvitationContent() {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
-        // Redirect to sign in with return URL
-        router.push(`/auth/signin?redirect=/team/accept?token=${token}`);
+        // User needs to sign in or sign up
+        // Store the token and show instructions
+        setStatus('error');
+        setError('Por favor inicia sesión o crea una cuenta para aceptar la invitación');
+        setTimeout(() => {
+          router.push(`/auth/signin?message=Inicia sesión para aceptar la invitación&redirect=${encodeURIComponent(`/team/accept?token=${token}`)}`);
+        }, 2000);
         return;
       }
 
