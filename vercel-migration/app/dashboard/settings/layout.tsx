@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Users, Building2, Calendar, ArrowLeft, Clock, CalendarX, Globe, Mail, FileText, UserPlus, MessageSquare } from 'lucide-react'
+import { Users, Building2, Calendar, ArrowLeft, Clock, CalendarX, Globe, Mail, FileText, UserPlus, MessageSquare, MapPin } from 'lucide-react'
 import AppLayout from '@/components/layout/app-layout'
 
 const sections = [
@@ -18,6 +18,12 @@ const sections = [
     href: '/dashboard/settings/doctors',
     icon: Users,
     description: 'Gestiona tu equipo médico'
+  },
+  {
+    name: 'Ubicaciones',
+    href: '/dashboard/settings/locations',
+    icon: MapPin,
+    description: 'Múltiples sedes'
   },
   {
     name: 'Consultorios',

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,7 +11,10 @@ import AppLayout from "@/components/layout/app-layout";
 import { MiniAgenda } from "@/components/agenda/mini-agenda";
 import BookingsWidget from "@/components/dashboard/BookingsWidget";
 import TrialBadge from "@/components/TrialBadge";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart as RechartsChart, Pie, Cell, Legend } from 'recharts';
+import { LocationSelector } from "@/components/locations/location-selector";
+import { Doughnut, Line as ChartLine } from "react-chartjs-2";
+import type { ChartData, ChartOptions } from "chart.js";
+import "chart.js/auto";
 
 interface DashboardStats {
   totalPatients: number;
@@ -153,6 +156,49 @@ export default function DashboardPage() {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedLocationId, setSelectedLocationId] = useState<string>('all');
+
+  // Chart data for payment methods pie chart
+  const paymentChartData = useMemo<ChartData<'doughnut'>>(() => ({
+    labels: ['Efectivo', 'Tarjeta', 'Transferencia'],
+    datasets: [
+      {
+        data: [
+          stats.paymentMethods.efectivo,
+          stats.paymentMethods.tarjeta,
+          stats.paymentMethods.transferencia
+        ],
+        backgroundColor: ['#10b981', '#3b82f6', '#8b5cf6'],
+        borderColor: '#ffffff',
+        borderWidth: 2
+      }
+    ]
+  }), [stats.paymentMethods]);
+
+  const paymentChartOptions = useMemo<ChartOptions<'doughnut'>>(() => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    cutout: '60%',
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: 'rgba(15, 23, 42, 0.92)',
+        borderColor: 'rgba(79, 70, 229, 0.35)',
+        borderWidth: 1,
+        padding: 12,
+        titleColor: '#f8fafc',
+        bodyColor: '#f8fafc',
+        callbacks: {
+          label: (context: any) => {
+            const value = context.parsed || 0;
+            const total = stats.totalRevenue;
+            const percentage = total > 0 ? (value / total) * 100 : 0;
+            return `${context.label}: $${value.toLocaleString()} (${percentage.toFixed(1)}%)`;
+          }
+        }
+      }
+    }
+  }), [stats.totalRevenue]);
 
   // Verificar autenticación con Supabase
   useEffect(() => {
@@ -177,7 +223,7 @@ export default function DashboardPage() {
     if (!user) return;
     
     loadDashboardData();
-  }, [user, loadingAuth]);
+  }, [user, loadingAuth, selectedLocationId]);
 
   const loadDashboardData = async () => {
     try {
@@ -588,12 +634,29 @@ export default function DashboardPage() {
           <div className="h-12 w-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center flex-shrink-0">
             <Activity className="h-6 w-6 text-white" />
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
               Dashboard
             </h1>
             <p className="text-sm md:text-base text-gray-600 truncate">Resumen de tu consulorio médico</p>
           </div>
+          {/* Location Selector */}
+          <div className="hidden md:block">
+            <LocationSelector
+              selectedLocationId={selectedLocationId}
+              onLocationChange={setSelectedLocationId}
+              allowAll={true}
+            />
+          </div>
+        </div>
+        {/* Mobile Location Selector */}
+        <div className="md:hidden w-full">
+          <LocationSelector
+            selectedLocationId={selectedLocationId}
+            onLocationChange={setSelectedLocationId}
+            allowAll={true}
+            className="w-full"
+          />
         </div>
         <div className="flex flex-wrap gap-2 md:gap-3 w-full md:w-auto">
           <Button 
@@ -798,31 +861,46 @@ export default function DashboardPage() {
             
             {/* Mini trend chart - last 30 days */}
             <div className="mt-4 h-16">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={stats.last30DaysRevenue}>
-                  <Line 
-                    type="monotone" 
-                    dataKey="revenue" 
-                    stroke="#10b981" 
-                    strokeWidth={2} 
-                    dot={false}
-                  />
-                  <Tooltip 
-                    content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
-                        return (
-                          <div className="bg-white px-2 py-1 rounded shadow-lg border border-gray-200">
-                            <p className="text-xs text-gray-600">
-                              ${payload[0].value?.toLocaleString()}
-                            </p>
-                          </div>
-                        );
+              <ChartLine 
+                data={{
+                  labels: stats.last30DaysRevenue.map(d => d.date),
+                  datasets: [{
+                    data: stats.last30DaysRevenue.map(d => d.revenue),
+                    borderColor: '#10b981',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    tension: 0.4,
+                    fill: false
+                  }]
+                }}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                      backgroundColor: 'white',
+                      borderColor: '#e5e7eb',
+                      borderWidth: 1,
+                      titleColor: '#374151',
+                      bodyColor: '#6b7280',
+                      padding: 8,
+                      displayColors: false,
+                      callbacks: {
+                        label: (context: any) => `$${context.parsed.y.toLocaleString()}`
                       }
-                      return null;
-                    }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+                    }
+                  },
+                  scales: {
+                    x: { display: false },
+                    y: { display: false }
+                  },
+                  interaction: {
+                    intersect: false,
+                    mode: 'index'
+                  }
+                }}
+              />
             </div>
             
             <div className="flex items-center mt-2">
@@ -1016,45 +1094,10 @@ export default function DashboardPage() {
 
           <div className="grid md:grid-cols-2 gap-6">
             {/* Pie Chart */}
-            <div className="flex items-center justify-center">
-              <ResponsiveContainer width="100%" height={250}>
-                <RechartsChart>
-                  <Pie
-                    data={[
-                      { name: 'Efectivo', value: stats.paymentMethods.efectivo, color: '#10b981' },
-                      { name: 'Tarjeta', value: stats.paymentMethods.tarjeta, color: '#3b82f6' },
-                      { name: 'Transferencia', value: stats.paymentMethods.transferencia, color: '#8b5cf6' }
-                    ].filter(item => item.value > 0)}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={(props: any) => {
-                      const { name, percent } = props;
-                      return `${name} ${(percent * 100).toFixed(0)}%`;
-                    }}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {[
-                      { name: 'Efectivo', value: stats.paymentMethods.efectivo, color: '#10b981' },
-                      { name: 'Tarjeta', value: stats.paymentMethods.tarjeta, color: '#3b82f6' },
-                      { name: 'Transferencia', value: stats.paymentMethods.transferencia, color: '#8b5cf6' }
-                    ].filter(item => item.value > 0).map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    formatter={(value: any) => `$${value.toLocaleString()}`}
-                    contentStyle={{ 
-                      backgroundColor: 'white', 
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '8px',
-                      padding: '8px 12px'
-                    }}
-                  />
-                </RechartsChart>
-              </ResponsiveContainer>
+            <div className="flex items-center justify-center min-h-[250px]">
+              <div className="w-full h-[250px]">
+                <Doughnut data={paymentChartData} options={paymentChartOptions} />
+              </div>
             </div>
 
             {/* Stats Cards */}
