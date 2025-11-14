@@ -167,11 +167,11 @@ export function SignupForm() {
           disabled={loading || googleLoading}
           readOnly={!!prefilledEmail}
           autoComplete="email"
-          className={prefilledEmail ? 'bg-gray-50' : ''}
+          className={prefilledEmail ? 'bg-teal-50 border-teal-300 text-gray-900 font-medium cursor-not-allowed' : ''}
         />
         {prefilledEmail && (
-          <p className="text-xs text-blue-600">
-            ✓ Email de invitación. Crea tu cuenta con este correo.
+          <p className="text-xs text-teal-700 font-medium flex items-center gap-1">
+            <span className="text-teal-600">✓</span> Email de invitación. Crea tu cuenta con este correo.
           </p>
         )}
       </div>
