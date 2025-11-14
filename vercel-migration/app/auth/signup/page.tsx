@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { Check, CreditCard, Sparkles } from 'lucide-react'
 import { SignupForm } from '@/components/auth/SignupForm'
 import { Badge } from '@/components/ui/badge'
+import { Suspense } from 'react'
 
 // Force dynamic rendering - no caching
 export const dynamic = 'force-dynamic'
@@ -78,7 +79,9 @@ export default function SignupPage() {
               </p>
             </div>
 
-            <SignupForm />
+            <Suspense fallback={<SignupForm />}>
+              <SignupForm />
+            </Suspense>
 
             <div className="mt-6 rounded-xl bg-purple-50 p-4 text-sm text-purple-800">
               Tu trial dura 7 días completos. Se solicitará tu tarjeta en el siguiente paso para activar el acceso sin interrupciones.

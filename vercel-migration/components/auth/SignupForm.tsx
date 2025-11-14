@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,11 +12,22 @@ import { Separator } from '@/components/ui/separator'
 
 export function SignupForm() {
   const router = useRouter()
-  const [email, setEmail] = useState('')
+  const searchParams = useSearchParams()
+  const prefilledEmail = searchParams.get('email') || ''
+  const redirectUrl = searchParams.get('redirect') || ''
+  
+  const [email, setEmail] = useState(prefilledEmail)
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
+  
+  // Update email when prefilled value changes
+  useEffect(() => {
+    if (prefilledEmail) {
+      setEmail(prefilledEmail)
+    }
+  }, [prefilledEmail])
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault()
@@ -69,7 +80,12 @@ export function SignupForm() {
         })
 
         setTimeout(() => {
-          router.push('/select-trial-plan')
+          // If there's a redirect URL (from team invitation), go there
+          if (redirectUrl) {
+            router.push(redirectUrl)
+          } else {
+            router.push('/select-trial-plan')
+          }
         }, 1500)
       }
     } catch (error) {
@@ -149,8 +165,15 @@ export function SignupForm() {
           onChange={(e) => setEmail(e.target.value)}
           required
           disabled={loading || googleLoading}
+          readOnly={!!prefilledEmail}
           autoComplete="email"
+          className={prefilledEmail ? 'bg-gray-50' : ''}
         />
+        {prefilledEmail && (
+          <p className="text-xs text-blue-600">
+            ✓ Email de invitación. Crea tu cuenta con este correo.
+          </p>
+        )}
       </div>
 
       <div className="space-y-2">

@@ -34,21 +34,7 @@ function AcceptInvitationContent() {
     try {
       const supabase = createClient();
 
-      // Check if user is logged in
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        // User needs to sign in or sign up
-        // Store the token and show instructions
-        setStatus('error');
-        setError('Por favor inicia sesión o crea una cuenta para aceptar la invitación');
-        setTimeout(() => {
-          router.push(`/auth/signin?message=Inicia sesión para aceptar la invitación&redirect=${encodeURIComponent(`/team/accept?token=${token}`)}`);
-        }, 2000);
-        return;
-      }
-
-      // Find invitation by token
+      // First, fetch the invitation to see who it's for
       const { data: invite, error: fetchError } = await supabase
         .from('team_members')
         .select('*')
@@ -69,10 +55,27 @@ function AcceptInvitationContent() {
         return;
       }
 
-      // Check if email matches
-      if (invite.member_email !== user.email) {
+      // Store invitation for display
+      setInvitation(invite);
+
+      // Check if user is logged in
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        // User needs to sign in or sign up with the invited email
         setStatus('error');
-        setError(`Esta invitación fue enviada a ${invite.member_email}. Por favor inicia sesión con ese correo.`);
+        setError(`Debes iniciar sesión o crear una cuenta con ${invite.member_email} para aceptar esta invitación`);
+        setTimeout(() => {
+          // Redirect to signup with prefilled email
+          router.push(`/auth/signup?email=${encodeURIComponent(invite.member_email)}&redirect=${encodeURIComponent(`/team/accept?token=${token}`)}`);
+        }, 3000);
+        return;
+      }
+
+      // Check if email matches
+      if (invite.member_email.toLowerCase() !== user.email?.toLowerCase()) {
+        setStatus('error');
+        setError(`Esta invitación fue enviada a ${invite.member_email}. Actualmente estás logueado como ${user.email}. Por favor cierra sesión e inicia con ${invite.member_email}.`);
         return;
       }
 
@@ -145,19 +148,54 @@ function AcceptInvitationContent() {
   }
 
   if (status === 'error') {
+    const showLogoutButton = error.includes('Actualmente estás logueado como');
+    
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <Card className="w-full max-w-md border-amber-200">
           <CardHeader>
             <div className="flex items-center space-x-2">
               <XCircle className="h-8 w-8 text-amber-500" />
-              <CardTitle>Error</CardTitle>
+              <CardTitle>Acción Requerida</CardTitle>
             </div>
-            <CardDescription>{error}</CardDescription>
+            <CardDescription className="text-base">{error}</CardDescription>
           </CardHeader>
-          <CardContent>
-            <Button onClick={() => router.push('/dashboard')} className="w-full">
-              Ir al Dashboard
+          <CardContent className="space-y-3">
+            {invitation && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-900">
+                  <strong>Email invitado:</strong> {invitation.member_email}
+                </p>
+                <p className="text-sm text-blue-900 mt-1">
+                  <strong>Rol:</strong> {invitation.role}
+                </p>
+              </div>
+            )}
+            
+            {showLogoutButton ? (
+              <Button 
+                onClick={async () => {
+                  const supabase = createClient();
+                  await supabase.auth.signOut();
+                  router.push(`/auth/signup?email=${encodeURIComponent(invitation?.member_email || '')}&redirect=${encodeURIComponent(`/team/accept?token=${token}`)}`);
+                }} 
+                className="w-full"
+                variant="destructive"
+              >
+                Cerrar Sesión e Ir a Registro
+              </Button>
+            ) : (
+              <p className="text-sm text-gray-600 text-center">
+                Redirigiendo al registro en 3 segundos...
+              </p>
+            )}
+            
+            <Button 
+              onClick={() => router.push('/')} 
+              className="w-full"
+              variant="outline"
+            >
+              Volver al Inicio
             </Button>
           </CardContent>
         </Card>
