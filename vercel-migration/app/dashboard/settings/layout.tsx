@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Users, Building2, Calendar, ArrowLeft, Clock, CalendarX, Globe, Mail, FileText, UserPlus } from 'lucide-react'
+import { Users, Building2, Calendar, ArrowLeft, Clock, CalendarX, Globe, Mail, FileText, UserPlus, MessageSquare } from 'lucide-react'
 import AppLayout from '@/components/layout/app-layout'
 
 const sections = [
@@ -53,7 +53,13 @@ const sections = [
     name: 'Notificaciones',
     href: '/dashboard/settings/notifications',
     icon: Mail,
-    description: 'Email y WhatsApp automáticos'
+    description: 'Email y SMS automáticos'
+  },
+  {
+    name: 'WhatsApp Business',
+    href: '/dashboard/settings/whatsapp',
+    icon: MessageSquare,
+    description: 'Recordatorios por WhatsApp'
   },
   {
     name: 'Formularios',

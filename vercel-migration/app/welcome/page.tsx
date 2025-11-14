@@ -31,7 +31,7 @@ export default function WelcomePage() {
       description: 'Añade información de tu consultorio',
       icon: Settings,
       completed: false,
-      link: '/configuracion'
+      link: '/dashboard/settings'
     },
     {
       id: 'patient',

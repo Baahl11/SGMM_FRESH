@@ -294,13 +294,13 @@ export function MainNav() {
               </div>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
-                <Link href="/settings/mensajeria" className="flex items-center">
+                <Link href="/dashboard/settings/whatsapp" className="flex items-center">
                   <MessageSquare className="mr-2 h-4 w-4" />
                   Configuración Mensajería
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/configuracion" className="flex items-center">
+                <Link href="/dashboard/settings" className="flex items-center">
                   <Settings className="mr-2 h-4 w-4" />
                   Configuración (10 Features)
                 </Link>

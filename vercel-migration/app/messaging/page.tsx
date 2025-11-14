@@ -263,7 +263,7 @@ function MessagingContent() {
             </div>
           </div>
           <Button variant="secondary" size="lg" asChild className="bg-white text-green-600 hover:bg-green-50">
-            <Link href="/settings/mensajeria">
+            <Link href="/dashboard/settings/whatsapp">
               <Settings className="mr-2 h-5 w-5" />
               Configurar WhatsApp
             </Link>
@@ -280,7 +280,7 @@ function MessagingContent() {
             <div className="flex items-center justify-between">
               <span>Configura tu cuenta de WhatsApp Business para comenzar a enviar mensajes</span>
               <Button size="sm" asChild>
-                <Link href="/settings/mensajeria">Configurar ahora</Link>
+                <Link href="/dashboard/settings/whatsapp">Configurar ahora</Link>
               </Button>
             </div>
           </AlertDescription>
@@ -606,7 +606,7 @@ function MessagingContent() {
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <span>Completa tus credenciales en Configuración → Mensajería para habilitar WhatsApp.</span>
                       <Button size="sm" asChild>
-                        <Link href="/settings/mensajeria">Configurar WhatsApp</Link>
+                        <Link href="/dashboard/settings/whatsapp">Configurar WhatsApp</Link>
                       </Button>
                     </div>
                   </AlertDescription>

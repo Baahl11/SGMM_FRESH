@@ -26,7 +26,7 @@ const settingsNav = [
   },
   {
     title: 'Mensajería',
-    href: '/settings/mensajeria',
+    href: '/dashboard/settings/whatsapp',
     icon: MessageSquare,
     description: 'WhatsApp Business y recordatorios automáticos',
   },

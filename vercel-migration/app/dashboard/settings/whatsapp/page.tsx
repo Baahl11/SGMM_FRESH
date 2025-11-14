@@ -1,11 +1,8 @@
 'use client';
 
 /**
- * WhatsApp Business Configuration Page
+ * WhatsApp Business Configuration Page (Migrated to Dashboard Settings)
  * BYOK (Bring Your Own Keys) Model
- * 
- * Allows doctors to configure their own WhatsApp Business API credentials
- * directly from Meta/Facebook Business Manager.
  */
 
 import { useState, useEffect } from 'react';
@@ -205,132 +202,122 @@ export default function WhatsAppConfigPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header con gradiente */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 via-green-500 to-teal-600 p-8 text-white shadow-xl">
-        <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10"></div>
-        <div className="relative flex items-center gap-4">
-          <div className="p-4 bg-white/20 backdrop-blur-sm rounded-2xl">
-            <MessageSquare className="h-10 w-10" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Configuración de Mensajería</h1>
-            <p className="text-green-50 mt-1">
-              Configura tu cuenta de WhatsApp Business para enviar recordatorios automáticos a tus pacientes
-            </p>
-          </div>
-        </div>
+      {/* Header */}
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Configuración de WhatsApp Business</h1>
+        <p className="text-gray-600 dark:text-gray-400">
+          Configura tu cuenta de WhatsApp Business para enviar recordatorios automáticos a tus pacientes
+        </p>
       </div>
 
-      {/* Roadmap de configuración */}
-      <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-2xl p-8 border-2 border-blue-100 shadow-lg">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-md">
-            <AlertCircle className="h-6 w-6 text-white" />
+      {/* Setup Guide */}
+      <Card className="border-2 border-blue-200 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-md">
+              <AlertCircle className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <CardTitle className="text-2xl">¿Primera vez configurando WhatsApp?</CardTitle>
+              <CardDescription>Sigue estos pasos para conectar tu cuenta de WhatsApp Business</CardDescription>
+            </div>
           </div>
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">¿Primera vez configurando WhatsApp?</h2>
-            <p className="text-gray-600">Sigue estos pasos para conectar tu cuenta de WhatsApp Business</p>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {/* Step 1 */}
+            <Card className="border-2 border-blue-200 bg-white hover:shadow-xl transition-shadow">
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-white font-bold text-lg shadow-md">
+                    1
+                  </div>
+                  <CardTitle className="text-base">Crear Cuenta</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-sm text-gray-600">
+                  Crea una cuenta en Facebook Business Manager
+                </p>
+                <Button variant="outline" size="sm" className="w-full border-blue-300 text-blue-600 hover:bg-blue-50" asChild>
+                  <a href="https://business.facebook.com" target="_blank" rel="noopener noreferrer">
+                    Ir a Facebook <ExternalLink className="ml-2 h-3 w-3" />
+                  </a>
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Step 2 */}
+            <Card className="border-2 border-indigo-200 bg-white hover:shadow-xl transition-shadow">
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-600 text-white font-bold text-lg shadow-md">
+                    2
+                  </div>
+                  <CardTitle className="text-base">Configurar WhatsApp</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-sm text-gray-600">
+                  Configura WhatsApp Business en el administrador de Meta
+                </p>
+                <div className="h-8 flex items-center">
+                  <span className="text-xs text-indigo-600 font-medium">📱 En Business Manager</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Step 3 */}
+            <Card className="border-2 border-purple-200 bg-white hover:shadow-xl transition-shadow">
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 text-white font-bold text-lg shadow-md">
+                    3
+                  </div>
+                  <CardTitle className="text-base">Generar Token</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-sm text-gray-600">
+                  Crea un usuario del sistema y genera un token permanente
+                </p>
+                <div className="h-8 flex items-center">
+                  <span className="text-xs text-purple-600 font-medium">🔑 Token de acceso</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Step 4 */}
+            <Card className="border-2 border-green-200 bg-white hover:shadow-xl transition-shadow">
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-green-600 text-white font-bold text-lg shadow-md">
+                    4
+                  </div>
+                  <CardTitle className="text-base">Pegar Credenciales</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-sm text-gray-600">
+                  Copia tus credenciales en el formulario de abajo
+                </p>
+                <div className="h-8 flex items-center">
+                  <span className="text-xs text-green-600 font-medium">✅ ¡Listo para usar!</span>
+                </div>
+              </CardContent>
+            </Card>
           </div>
-        </div>
 
-        {/* Grid de pasos */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mt-6">
-          {/* Paso 1 */}
-          <Card className="relative overflow-hidden border-2 border-blue-200 bg-white hover:shadow-xl transition-shadow">
-            <div className="absolute top-0 right-0 w-20 h-20 bg-blue-500 opacity-10 rounded-bl-full"></div>
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-white font-bold text-lg shadow-md">
-                  1
-                </div>
-                <CardTitle className="text-base">Crear Cuenta</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-sm text-gray-600">
-                Crea una cuenta en Facebook Business Manager
-              </p>
-              <Button variant="outline" size="sm" className="w-full border-blue-300 text-blue-600 hover:bg-blue-50" asChild>
-                <a href="https://business.facebook.com" target="_blank" rel="noopener noreferrer">
-                  Ir a Facebook <ExternalLink className="ml-2 h-3 w-3" />
-                </a>
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Paso 2 */}
-          <Card className="relative overflow-hidden border-2 border-indigo-200 bg-white hover:shadow-xl transition-shadow">
-            <div className="absolute top-0 right-0 w-20 h-20 bg-indigo-500 opacity-10 rounded-bl-full"></div>
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-600 text-white font-bold text-lg shadow-md">
-                  2
-                </div>
-                <CardTitle className="text-base">Configurar WhatsApp</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-sm text-gray-600">
-                Configura WhatsApp Business en el administrador de Meta
-              </p>
-              <div className="h-8 flex items-center">
-                <span className="text-xs text-indigo-600 font-medium">📱 En Business Manager</span>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Paso 3 */}
-          <Card className="relative overflow-hidden border-2 border-purple-200 bg-white hover:shadow-xl transition-shadow">
-            <div className="absolute top-0 right-0 w-20 h-20 bg-purple-500 opacity-10 rounded-bl-full"></div>
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 text-white font-bold text-lg shadow-md">
-                  3
-                </div>
-                <CardTitle className="text-base">Generar Token</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-sm text-gray-600">
-                Crea un usuario del sistema y genera un token permanente
-              </p>
-              <div className="h-8 flex items-center">
-                <span className="text-xs text-purple-600 font-medium">🔑 Token de acceso</span>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Paso 4 */}
-          <Card className="relative overflow-hidden border-2 border-green-200 bg-white hover:shadow-xl transition-shadow">
-            <div className="absolute top-0 right-0 w-20 h-20 bg-green-500 opacity-10 rounded-bl-full"></div>
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-green-600 text-white font-bold text-lg shadow-md">
-                  4
-                </div>
-                <CardTitle className="text-base">Pegar Credenciales</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-sm text-gray-600">
-                Copia tus credenciales en el formulario de abajo
-              </p>
-              <div className="h-8 flex items-center">
-                <span className="text-xs text-green-600 font-medium">✅ ¡Listo para usar!</span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Botón de ayuda */}
-        <div className="mt-6 flex justify-center">
-          <Button size="lg" className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg" asChild>
-            <a href="https://developers.facebook.com/docs/whatsapp/cloud-api/get-started" target="_blank" rel="noopener noreferrer">
-              📖 Ver guía completa paso a paso <ExternalLink className="ml-2 h-5 w-5" />
-            </a>
-          </Button>
-        </div>
-      </div>
+          {/* Help Button */}
+          <div className="mt-6 flex justify-center">
+            <Button size="lg" className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg" asChild>
+              <a href="https://developers.facebook.com/docs/whatsapp/cloud-api/get-started" target="_blank" rel="noopener noreferrer">
+                📖 Ver guía completa paso a paso <ExternalLink className="ml-2 h-5 w-5" />
+              </a>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Connection Status */}
       {config.last_connection_test && (
