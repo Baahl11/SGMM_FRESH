@@ -81,11 +81,11 @@ export function UserMenu({ user }: UserMenuProps) {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem 
-          onClick={() => router.push('/dashboard/settings')}
+          onClick={() => router.push('/profile')}
           className="cursor-pointer text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
         >
-          <Settings className="mr-2 h-4 w-4" />
-          <span>Configuración</span>
+          <User className="mr-2 h-4 w-4" />
+          Mi Perfil
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem 
@@ -93,7 +93,7 @@ export function UserMenu({ user }: UserMenuProps) {
           className="cursor-pointer text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
         >
           <LogOut className="mr-2 h-4 w-4" />
-          <span>Cerrar Sesión</span>
+          Cerrar Sesión
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

@@ -53,8 +53,16 @@ export async function GET(request: NextRequest) {
     }
 
     console.log('✅ Found members:', members?.length || 0);
-
-    console.log('✅ Found members:', members?.length || 0);
+    
+    // Log each member's status for debugging
+    members?.forEach(m => {
+      console.log('Member:', {
+        email: m.member_email,
+        status: m.status,
+        member_user_id: m.member_user_id,
+        accepted_at: m.accepted_at
+      });
+    });
 
     // Get subscription limits
     const { data: subscription, error: subError } = await supabase

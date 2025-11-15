@@ -190,6 +190,41 @@ export async function GET(request: NextRequest) {
         isFirstLogin = true
       }
     }
+
+    // Check if this user was invited as a team member and update status to active
+    try {
+      const { data: teamMember, error: teamMemberError } = await supabaseAdmin
+        .from('team_members')
+        .select('id, owner_user_id')
+        .eq('member_email', userEmail)
+        .eq('status', 'pending')
+        .maybeSingle()
+
+      if (teamMember && !teamMemberError) {
+        // Update team member status to active
+        const { error: updateError } = await supabaseAdmin
+          .from('team_members')
+          .update({
+            member_user_id: userId,
+            status: 'active',
+            accepted_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', teamMember.id)
+
+        if (updateError) {
+          console.error('[Auth Callback] Error updating team member status', updateError)
+        } else {
+          console.log('[Auth Callback] Team member status updated to active', {
+            teamMemberId: teamMember.id,
+            userId,
+            email: userEmail
+          })
+        }
+      }
+    } catch (teamMemberError) {
+      console.error('[Auth Callback] Error checking/updating team member', teamMemberError)
+    }
   } catch (profileError) {
     console.error('[Auth Callback] Unexpected error ensuring user profile', profileError)
   }

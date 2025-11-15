@@ -85,13 +85,13 @@ export function LocationSelector({
   if (userPlan === 'basico' && locations.length <= 1 && !allowAll) {
     const location = locations[0]
     return (
-      <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-md border border-blue-200">
-        <MapPin className="h-4 w-4 text-blue-600" />
-        <span className="text-sm font-medium text-blue-900">
+      <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-md border border-blue-200 max-w-[280px]">
+        <MapPin className="h-4 w-4 text-blue-600 flex-shrink-0" />
+        <span className="text-sm font-medium text-blue-900 truncate">
           {location?.nombre || 'Mi Consultorio'}
         </span>
         {location?.es_principal && (
-          <Badge variant="secondary" className="text-xs">Principal</Badge>
+          <Badge variant="secondary" className="text-xs flex-shrink-0">★</Badge>
         )}
       </div>
     )
@@ -115,13 +115,13 @@ export function LocationSelector({
       onValueChange={onLocationChange}
       disabled={disabled}
     >
-      <SelectTrigger className={`w-64 ${className}`}>
-        <div className="flex items-center gap-2">
-          <MapPin className="h-4 w-4" />
+      <SelectTrigger className={`min-w-[200px] max-w-[280px] ${className}`}>
+        <div className="flex items-center gap-2 w-full overflow-hidden">
+          <MapPin className="h-4 w-4 flex-shrink-0" />
           <SelectValue placeholder="Selecciona ubicación" />
         </div>
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent className="max-w-[320px]">
         {allowAll && userPlan !== 'basico' && (
           <SelectItem value="all">
             <div className="flex items-center gap-2">
@@ -131,13 +131,13 @@ export function LocationSelector({
         )}
         {locations.map((location) => (
           <SelectItem key={location.id} value={location.id}>
-            <div className="flex items-center gap-2">
-              <span>{location.nombre}</span>
+            <div className="flex items-center gap-2 max-w-full">
+              <span className="truncate flex-1">{location.nombre}</span>
               {location.ciudad && (
-                <span className="text-xs text-gray-500">({location.ciudad})</span>
+                <span className="text-xs text-gray-500 flex-shrink-0">({location.ciudad})</span>
               )}
               {location.es_principal && (
-                <Badge variant="secondary" className="text-xs ml-2">Principal</Badge>
+                <Badge variant="secondary" className="text-xs ml-1 flex-shrink-0">★</Badge>
               )}
             </div>
           </SelectItem>

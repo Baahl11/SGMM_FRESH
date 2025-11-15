@@ -3,6 +3,18 @@ import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
+  // ❌ DEPRECATED: Este endpoint crea suscripciones huérfanas (sin Stripe)
+  // ✅ USAR: /api/create-trial-session en su lugar
+  return NextResponse.json(
+    { 
+      error: 'Este endpoint está desactivado. Usa /api/create-trial-session para crear trials con Stripe.',
+      deprecated: true,
+      alternative: '/api/create-trial-session'
+    },
+    { status: 410 } // 410 Gone
+  )
+  
+  /* CÓDIGO ORIGINAL DESACTIVADO PARA PREVENIR SUSCRIPCIONES HUÉRFANAS
   try {
     const { planTier, billingCycle } = await request.json()
 
@@ -109,4 +121,5 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
+  */
 }

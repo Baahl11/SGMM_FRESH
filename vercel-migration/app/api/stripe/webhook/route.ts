@@ -242,6 +242,7 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
   
+  // Actualizar tabla users (legacy)
   const updateData: any = {
     subscription_status: subscription.status,
     updated_at: new Date().toISOString(),
@@ -263,9 +264,34 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
     .eq('id', userId)
 
   if (error) {
-    console.error('❌ Error updating subscription:', error)
+    console.error('❌ Error updating users table:', error)
+  }
+
+  // 🔥 CRÍTICO: Actualizar tabla subscriptions también
+  const priceId = subscription.items.data[0]?.price.id
+  const subscriptionUpdateData: any = {
+    status: subscription.status,
+    stripe_price_id: priceId,
+    current_period_start: new Date((subscription as any).current_period_start * 1000).toISOString(),
+    current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString(),
+    updated_at: new Date().toISOString(),
+  }
+
+  // Si la suscripción pasó de trialing a active, actualizar
+  if (subscription.status === 'active' && (subscription as any).trial_end) {
+    subscriptionUpdateData.trial_end = new Date((subscription as any).trial_end * 1000).toISOString()
+  }
+
+  const { error: subError } = await supabaseAdmin
+    .from('subscriptions')
+    .update(subscriptionUpdateData)
+    .eq('user_id', userId)
+    .eq('stripe_subscription_id', subscription.id)
+
+  if (subError) {
+    console.error('❌ Error updating subscriptions table:', subError)
   } else {
-    console.log(`✅ Subscription updated for user ${userId}`)
+    console.log(`✅ Subscription updated for user ${userId} - Status: ${subscription.status}`)
   }
 }
 
@@ -331,12 +357,27 @@ async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
   
+  // Actualizar tabla users (legacy)
   await supabaseAdmin
     .from('users')
     .update({ subscription_status: 'active', updated_at: new Date().toISOString() })
     .eq('id', userId)
 
-  console.log(`Payment succeeded for user ${userId}`)
+  // 🔥 CRÍTICO: Actualizar tabla subscriptions - marcar como active después del pago
+  const { error: subError } = await supabaseAdmin
+    .from('subscriptions')
+    .update({ 
+      status: 'active',
+      updated_at: new Date().toISOString()
+    })
+    .eq('user_id', userId)
+    .eq('stripe_subscription_id', subscription.id)
+
+  if (subError) {
+    console.error('❌ Error updating subscription after payment:', subError)
+  } else {
+    console.log(`✅ Payment succeeded for user ${userId} - Subscription marked as active`)
+  }
 }
 
 /**
