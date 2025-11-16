@@ -306,68 +306,92 @@ export default function FacturacionSettingsPage() {
         <CardHeader>
           <div className="flex items-center gap-2">
             <AlertCircle className="h-5 w-5 text-blue-600" />
-            <CardTitle className="text-blue-900">¿Cómo obtener las credenciales API?</CardTitle>
+            <CardTitle className="text-blue-900">Guía Rápida: Activar Facturación Electrónica</CardTitle>
           </div>
-          <CardDescription className="text-blue-700 space-y-3">
-            <p className="font-medium">Para generar facturas REALES con valor fiscal:</p>
-            <ol className="list-decimal list-inside space-y-2 ml-2">
-              <li>
-                <strong>Crear cuenta de PRODUCCIÓN:</strong> Ir a <a href="https://www.facturama.mx/registro" target="_blank" rel="noopener noreferrer" className="underline font-medium">www.facturama.mx/registro</a>
-                <ul className="list-disc list-inside ml-6 mt-1 text-sm">
-                  <li>Registrarse con email y crear contraseña</li>
-                  <li>Confirmar email de verificación</li>
-                  <li>Completar datos fiscales de tu clínica/consultorio</li>
-                </ul>
-              </li>
-              <li>
-                <strong>Adquirir suscripción API de PRODUCCIÓN:</strong>
-                <ul className="list-disc list-inside ml-6 mt-1 text-sm">
-                  <li>Login en <a href="https://www.facturama.mx/login" target="_blank" rel="noopener noreferrer" className="underline font-medium">www.facturama.mx/login</a></li>
-                  <li>Ir al <strong>carrito de compra</strong> (esquina superior derecha)</li>
-                  <li>Seleccionar pestaña <strong>"API"</strong></li>
-                  <li>Dar clic en <strong>"Comprar"</strong> en "Anualidad API"</li>
-                  <li><strong>Costo:</strong> ~$1,650 MXN/año (facturación ilimitada)</li>
-                  <li>Realizar pago con tarjeta de crédito/débito</li>
-                  <li>Esperar confirmación de activación por email</li>
-                </ul>
-              </li>
-              <li>
-                <strong>Usar tus credenciales de cuenta:</strong>
-                <ul className="list-disc list-inside ml-6 mt-1 text-sm">
-                  <li><strong>Usuario API:</strong> Tu email de registro en Facturama</li>
-                  <li><strong>Contraseña API:</strong> Tu contraseña de cuenta Facturama</li>
-                </ul>
-              </li>
-              <li>
-                <strong>Configurar aquí:</strong>
-                <ul className="list-disc list-inside ml-6 mt-1 text-sm">
-                  <li><strong>DESACTIVAR</strong> modo "Sandbox" (debe estar apagado)</li>
-                  <li>Pegar email y contraseña de tu cuenta Facturama</li>
-                  <li>Click "Probar Conexión" para verificar</li>
-                  <li>Completar datos fiscales del emisor (RFC, razón social, etc.)</li>
-                </ul>
-              </li>
-            </ol>
-            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
-              <p className="text-sm font-medium text-yellow-900">
-                ⚠️ <strong>Causas más comunes de error 401:</strong>
-              </p>
-              <ul className="text-sm text-yellow-800 mt-1 space-y-1">
-                <li>• <strong>No has adquirido y activado la suscripción API</strong> en tu cuenta Facturama</li>
-                <li>• Debes ir al carrito → pestaña API → comprar "Anualidad API" y pagar</li>
-                <li>• El modo Sandbox debe estar <strong>APAGADO</strong> para usar credenciales de producción</li>
-                <li>• Sin la suscripción API activa, las credenciales no funcionarán</li>
+          <CardDescription className="text-blue-700 space-y-4">
+            <p className="font-medium text-base">
+              Sigue estos pasos para empezar a facturar automáticamente:
+            </p>
+
+            {/* Paso 1 */}
+            <div className="bg-white p-4 rounded-lg border border-blue-100">
+              <h3 className="font-semibold text-blue-900 mb-2">📝 Paso 1: Crea tu cuenta en Facturama</h3>
+              <p className="text-sm mb-2">Regístrate gratis en el sitio oficial de facturación:</p>
+              <a 
+                href="https://www.facturama.mx/registro" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="inline-block bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+              >
+                Ir a Facturama.mx →
+              </a>
+              <p className="text-xs text-gray-600 mt-2">Usa el mismo email que usas en tu clínica</p>
+            </div>
+
+            {/* Paso 2 */}
+            <div className="bg-white p-4 rounded-lg border border-blue-100">
+              <h3 className="font-semibold text-blue-900 mb-2">💳 Paso 2: Activa el servicio de facturación</h3>
+              <p className="text-sm mb-2">Dentro de tu cuenta Facturama:</p>
+              <ol className="text-sm space-y-1 ml-4">
+                <li>1. Ve al <strong>carrito de compras</strong> (arriba a la derecha)</li>
+                <li>2. Clic en la pestaña <strong>"API"</strong></li>
+                <li>3. Compra la <strong>"Anualidad API"</strong> - cuesta $1,650 al año</li>
+                <li>4. Paga con tarjeta (¡facturas ilimitadas todo el año!)</li>
+              </ol>
+              <div className="mt-2 bg-green-50 p-2 rounded border border-green-200">
+                <p className="text-xs text-green-800">✅ Recibirás un email cuando tu servicio esté activo (toma unos minutos)</p>
+              </div>
+            </div>
+
+            {/* Paso 3 */}
+            <div className="bg-white p-4 rounded-lg border border-blue-100">
+              <h3 className="font-semibold text-blue-900 mb-2">🔑 Paso 3: Conecta AgendaMedPro con Facturama</h3>
+              <p className="text-sm mb-2">Configura la conexión aquí mismo:</p>
+              <ol className="text-sm space-y-1 ml-4">
+                <li>1. <strong>Apaga</strong> el switch "Modo Sandbox" (debe estar en gris)</li>
+                <li>2. Escribe tu <strong>email de Facturama</strong> en "Usuario API"</li>
+                <li>3. Escribe tu <strong>contraseña de Facturama</strong> en "Contraseña API"</li>
+                <li>4. Clic en <strong>"Probar Conexión"</strong> - debe salir ✅ verde</li>
+              </ol>
+            </div>
+
+            {/* Paso 4 */}
+            <div className="bg-white p-4 rounded-lg border border-blue-100">
+              <h3 className="font-semibold text-blue-900 mb-2">🏥 Paso 4: Completa los datos de tu clínica</h3>
+              <p className="text-sm mb-2">Llena la información fiscal (la que aparece en tus facturas):</p>
+              <ul className="text-sm space-y-1 ml-4">
+                <li>• RFC de tu clínica/consultorio</li>
+                <li>• Nombre completo del negocio (razón social)</li>
+                <li>• Código postal de tu dirección fiscal</li>
+                <li>• Régimen fiscal (si no sabes cuál es, pregunta a tu contador)</li>
               </ul>
             </div>
-            <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded">
-              <p className="text-sm font-medium text-green-900">
-                💡 <strong>¿Quieres hacer pruebas primero?</strong>
+
+            {/* Solo pruebas */}
+            <div className="mt-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+              <p className="text-sm font-medium text-purple-900 mb-2">
+                🧪 <strong>¿Solo quieres hacer pruebas?</strong>
               </p>
-              <ul className="text-sm text-green-800 mt-1 space-y-1">
-                <li>• Crea una cuenta SANDBOX en <a href="https://dev.facturama.mx/api/registro" target="_blank" rel="noopener noreferrer" className="underline">dev.facturama.mx/api/registro</a> (GRATIS)</li>
-                <li>• Activa la API desde el carrito (gratis en sandbox)</li>
-                <li>• Activa el modo "Sandbox" aquí para probar sin costo</li>
-                <li>• Las facturas sandbox NO tienen validez fiscal</li>
+              <p className="text-sm text-purple-800 mb-2">
+                Usa el modo <strong>Sandbox</strong> (GRATIS) - las facturas no son válidas pero puedes probar todo:
+              </p>
+              <ol className="text-sm text-purple-800 space-y-1 ml-4">
+                <li>1. Crea cuenta en <a href="https://dev.facturama.mx/api/registro" target="_blank" className="underline">dev.facturama.mx</a></li>
+                <li>2. <strong>Activa</strong> el switch "Modo Sandbox" aquí</li>
+                <li>3. Usa tus credenciales de la cuenta de pruebas</li>
+              </ol>
+            </div>
+
+            {/* Errores comunes */}
+            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-sm font-medium text-yellow-900 mb-2">
+                ⚠️ <strong>¿Dice "Error 401" al probar?</strong>
+              </p>
+              <ul className="text-sm text-yellow-800 space-y-1 ml-4">
+                <li>• Verifica que <strong>SÍ compraste</strong> la suscripción API en Facturama</li>
+                <li>• Revisa que el email y contraseña sean correctos</li>
+                <li>• Si es para producción, <strong>desactiva</strong> el modo Sandbox</li>
+                <li>• Espera unos minutos si acabas de pagar (el servicio tarda en activarse)</li>
               </ul>
             </div>
           </CardDescription>
@@ -616,28 +640,65 @@ export default function FacturacionSettingsPage() {
         {/* CSD Certificates Upload */}
         <Card>
           <CardHeader>
-            <CardTitle>Certificados CSD del SAT</CardTitle>
+            <CardTitle>Certificados del SAT (Sello Digital)</CardTitle>
             <CardDescription>
-              Suba sus certificados de Sello Digital (.cer y .key) para generar facturas en producción
+              Necesarios para emitir facturas oficiales con validez fiscal
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Information Banner */}
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <div className="flex items-start gap-2">
-                <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
-                <div className="text-sm text-blue-900 space-y-2">
-                  <p className="font-medium">¿Cómo obtener los certificados CSD?</p>
-                  <ol className="list-decimal list-inside space-y-1 ml-2">
-                    <li>Ingresar al portal del SAT con su e.firma</li>
-                    <li>Ir a "Trámites" → "Certificados de Sello Digital"</li>
-                    <li>Solicitar nuevo certificado CSD (proceso toma ~48 horas)</li>
-                    <li>Descargar archivos <code className="bg-blue-100 px-1 rounded">.cer</code> y <code className="bg-blue-100 px-1 rounded">.key</code></li>
-                    <li>Guardar la contraseña que proporcionó al generar el CSD</li>
-                  </ol>
-                  <p className="mt-2 text-xs text-blue-700">
-                    ⚠️ Los certificados CSD son OBLIGATORIOS para facturación en producción. El modo Sandbox no los requiere.
+                <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                <div className="text-sm text-blue-900 space-y-3">
+                  <p className="font-semibold text-base">¿Qué son los certificados CSD?</p>
+                  <p>
+                    Son archivos de seguridad del SAT que "firman" digitalmente tus facturas. 
+                    Sin ellos, no puedes facturar oficialmente (solo en modo prueba).
                   </p>
+
+                  <div className="bg-white p-3 rounded border border-blue-100">
+                    <p className="font-medium mb-2">📋 Cómo conseguir tus certificados:</p>
+                    <ol className="space-y-2 ml-4">
+                      <li className="text-sm">
+                        <strong>1. Entra al portal del SAT</strong>
+                        <br />
+                        <a href="https://www.sat.gob.mx" target="_blank" className="text-blue-600 underline">www.sat.gob.mx</a> 
+                        {' '}(necesitas tu e.firma para entrar)
+                      </li>
+                      <li className="text-sm">
+                        <strong>2. Ve a "Trámites y Servicios"</strong>
+                        <br />
+                        Busca la opción "Certificado de Sello Digital" (CSD)
+                      </li>
+                      <li className="text-sm">
+                        <strong>3. Genera un nuevo certificado</strong>
+                        <br />
+                        Te va a pedir una contraseña (¡guárdala bien!)
+                      </li>
+                      <li className="text-sm">
+                        <strong>4. Descarga 2 archivos:</strong>
+                        <br />
+                        • Un archivo <code className="bg-blue-100 px-1 rounded text-xs">.cer</code> (certificado público)
+                        <br />
+                        • Un archivo <code className="bg-blue-100 px-1 rounded text-xs">.key</code> (llave privada)
+                      </li>
+                    </ol>
+                  </div>
+
+                  <div className="bg-yellow-50 p-3 rounded border border-yellow-200">
+                    <p className="text-xs text-yellow-900">
+                      <strong>⏱️ Nota:</strong> El SAT tarda entre 24 y 48 horas en generar tus certificados. 
+                      Mientras tanto, puedes usar el modo Sandbox para hacer pruebas.
+                    </p>
+                  </div>
+
+                  <div className="bg-purple-50 p-3 rounded border border-purple-200">
+                    <p className="text-xs text-purple-900">
+                      <strong>🧪 ¿Modo Sandbox?</strong> Si solo quieres probar, NO necesitas los certificados. 
+                      Activa el switch "Modo Sandbox" arriba y listo.
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
