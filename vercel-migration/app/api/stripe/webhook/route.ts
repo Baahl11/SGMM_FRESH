@@ -404,12 +404,27 @@ async function handlePaymentFailed(invoice: Stripe.Invoice) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
   
+  // Actualizar tabla users (legacy)
   await supabaseAdmin
     .from('users')
     .update({ subscription_status: 'past_due', updated_at: new Date().toISOString() })
     .eq('id', userId)
 
-  console.log(`Payment failed for user ${userId}`)
+  // 🔥 CRÍTICO: Actualizar tabla subscriptions - marcar como moroso
+  const { error: subError } = await supabaseAdmin
+    .from('subscriptions')
+    .update({ 
+      status: 'past_due',
+      updated_at: new Date().toISOString()
+    })
+    .eq('user_id', userId)
+    .eq('stripe_subscription_id', subscription.id)
+
+  if (subError) {
+    console.error('❌ Error updating subscription after payment failure:', subError)
+  } else {
+    console.log(`⚠️ Payment failed for user ${userId} - Subscription marked as past_due`)
+  }
 }
 
 
