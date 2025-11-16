@@ -435,16 +435,6 @@ function SelectTrialPlanContent() {
           <div className="space-y-4 text-left">
             <div className="bg-white p-6 rounded-xl border-2 border-gray-200 hover:border-purple-300 transition-colors">
               <p className="font-bold text-gray-900 mb-3 text-lg flex items-center gap-2">
-                <span className="text-purple-600">❓</span>
-                ¿Necesito agregar mi tarjeta para la prueba gratis?
-              </p>
-              <p className="text-gray-600">
-                <strong>¡No!</strong> Solo necesitas crear tu cuenta con Google. No pedimos tarjeta hasta después de los 7 días, cuando decidas continuar usando AgendaMedPro.
-              </p>
-            </div>
-            
-            <div className="bg-white p-6 rounded-xl border-2 border-gray-200 hover:border-purple-300 transition-colors">
-              <p className="font-bold text-gray-900 mb-3 text-lg flex items-center gap-2">
                 <span className="text-purple-600">⏰</span>
                 ¿Cuánto dura la prueba gratis?
               </p>
