@@ -367,21 +367,6 @@ export default function FacturacionSettingsPage() {
               </ul>
             </div>
 
-            {/* Solo pruebas */}
-            <div className="mt-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
-              <p className="text-sm font-medium text-purple-900 mb-2">
-                🧪 <strong>¿Solo quieres hacer pruebas?</strong>
-              </p>
-              <p className="text-sm text-purple-800 mb-2">
-                Usa el modo <strong>Sandbox</strong> (GRATIS) - las facturas no son válidas pero puedes probar todo:
-              </p>
-              <ol className="text-sm text-purple-800 space-y-1 ml-4">
-                <li>1. Crea cuenta en <a href="https://dev.facturama.mx/api/registro" target="_blank" className="underline">dev.facturama.mx</a></li>
-                <li>2. <strong>Activa</strong> el switch "Modo Sandbox" aquí</li>
-                <li>3. Usa tus credenciales de la cuenta de pruebas</li>
-              </ol>
-            </div>
-
             {/* Errores comunes */}
             <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
               <p className="text-sm font-medium text-yellow-900 mb-2">
@@ -689,14 +674,7 @@ export default function FacturacionSettingsPage() {
                   <div className="bg-yellow-50 p-3 rounded border border-yellow-200">
                     <p className="text-xs text-yellow-900">
                       <strong>⏱️ Nota:</strong> El SAT tarda entre 24 y 48 horas en generar tus certificados. 
-                      Mientras tanto, puedes usar el modo Sandbox para hacer pruebas.
-                    </p>
-                  </div>
-
-                  <div className="bg-purple-50 p-3 rounded border border-purple-200">
-                    <p className="text-xs text-purple-900">
-                      <strong>🧪 ¿Modo Sandbox?</strong> Si solo quieres probar, NO necesitas los certificados. 
-                      Activa el switch "Modo Sandbox" arriba y listo.
+                      No te preocupes, puedes configurar todo lo demás mientras tanto.
                     </p>
                   </div>
                 </div>
