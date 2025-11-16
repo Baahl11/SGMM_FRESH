@@ -2,13 +2,16 @@
 // Documentation: https://api.facturama.mx/docs
 
 import { FacturamaInvoiceResponse } from '@/lib/types/facturama';
+import { decryptDatabaseField } from '@/lib/crypto/encryption';
 
 const FACTURAMA_API_SANDBOX = 'https://apisandbox.facturama.mx';
 const FACTURAMA_API_PRODUCTION = 'https://api.facturama.mx';
 
 interface FacturamaCredentials {
   api_user: string;
-  api_password: string;
+  api_password_encrypted: string;
+  api_password_iv?: string | null;
+  api_password_tag?: string | null;
   is_sandbox: boolean;
 }
 
@@ -57,17 +60,25 @@ interface FacturamaInvoicePayload {
 class FacturamaClient {
   private credentials: FacturamaCredentials;
   private baseUrl: string;
+  private apiPassword: string; // Decrypted password (kept in memory only)
 
   constructor(credentials: FacturamaCredentials) {
     this.credentials = credentials;
     this.baseUrl = credentials.is_sandbox
       ? FACTURAMA_API_SANDBOX
       : FACTURAMA_API_PRODUCTION;
+    
+    // Decrypt password on initialization
+    this.apiPassword = decryptDatabaseField(
+      credentials.api_password_encrypted,
+      credentials.api_password_iv || null,
+      credentials.api_password_tag || null
+    );
   }
 
   private getAuthHeaders(): HeadersInit {
     const auth = Buffer.from(
-      `${this.credentials.api_user}:${this.credentials.api_password}`
+      `${this.credentials.api_user}:${this.apiPassword}`
     ).toString('base64');
 
     return {
@@ -83,10 +94,10 @@ class FacturamaClient {
     try {
       console.log('[FacturamaClient] Testing connection to:', this.baseUrl);
       console.log('[FacturamaClient] Using user:', this.credentials.api_user);
-      console.log('[FacturamaClient] Password length:', this.credentials.api_password?.length || 0);
+      console.log('[FacturamaClient] Password length:', this.apiPassword?.length || 0);
       console.log('[FacturamaClient] Is sandbox:', this.credentials.is_sandbox);
       
-      const authString = `${this.credentials.api_user}:${this.credentials.api_password}`;
+      const authString = `${this.credentials.api_user}:${this.apiPassword}`;
       const base64Auth = Buffer.from(authString).toString('base64');
       console.log('[FacturamaClient] Base64 auth length:', base64Auth.length);
       console.log('[FacturamaClient] Auth starts with:', base64Auth.substring(0, 20) + '...');

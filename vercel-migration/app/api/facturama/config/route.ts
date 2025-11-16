@@ -5,19 +5,8 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import FacturamaClient from '@/lib/facturama/client';
+import { encrypt } from '@/lib/crypto/encryption';
 import type { FacturamaConfigInput, ConfigValidationResult } from '@/lib/types/facturama';
-
-// Simple encryption helper (in production, use proper encryption like crypto.encrypt)
-function encryptPassword(password: string): string {
-  // TODO: Implement proper encryption
-  // For now, using base64 (NOT SECURE - just for development)
-  return Buffer.from(password).toString('base64');
-}
-
-function decryptPassword(encrypted: string): string {
-  // TODO: Implement proper decryption
-  return Buffer.from(encrypted, 'base64').toString('utf-8');
-}
 
 // GET - Retrieve user's Facturama configuration
 export async function GET() {
@@ -98,10 +87,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Código postal inválido' }, { status: 400 });
     }
 
-    // Test Facturama connection
+    // Test Facturama connection (use plaintext password for testing)
     const facturamaClient = new FacturamaClient({
       api_user: body.api_user,
-      api_password: body.api_password,
+      api_password_encrypted: Buffer.from(body.api_password).toString('base64'), // Temporary for testing
+      api_password_iv: null,
+      api_password_tag: null,
       is_sandbox: body.is_sandbox,
     });
 
@@ -113,8 +104,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // Encrypt password
-    const encryptedPassword = encryptPassword(body.api_password);
+    // Encrypt password with AES-256-GCM
+    const encryptedPassword = encrypt(body.api_password);
 
     // Check if config already exists
     const { data: existingConfig } = await supabase
@@ -126,7 +117,10 @@ export async function POST(request: Request) {
     const configData = {
       user_id: user.id,
       api_user: body.api_user,
-      api_password_encrypted: encryptedPassword,
+      api_password_encrypted: encryptedPassword.encrypted,
+      api_password_iv: encryptedPassword.iv,
+      api_password_tag: encryptedPassword.tag,
+      encryption_migrated: true, // Mark as using new encryption
       is_sandbox: body.is_sandbox,
       emisor_rfc: body.emisor_rfc.toUpperCase(),
       emisor_razon_social: body.emisor_razon_social,
@@ -223,7 +217,9 @@ export async function PUT(request: Request) {
 
     const facturamaClient = new FacturamaClient({
       api_user,
-      api_password,
+      api_password_encrypted: Buffer.from(api_password).toString('base64'), // Temporary for testing
+      api_password_iv: null,
+      api_password_tag: null,
       is_sandbox: is_sandbox !== false, // Default to sandbox
     });
 

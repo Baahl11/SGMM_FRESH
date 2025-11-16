@@ -87,7 +87,9 @@ export async function POST(request: Request) {
     // 5. Create Facturama client
     const facturamaClient = new FacturamaClient({
       api_user: config.api_user,
-      api_password: config.api_password_encrypted, // TODO: Decrypt password
+      api_password_encrypted: config.api_password_encrypted,
+      api_password_iv: config.api_password_iv,
+      api_password_tag: config.api_password_tag,
       is_sandbox: config.is_sandbox,
     });
 

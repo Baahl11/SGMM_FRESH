@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, AlertCircle, Upload, FileCheck, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { SAT_REGIMEN_FISCAL } from '@/lib/types/facturama';
 import type { FacturamaConfig, FacturamaConfigInput } from '@/lib/types/facturama';
@@ -18,6 +18,14 @@ export default function FacturacionSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<'success' | 'error' | null>(null);
+
+  // Certificate upload states
+  const [cerFile, setCerFile] = useState<File | null>(null);
+  const [keyFile, setKeyFile] = useState<File | null>(null);
+  const [keyPassword, setKeyPassword] = useState('');
+  const [uploadingCerts, setUploadingCerts] = useState(false);
+  const [hasCertificates, setHasCertificates] = useState(false);
+  const [deletingCerts, setDeletingCerts] = useState(false);
 
   const [formData, setFormData] = useState<FacturamaConfigInput>({
     api_user: '',
@@ -39,7 +47,20 @@ export default function FacturacionSettingsPage() {
 
   useEffect(() => {
     loadConfig();
+    checkCertificates();
   }, []);
+
+  const checkCertificates = async () => {
+    try {
+      const response = await fetch('/api/facturama/certificates');
+      if (response.ok) {
+        const data = await response.json();
+        setHasCertificates(data.has_certificates);
+      }
+    } catch (error) {
+      console.error('Error checking certificates:', error);
+    }
+  };
 
   const loadConfig = async () => {
     try {
@@ -189,6 +210,77 @@ export default function FacturacionSettingsPage() {
       toast.error('Error al guardar configuración');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleUploadCertificates = async () => {
+    if (!cerFile || !keyFile || !keyPassword) {
+      toast.error('Seleccione ambos archivos (.cer y .key) y proporcione la contraseña');
+      return;
+    }
+
+    setUploadingCerts(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('certificate_cer', cerFile);
+      formData.append('certificate_key', keyFile);
+      formData.append('key_password', keyPassword);
+
+      const response = await fetch('/api/facturama/certificates', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success('Certificados CSD subidos exitosamente');
+        setHasCertificates(true);
+        setCerFile(null);
+        setKeyFile(null);
+        setKeyPassword('');
+        // Reset file inputs
+        const cerInput = document.getElementById('cer_file') as HTMLInputElement;
+        const keyInput = document.getElementById('key_file') as HTMLInputElement;
+        if (cerInput) cerInput.value = '';
+        if (keyInput) keyInput.value = '';
+      } else {
+        toast.error(data.error || 'Error al subir certificados');
+      }
+    } catch (error) {
+      console.error('Error uploading certificates:', error);
+      toast.error('Error al subir certificados');
+    } finally {
+      setUploadingCerts(false);
+    }
+  };
+
+  const handleDeleteCertificates = async () => {
+    if (!confirm('¿Está seguro de eliminar los certificados CSD? Esto desactivará la facturación en producción.')) {
+      return;
+    }
+
+    setDeletingCerts(true);
+
+    try {
+      const response = await fetch('/api/facturama/certificates', {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success('Certificados eliminados exitosamente');
+        setHasCertificates(false);
+      } else {
+        toast.error(data.error || 'Error al eliminar certificados');
+      }
+    } catch (error) {
+      console.error('Error deleting certificates:', error);
+      toast.error('Error al eliminar certificados');
+    } finally {
+      setDeletingCerts(false);
     }
   };
 
@@ -518,6 +610,127 @@ export default function FacturacionSettingsPage() {
               />
               <Label>Enviar facturas por email automáticamente</Label>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* CSD Certificates Upload */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Certificados CSD del SAT</CardTitle>
+            <CardDescription>
+              Suba sus certificados de Sello Digital (.cer y .key) para generar facturas en producción
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Information Banner */}
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
+                <div className="text-sm text-blue-900 space-y-2">
+                  <p className="font-medium">¿Cómo obtener los certificados CSD?</p>
+                  <ol className="list-decimal list-inside space-y-1 ml-2">
+                    <li>Ingresar al portal del SAT con su e.firma</li>
+                    <li>Ir a "Trámites" → "Certificados de Sello Digital"</li>
+                    <li>Solicitar nuevo certificado CSD (proceso toma ~48 horas)</li>
+                    <li>Descargar archivos <code className="bg-blue-100 px-1 rounded">.cer</code> y <code className="bg-blue-100 px-1 rounded">.key</code></li>
+                    <li>Guardar la contraseña que proporcionó al generar el CSD</li>
+                  </ol>
+                  <p className="mt-2 text-xs text-blue-700">
+                    ⚠️ Los certificados CSD son OBLIGATORIOS para facturación en producción. El modo Sandbox no los requiere.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {hasCertificates ? (
+              <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <FileCheck className="h-5 w-5 text-green-600" />
+                    <div>
+                      <p className="font-medium text-green-900">Certificados CSD configurados</p>
+                      <p className="text-sm text-green-700">Sus certificados están cargados y listos para usar</p>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleDeleteCertificates}
+                    disabled={deletingCerts}
+                  >
+                    {deletingCerts ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="mr-2 h-4 w-4" />
+                    )}
+                    Eliminar
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="cer_file">Archivo .cer (Certificado)</Label>
+                    <Input
+                      id="cer_file"
+                      type="file"
+                      accept=".cer"
+                      onChange={(e) => setCerFile(e.target.files?.[0] || null)}
+                    />
+                    {cerFile && (
+                      <p className="text-xs text-muted-foreground">
+                        ✓ {cerFile.name} ({(cerFile.size / 1024).toFixed(2)} KB)
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="key_file">Archivo .key (Llave Privada)</Label>
+                    <Input
+                      id="key_file"
+                      type="file"
+                      accept=".key"
+                      onChange={(e) => setKeyFile(e.target.files?.[0] || null)}
+                    />
+                    {keyFile && (
+                      <p className="text-xs text-muted-foreground">
+                        ✓ {keyFile.name} ({(keyFile.size / 1024).toFixed(2)} KB)
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="key_password">Contraseña del archivo .key</Label>
+                  <Input
+                    id="key_password"
+                    type="password"
+                    value={keyPassword}
+                    onChange={(e) => setKeyPassword(e.target.value)}
+                    placeholder="••••••••"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Esta es la contraseña que proporcionó al SAT al generar el certificado CSD
+                  </p>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleUploadCertificates}
+                  disabled={uploadingCerts || !cerFile || !keyFile || !keyPassword}
+                >
+                  {uploadingCerts ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Upload className="mr-2 h-4 w-4" />
+                  )}
+                  Subir Certificados CSD
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
 
