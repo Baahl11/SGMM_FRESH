@@ -25,6 +25,23 @@ export async function POST(request: Request) {
       );
     }
 
+    // Check patient consent if patient_id is provided
+    if (patient_id) {
+      const { data: consent } = await supabase
+        .from('patient_whatsapp_consent')
+        .select('has_consented, opted_out')
+        .eq('user_id', user.id)
+        .eq('patient_id', patient_id)
+        .single();
+
+      if (consent && (!consent.has_consented || consent.opted_out)) {
+        return NextResponse.json(
+          { error: 'El paciente no ha dado consentimiento para recibir mensajes de WhatsApp' },
+          { status: 403 }
+        );
+      }
+    }
+
     // Get user's WhatsApp configuration
     const { data: config, error: configError } = await supabase
       .from('messaging_config')

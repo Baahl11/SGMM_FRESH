@@ -20,7 +20,8 @@ import {
   Calendar,
   Phone,
   Mail,
-  MapPin
+  MapPin,
+  MessageSquare
 } from "lucide-react";
 
 interface Patient {
@@ -55,6 +56,8 @@ export default function PatientEditClient({ patientId }: PatientEditClientProps)
     direccion: '',
     requiere_factura: false
   });
+  const [whatsappConsent, setWhatsappConsent] = useState(false);
+  const [loadingConsent, setLoadingConsent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -103,6 +106,9 @@ export default function PatientEditClient({ patientId }: PatientEditClientProps)
         direccion: patientData.direccion || '',
         requiere_factura: patientData.requiere_factura || false
       });
+      
+      // Load WhatsApp consent
+      loadWhatsAppConsent();
     } catch (err) {
       console.error('❌ Error loading patient:', err);
       setError('Error al cargar la información del paciente');
@@ -147,6 +153,53 @@ export default function PatientEditClient({ patientId }: PatientEditClientProps)
       setError(err.message || 'Error al actualizar el paciente');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const loadWhatsAppConsent = async () => {
+    try {
+      setLoadingConsent(true);
+      const response = await fetch(`/api/whatsapp/consent?patient_id=${patientId}`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.consents && data.consents.length > 0) {
+          const consent = data.consents[0];
+          setWhatsappConsent(consent.has_consented && !consent.opted_out);
+        }
+      }
+    } catch (err) {
+      console.error('Error loading WhatsApp consent:', err);
+    } finally {
+      setLoadingConsent(false);
+    }
+  };
+
+  const handleWhatsAppConsentChange = async (consented: boolean) => {
+    setWhatsappConsent(consented);
+    
+    try {
+      if (consented) {
+        await fetch('/api/whatsapp/consent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            patient_id: patientId,
+            consent_method: 'checkbox',
+          }),
+        });
+      } else {
+        await fetch('/api/whatsapp/consent/opt-out', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            patient_id: patientId,
+            opt_out_reason: 'user_request',
+          }),
+        });
+      }
+    } catch (err) {
+      console.error('Error updating WhatsApp consent:', err);
     }
   };
 
@@ -350,6 +403,26 @@ export default function PatientEditClient({ patientId }: PatientEditClientProps)
                   <Label htmlFor="requiere_factura" className="text-yellow-800 font-medium cursor-pointer">
                     Requiere factura
                   </Label>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-3 p-4 bg-green-50 rounded-lg border border-green-200">
+                <Checkbox
+                  id="whatsapp_consent"
+                  checked={whatsappConsent}
+                  onCheckedChange={(checked) => handleWhatsAppConsentChange(checked as boolean)}
+                  disabled={loadingConsent}
+                />
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-green-600" />
+                  <div>
+                    <Label htmlFor="whatsapp_consent" className="text-green-800 font-medium cursor-pointer">
+                      Acepta recibir mensajes por WhatsApp
+                    </Label>
+                    <p className="text-xs text-green-600 mt-0.5">
+                      Recordatorios de citas y notificaciones importantes
+                    </p>
+                  </div>
                 </div>
               </div>
 

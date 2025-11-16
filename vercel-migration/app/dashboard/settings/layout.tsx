@@ -68,6 +68,12 @@ const sections = [
     description: 'Recordatorios por WhatsApp'
   },
   {
+    name: 'Templates WhatsApp',
+    href: '/dashboard/settings/whatsapp-templates',
+    icon: FileText,
+    description: 'Plantillas aprobadas por Meta'
+  },
+  {
     name: 'Facturación',
     href: '/dashboard/settings/facturacion',
     icon: Receipt,
