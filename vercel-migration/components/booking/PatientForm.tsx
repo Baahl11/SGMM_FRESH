@@ -17,6 +17,8 @@ interface PatientFormProps {
   selectedService: string | null
   showPrices: boolean
   requirePhone: boolean
+  depositInfo?: any
+  loadingDeposit?: boolean
   onServiceChange: (serviceId: string) => void
   onSubmit: (data: {
     patient_name: string
@@ -32,6 +34,8 @@ export default function PatientForm({
   selectedService,
   showPrices,
   requirePhone,
+  depositInfo,
+  loadingDeposit,
   onServiceChange,
   onSubmit,
   isSubmitting
@@ -257,6 +261,42 @@ export default function PatientForm({
                 </span>
               </div>
             )}
+            
+            {/* Deposit Information */}
+            {loadingDeposit ? (
+              <div className="pt-2 border-t border-blue-200 dark:border-blue-800">
+                <div className="flex items-center gap-2 text-gray-500">
+                  <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                  <span className="text-sm">Verificando depósito...</span>
+                </div>
+              </div>
+            ) : depositInfo && depositInfo.required && (
+              <div className="pt-2 border-t border-blue-200 dark:border-blue-800 space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600 dark:text-gray-400 font-medium">💰 Depósito requerido:</span>
+                  <span className="font-bold text-green-600 dark:text-green-400 text-lg">
+                    ${depositInfo.amount.toLocaleString()} MXN
+                  </span>
+                </div>
+                
+                {depositInfo.message && (
+                  <p className="text-xs text-gray-600 dark:text-gray-400 bg-yellow-50 dark:bg-yellow-900/20 p-2 rounded">
+                    {depositInfo.message}
+                  </p>
+                )}
+                
+                {depositInfo.policy_description && (
+                  <p className="text-xs text-gray-500 dark:text-gray-400 flex items-start gap-1">
+                    <span>ℹ️</span>
+                    <span>{depositInfo.policy_description}</span>
+                  </p>
+                )}
+                
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  El depósito se aplicará al costo total de tu consulta
+                </p>
+              </div>
+            )}
           </div>
         </motion.div>
       )}
@@ -268,7 +308,11 @@ export default function PatientForm({
         whileTap={{ scale: 0.98 }}
         className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-semibold shadow-lg shadow-blue-500/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        {isSubmitting ? 'Agendando...' : 'Confirmar reserva'}
+        {isSubmitting 
+          ? 'Agendando...' 
+          : depositInfo && depositInfo.required 
+            ? `Pagar depósito ($${depositInfo.amount} MXN)` 
+            : 'Confirmar reserva'}
       </motion.button>
     </form>
   )

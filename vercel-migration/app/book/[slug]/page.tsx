@@ -45,10 +45,50 @@ export default function BookingPage() {
   const [selectedService, setSelectedService] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [bookingSuccess, setBookingSuccess] = useState(false)
+  
+  // Deposit state
+  const [depositInfo, setDepositInfo] = useState<any>(null)
+  const [loadingDeposit, setLoadingDeposit] = useState(false)
 
   useEffect(() => {
     loadClinicInfo()
   }, [slug])
+
+  // Check deposit requirement when service changes
+  useEffect(() => {
+    if (selectedService) {
+      checkDepositRequirement()
+    } else {
+      setDepositInfo(null)
+    }
+  }, [selectedService])
+
+  async function checkDepositRequirement() {
+    if (!selectedService) return
+
+    setLoadingDeposit(true)
+    try {
+      const service = settings?.services.find(s => s.id === selectedService)
+      const response = await fetch('/api/bookings/deposits/calculate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clinic_slug: slug,
+          service_id: selectedService,
+          service_price: service?.price || 0
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setDepositInfo(data)
+      }
+    } catch (error) {
+      console.error('Error checking deposit:', error)
+    } finally {
+      setLoadingDeposit(false)
+    }
+  }
 
   async function loadClinicInfo() {
     try {
@@ -92,7 +132,8 @@ export default function BookingPage() {
 
     setIsSubmitting(true)
     try {
-      const response = await fetch(`/api/public/book/${slug}`, {
+      // Step 1: Create the booking
+      const bookingResponse = await fetch(`/api/public/book/${slug}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -105,11 +146,40 @@ export default function BookingPage() {
         })
       })
 
-      if (!response.ok) {
-        const errorData = await response.json()
+      if (!bookingResponse.ok) {
+        const errorData = await bookingResponse.json()
         throw new Error(errorData.error || 'Error al crear reserva')
       }
 
+      const bookingData = await bookingResponse.json()
+
+      // Step 2: If deposit required, create payment
+      if (depositInfo && depositInfo.required) {
+        const depositResponse = await fetch('/api/bookings/deposits/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            booking_id: bookingData.booking.id,
+            amount: depositInfo.amount,
+            patient_email: patientData.patient_email,
+            patient_name: patientData.patient_name
+          })
+        })
+
+        if (!depositResponse.ok) {
+          throw new Error('Error al crear pago de depósito')
+        }
+
+        const depositData = await depositResponse.json()
+
+        // Redirect to Stripe Checkout
+        if (depositData.checkout_url) {
+          window.location.href = depositData.checkout_url
+          return
+        }
+      }
+
+      // If no deposit required, show success
       setBookingSuccess(true)
       toast.success('¡Reserva confirmada!')
     } catch (err: any) {
@@ -304,6 +374,8 @@ export default function BookingPage() {
                 selectedService={selectedService}
                 showPrices={settings.show_prices}
                 requirePhone={settings.require_phone}
+                depositInfo={depositInfo}
+                loadingDeposit={loadingDeposit}
                 onServiceChange={setSelectedService}
                 onSubmit={handleBookingSubmit}
                 isSubmitting={isSubmitting}

@@ -36,6 +36,16 @@ interface BookingSettings {
   send_confirmation_email: boolean
   send_confirmation_sms: boolean
   send_confirmation_whatsapp: boolean
+  // Deposit settings
+  require_deposit: boolean
+  deposit_type: 'fixed' | 'percentage'
+  deposit_amount: number
+  deposit_percentage: number
+  deposit_min_amount: number
+  deposit_max_amount: number
+  refund_policy: 'no_refund' | '24_hours' | '48_hours' | '72_hours' | 'anytime'
+  deposit_message: string
+  services_requiring_deposit: string[]
 }
 
 export default function BookingSettingsPage() {
@@ -485,6 +495,231 @@ export default function BookingSettingsPage() {
               </span>
             </label>
           </div>
+        </div>
+
+        {/* Deposit Settings - NEW */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                💰 Depósitos de Reserva
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                Reduce no-shows cobrando un depósito al apartar la cita
+              </p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={settings.require_deposit || false}
+                onChange={(e) => setSettings({ ...settings, require_deposit: e.target.checked })}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+              <span className="ms-3 text-sm font-medium text-gray-900 dark:text-gray-300">
+                {settings.require_deposit ? 'Activado' : 'Desactivado'}
+              </span>
+            </label>
+          </div>
+
+          {settings.require_deposit && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="space-y-4 pt-4 border-t border-gray-200 dark:border-gray-700"
+            >
+              {/* Deposit Type */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Tipo de depósito
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-900 transition-all border-2 border-transparent data-[checked=true]:border-blue-500">
+                    <input
+                      type="radio"
+                      name="deposit_type"
+                      checked={settings.deposit_type === 'fixed'}
+                      onChange={() => setSettings({ ...settings, deposit_type: 'fixed' })}
+                      className="w-4 h-4 text-blue-600"
+                    />
+                    <div>
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300 block">
+                        Monto fijo
+                      </span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        Ej: $200 MXN siempre
+                      </span>
+                    </div>
+                  </label>
+
+                  <label className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-900 transition-all border-2 border-transparent data-[checked=true]:border-blue-500">
+                    <input
+                      type="radio"
+                      name="deposit_type"
+                      checked={settings.deposit_type === 'percentage'}
+                      onChange={() => setSettings({ ...settings, deposit_type: 'percentage' })}
+                      className="w-4 h-4 text-blue-600"
+                    />
+                    <div>
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300 block">
+                        Porcentaje
+                      </span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        Ej: 20% del precio
+                      </span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              {/* Amount Configuration */}
+              {settings.deposit_type === 'fixed' ? (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Monto del depósito (MXN)
+                  </label>
+                  <input
+                    type="number"
+                    value={settings.deposit_amount || 100}
+                    onChange={(e) => setSettings({ ...settings, deposit_amount: parseFloat(e.target.value) || 0 })}
+                    min="0"
+                    step="10"
+                    className="w-full px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-gray-900 dark:text-white"
+                  />
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Porcentaje del precio (%)
+                    </label>
+                    <input
+                      type="number"
+                      value={settings.deposit_percentage || 20}
+                      onChange={(e) => setSettings({ ...settings, deposit_percentage: parseInt(e.target.value) || 0 })}
+                      min="0"
+                      max="100"
+                      className="w-full px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-gray-900 dark:text-white"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Mínimo (MXN)
+                      </label>
+                      <input
+                        type="number"
+                        value={settings.deposit_min_amount || 50}
+                        onChange={(e) => setSettings({ ...settings, deposit_min_amount: parseFloat(e.target.value) || 0 })}
+                        min="0"
+                        step="10"
+                        className="w-full px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-gray-900 dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Máximo (MXN)
+                      </label>
+                      <input
+                        type="number"
+                        value={settings.deposit_max_amount || 1000}
+                        onChange={(e) => setSettings({ ...settings, deposit_max_amount: parseFloat(e.target.value) || 0 })}
+                        min="0"
+                        step="10"
+                        className="w-full px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-gray-900 dark:text-white"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Refund Policy */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Política de reembolso
+                </label>
+                <select
+                  value={settings.refund_policy || '24_hours'}
+                  onChange={(e) => setSettings({ ...settings, refund_policy: e.target.value as any })}
+                  className="w-full px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-gray-900 dark:text-white"
+                >
+                  <option value="no_refund">Sin reembolso</option>
+                  <option value="24_hours">Reembolso si cancela con más de 24 horas</option>
+                  <option value="48_hours">Reembolso si cancela con más de 48 horas</option>
+                  <option value="72_hours">Reembolso si cancela con más de 72 horas</option>
+                  <option value="anytime">Reembolso completo siempre</option>
+                </select>
+              </div>
+
+              {/* Custom Message */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Mensaje personalizado
+                </label>
+                <textarea
+                  value={settings.deposit_message || ''}
+                  onChange={(e) => setSettings({ ...settings, deposit_message: e.target.value })}
+                  placeholder="Se requiere un depósito para confirmar tu cita..."
+                  rows={3}
+                  className="w-full px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-gray-900 dark:text-white resize-none"
+                />
+              </div>
+
+              {/* Services requiring deposit */}
+              {settings.services && settings.services.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Servicios que requieren depósito (opcional)
+                  </label>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                    Deja vacío para aplicar a todos los servicios
+                  </p>
+                  <div className="space-y-2">
+                    {settings.services.map((service) => (
+                      <label
+                        key={service.id}
+                        className="flex items-center gap-3 p-2 bg-gray-50 dark:bg-gray-900/50 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-900 transition-all"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={(settings.services_requiring_deposit || []).includes(service.id)}
+                          onChange={(e) => {
+                            const current = settings.services_requiring_deposit || [];
+                            const updated = e.target.checked
+                              ? [...current, service.id]
+                              : current.filter((id) => id !== service.id);
+                            setSettings({ ...settings, services_requiring_deposit: updated });
+                          }}
+                          className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                        />
+                        <span className="text-sm text-gray-700 dark:text-gray-300">
+                          {service.name} {service.price > 0 && `- $${service.price} MXN`}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Info Box */}
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                <div className="flex gap-3">
+                  <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm text-blue-700 dark:text-blue-300">
+                    <p className="font-medium mb-1">💡 Beneficios de los depósitos</p>
+                    <ul className="list-disc list-inside space-y-1 text-xs">
+                      <li>Reduce no-shows de 15% a 3%</li>
+                      <li>Pacientes más comprometidos con su cita</li>
+                      <li>El depósito se aplica al costo total de la consulta</li>
+                      <li>Pagos automáticos con Stripe (tarjetas de crédito/débito)</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
         </div>
       </div>
     </>
