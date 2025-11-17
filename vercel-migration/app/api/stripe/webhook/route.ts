@@ -40,7 +40,13 @@ export async function POST(request: NextRequest) {
   try {
     switch (event.type) {
       case 'checkout.session.completed':
-        await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session)
+        const session = event.data.object as Stripe.Checkout.Session
+        // Verificar si es un depósito o una suscripción
+        if (session.metadata?.deposit_type === 'booking_deposit') {
+          await handleDepositCheckoutCompleted(session)
+        } else {
+          await handleCheckoutCompleted(session)
+        }
         break
 
       case 'customer.subscription.created':
@@ -58,6 +64,18 @@ export async function POST(request: NextRequest) {
 
       case 'invoice.payment_failed':
         await handlePaymentFailed(event.data.object as Stripe.Invoice)
+        break
+
+      case 'payment_intent.succeeded':
+        await handlePaymentIntentSucceeded(event.data.object as Stripe.PaymentIntent)
+        break
+
+      case 'payment_intent.payment_failed':
+        await handlePaymentIntentFailed(event.data.object as Stripe.PaymentIntent)
+        break
+
+      case 'payment_intent.canceled':
+        await handlePaymentIntentCanceled(event.data.object as Stripe.PaymentIntent)
         break
 
       default:
@@ -424,6 +442,188 @@ async function handlePaymentFailed(invoice: Stripe.Invoice) {
     console.error('❌ Error updating subscription after payment failure:', subError)
   } else {
     console.log(`⚠️ Payment failed for user ${userId} - Subscription marked as past_due`)
+  }
+}
+
+// ============================================
+// BOOKING DEPOSITS HANDLERS
+// ============================================
+
+/**
+ * Handle checkout.session.completed for deposits
+ */
+async function handleDepositCheckoutCompleted(session: Stripe.Checkout.Session) {
+  console.log('💰 Deposit checkout completed:', session.id)
+
+  const { createClient: createServiceClient } = await import('@supabase/supabase-js')
+  const supabaseAdmin = createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
+  const { error } = await supabaseAdmin
+    .from('booking_deposits')
+    .update({ payment_status: 'processing' })
+    .eq('checkout_session_id', session.id)
+
+  if (error) {
+    console.error('❌ Error updating deposit:', error)
+  } else {
+    console.log('✅ Deposit marked as processing')
+  }
+}
+
+/**
+ * Handle payment_intent.succeeded for deposits
+ */
+async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent) {
+  // Verificar si es un depósito
+  if (paymentIntent.metadata?.deposit_type !== 'booking_deposit') {
+    return // No es un depósito, ignorar
+  }
+
+  console.log('✅ Deposit payment succeeded:', paymentIntent.id)
+
+  const { createClient: createServiceClient } = await import('@supabase/supabase-js')
+  const supabaseAdmin = createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
+  // Obtener detalles del método de pago
+  const paymentMethod = paymentIntent.payment_method
+    ? await stripe.paymentMethods.retrieve(paymentIntent.payment_method as string)
+    : null
+
+  // Actualizar el depósito
+  const { data: deposit, error: updateError } = await supabaseAdmin
+    .from('booking_deposits')
+    .update({
+      payment_status: 'succeeded',
+      paid_at: new Date().toISOString(),
+      payment_method_type: paymentMethod?.type || null,
+      last4: paymentMethod?.type === 'card' ? paymentMethod.card?.last4 : null,
+      card_brand: paymentMethod?.type === 'card' ? paymentMethod.card?.brand : null,
+    })
+    .eq('payment_intent_id', paymentIntent.id)
+    .select()
+    .single()
+
+  if (updateError) {
+    console.error('❌ Error updating deposit:', updateError)
+    return
+  }
+
+  if (!deposit) {
+    console.error('❌ Deposit not found for payment intent:', paymentIntent.id)
+    return
+  }
+
+  // Actualizar la reserva a confirmada
+  await supabaseAdmin
+    .from('public_bookings')
+    .update({
+      deposit_status: 'paid',
+      status: 'confirmed',
+    })
+    .eq('id', deposit.booking_id)
+
+  // Enviar notificación de confirmación
+  try {
+    const { data: booking } = await supabaseAdmin
+      .from('public_bookings')
+      .select('*')
+      .eq('id', deposit.booking_id)
+      .single()
+
+    if (booking) {
+      await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/notifications/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          booking_id: booking.id,
+          event_type: 'booking_confirmed',
+          send_email: true,
+          send_whatsapp: true,
+        }),
+      })
+      console.log('✅ Confirmation notification sent')
+    }
+  } catch (notifError) {
+    console.error('Error sending notification:', notifError)
+  }
+
+  console.log('✅ Deposit completed and booking confirmed')
+}
+
+/**
+ * Handle payment_intent.payment_failed for deposits
+ */
+async function handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent) {
+  if (paymentIntent.metadata?.deposit_type !== 'booking_deposit') {
+    return
+  }
+
+  console.log('❌ Deposit payment failed:', paymentIntent.id)
+
+  const { createClient: createServiceClient } = await import('@supabase/supabase-js')
+  const supabaseAdmin = createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
+  const { data: deposit } = await supabaseAdmin
+    .from('booking_deposits')
+    .update({
+      payment_status: 'failed',
+      metadata: {
+        error: paymentIntent.last_payment_error?.message || 'Payment failed',
+      },
+    })
+    .eq('payment_intent_id', paymentIntent.id)
+    .select()
+    .single()
+
+  if (deposit) {
+    await supabaseAdmin
+      .from('public_bookings')
+      .update({ deposit_status: 'failed' })
+      .eq('id', deposit.booking_id)
+
+    console.log('❌ Deposit marked as failed')
+  }
+}
+
+/**
+ * Handle payment_intent.canceled for deposits
+ */
+async function handlePaymentIntentCanceled(paymentIntent: Stripe.PaymentIntent) {
+  if (paymentIntent.metadata?.deposit_type !== 'booking_deposit') {
+    return
+  }
+
+  console.log('🚫 Deposit payment canceled:', paymentIntent.id)
+
+  const { createClient: createServiceClient } = await import('@supabase/supabase-js')
+  const supabaseAdmin = createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
+  const { data: deposit } = await supabaseAdmin
+    .from('booking_deposits')
+    .update({ payment_status: 'cancelled' })
+    .eq('payment_intent_id', paymentIntent.id)
+    .select()
+    .single()
+
+  if (deposit) {
+    await supabaseAdmin
+      .from('public_bookings')
+      .update({ deposit_status: 'failed' })
+      .eq('id', deposit.booking_id)
+
+    console.log('🚫 Deposit marked as cancelled')
   }
 }
 

@@ -112,21 +112,28 @@ export async function POST(request: NextRequest) {
             product_data: {
               name: `Depósito - ${booking.service_name}`,
               description: `Depósito para cita con ${booking.user_profiles?.name || 'Doctor'}\nFecha: ${booking.booking_date} ${booking.booking_time}`,
-              images: [], // Opcional: puedes agregar el logo de la clínica
+              images: [],
             },
             unit_amount: Math.round(amount * 100), // Stripe usa centavos
           },
           quantity: 1,
         },
       ],
+      payment_intent_data: {
+        metadata: {
+          deposit_type: 'booking_deposit',
+          booking_id,
+          clinic_user_id: booking.clinic_user_id,
+        },
+      },
       success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/booking/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/booking/cancelled?booking_id=${booking_id}`,
       metadata: {
+        deposit_type: 'booking_deposit',
         booking_id,
         clinic_user_id: booking.clinic_user_id,
         patient_name,
         patient_email,
-        deposit_type: 'booking_deposit',
         service_name: booking.service_name,
         booking_date: booking.booking_date,
         booking_time: booking.booking_time,
