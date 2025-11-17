@@ -41,6 +41,7 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient();
 
     // 1. Obtener perfil del doctor por slug
+    console.log('🔍 Looking for clinic with slug:', clinic_slug);
     const { data: profile, error: profileError } = await supabase
       .from('user_profiles')
       .select('user_id, name, email')
@@ -48,7 +49,11 @@ export async function POST(request: NextRequest) {
       .eq('booking_enabled', true)
       .single();
 
+    console.log('👤 Profile found:', profile);
+    console.log('❌ Profile error:', profileError);
+
     if (profileError || !profile) {
+      console.log('❌ Clinic not found or booking disabled');
       return NextResponse.json(
         { error: 'Clinic not found or booking disabled' },
         { status: 404 }
@@ -56,13 +61,18 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Obtener configuración de depósitos
+    console.log('⚙️ Looking for settings for user_id:', profile.user_id);
     const { data: settings, error: settingsError } = await supabase
       .from('booking_settings')
       .select('*')
       .eq('user_id', profile.user_id)
       .single();
 
+    console.log('📋 Settings found:', settings);
+    console.log('❌ Settings error:', settingsError);
+
     if (settingsError || !settings) {
+      console.log('❌ No settings found, returning no deposit required');
       return NextResponse.json({
         required: false,
         amount: 0,
@@ -75,7 +85,9 @@ export async function POST(request: NextRequest) {
     }
 
     // 3. Verificar si se requiere depósito
+    console.log('💰 require_deposit flag:', settings.require_deposit);
     if (!settings.require_deposit) {
+      console.log('❌ Deposits not enabled in settings');
       return NextResponse.json({
         required: false,
         amount: 0,
