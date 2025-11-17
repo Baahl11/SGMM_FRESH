@@ -57,6 +57,7 @@ export default function BookingPage() {
   // Check deposit requirement when service changes
   useEffect(() => {
     if (selectedService) {
+      console.log('🔍 Service changed, checking deposit for:', selectedService)
       checkDepositRequirement()
     } else {
       setDepositInfo(null)
@@ -69,19 +70,27 @@ export default function BookingPage() {
     setLoadingDeposit(true)
     try {
       const service = settings?.services.find(s => s.id === selectedService)
+      const requestBody = {
+        clinic_slug: slug,
+        service_id: selectedService,
+        service_price: service?.price || 0
+      }
+      
+      console.log('📤 Calling deposit calculate API:', requestBody)
+      
       const response = await fetch('/api/bookings/deposits/calculate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          clinic_slug: slug,
-          service_id: selectedService,
-          service_price: service?.price || 0
-        })
+        body: JSON.stringify(requestBody)
       })
 
+      const data = await response.json()
+      console.log('📥 Deposit calculation response:', data)
+
       if (response.ok) {
-        const data = await response.json()
         setDepositInfo(data)
+      } else {
+        console.error('❌ Deposit calculation failed:', data)
       }
     } catch (error) {
       console.error('Error checking deposit:', error)
@@ -152,9 +161,13 @@ export default function BookingPage() {
       }
 
       const bookingData = await bookingResponse.json()
+      console.log('✅ Booking created:', bookingData)
+      console.log('💰 Deposit info:', depositInfo)
 
       // Step 2: If deposit required, create payment
       if (depositInfo && depositInfo.required) {
+        console.log('💳 Deposit required! Creating payment session...')
+        
         const depositResponse = await fetch('/api/bookings/deposits/create', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -171,12 +184,16 @@ export default function BookingPage() {
         }
 
         const depositData = await depositResponse.json()
+        console.log('🔗 Stripe Checkout URL:', depositData.checkout_url)
 
         // Redirect to Stripe Checkout
         if (depositData.checkout_url) {
+          console.log('🚀 Redirecting to Stripe...')
           window.location.href = depositData.checkout_url
           return
         }
+      } else {
+        console.log('ℹ️ No deposit required, showing success')
       }
 
       // If no deposit required, show success
