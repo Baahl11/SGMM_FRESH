@@ -32,8 +32,11 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { booking_id, amount, patient_email, patient_name } = body;
 
+    console.log('💳 Creating deposit payment:', { booking_id, amount, patient_email, patient_name });
+
     // Validaciones
     if (!booking_id || !amount || !patient_email || !patient_name) {
+      console.log('❌ Missing required fields');
       return NextResponse.json(
         { error: 'booking_id, amount, patient_email, and patient_name are required' },
         { status: 400 }
@@ -41,24 +44,35 @@ export async function POST(request: NextRequest) {
     }
 
     if (amount <= 0) {
+      console.log('❌ Invalid amount:', amount);
       return NextResponse.json(
         { error: 'Amount must be greater than 0' },
         { status: 400 }
       );
     }
 
-    const supabase = await createClient();
+    // Usar service_role client para bypass RLS (esto es público)
+    const { createClient: createServiceClient } = await import('@supabase/supabase-js');
+    const supabase = createServiceClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
 
     // 1. Verificar que la reserva existe y obtener datos
+    console.log('🔍 Looking for booking:', booking_id);
     const { data: booking, error: bookingError } = await supabase
       .from('public_bookings')
       .select('*, user_profiles!clinic_user_id(name, email)')
       .eq('id', booking_id)
       .single();
 
+    console.log('📋 Booking found:', booking);
+    console.log('❌ Booking error:', bookingError);
+
     if (bookingError || !booking) {
+      console.log('❌ Booking not found');
       return NextResponse.json(
-        { error: 'Booking not found' },
+        { error: 'Booking not found', details: bookingError?.message },
         { status: 404 }
       );
     }
@@ -101,6 +115,7 @@ export async function POST(request: NextRequest) {
     const refundPolicy = settings?.refund_policy || '24_hours';
 
     // 4. Crear Stripe Checkout Session
+    console.log('🔐 Creating Stripe Checkout Session...');
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       mode: 'payment',
@@ -140,7 +155,10 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    console.log('✅ Stripe session created:', session.id);
+
     // 5. Crear registro de depósito en la base de datos
+    console.log('💾 Creating deposit record in database...');
     const { data: deposit, error: depositError } = await supabase
       .from('booking_deposits')
       .insert({
@@ -164,8 +182,11 @@ export async function POST(request: NextRequest) {
       .select()
       .single();
 
+    console.log('📝 Deposit record created:', deposit);
+    console.log('❌ Deposit error:', depositError);
+
     if (depositError) {
-      console.error('Error creating deposit record:', depositError);
+      console.error('❌❌❌ Error creating deposit record:', depositError);
       // Intentar cancelar la sesión de Stripe
       try {
         await stripe.checkout.sessions.expire(session.id);
