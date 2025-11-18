@@ -3,10 +3,16 @@
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Users, Building2, Calendar, ArrowLeft, Clock, CalendarX, Globe, Mail, FileText, UserPlus, MessageSquare, MapPin, Receipt } from 'lucide-react'
+import { Users, Building2, Calendar, ArrowLeft, Clock, CalendarX, Globe, Mail, FileText, UserPlus, MessageSquare, MapPin, Receipt, Plus } from 'lucide-react'
 import AppLayout from '@/components/layout/app-layout'
 
 const sections = [
+  {
+    name: 'Add-ons',
+    href: '/dashboard/settings/addons',
+    icon: Plus,
+    description: 'Ubicaciones y doctores extra'
+  },
   {
     name: 'Equipo',
     href: '/dashboard/settings/team',
