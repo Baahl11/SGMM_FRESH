@@ -16,6 +16,11 @@ export function QuotaWarningBanner() {
 
   if (loading || !usage || dismissed) return null
 
+  // Si es Enterprise con 999 límites, nunca mostrar warning
+  if (usage.plan_tier === 'enterprise' && usage.max_doctors >= 999) {
+    return null
+  }
+
   const doctorsPercentage = (usage.current_doctors / usage.max_doctors) * 100
   const locationsPercentage = (usage.current_locations / usage.max_locations) * 100
 
@@ -76,19 +81,27 @@ export function QuotaWarningBanner() {
                   <Ban className="h-5 w-5 text-white" />
                 </div>
                 <div className="flex-1">
-                  <AlertTitle className="text-red-900 dark:text-red-100 font-bold text-base mb-1">
+                  <AlertTitle className="text-red-900 dark:text-red-100 font-bold text-lg mb-2">
                     🚨 Límite de plan alcanzado
                   </AlertTitle>
-                  <AlertDescription className="text-red-800 dark:text-red-200 text-sm">
-                    {doctorsPercentage >= 100 && (
-                      <span>Has alcanzado el límite de <strong>{usage.max_doctors} doctores</strong>. </span>
-                    )}
-                    {locationsPercentage >= 100 && (
-                      <span>Has alcanzado el límite de <strong>{usage.max_locations} consultorios</strong>. </span>
-                    )}
-                    {nextPlan && (
-                      <span>Actualiza a <strong>Plan {nextPlan}</strong> para continuar agregando recursos.</span>
-                    )}
+                  <AlertDescription className="text-red-800 dark:text-red-200">
+                    <div className="space-y-2">
+                      {doctorsPercentage >= 100 && (
+                        <p>
+                          Has alcanzado el límite de <strong className="font-semibold">{usage.max_doctors} doctores</strong>.
+                        </p>
+                      )}
+                      {locationsPercentage >= 100 && (
+                        <p>
+                          Has alcanzado el límite de <strong className="font-semibold">{usage.max_locations} consultorio{usage.max_locations > 1 ? 's' : ''}</strong>.
+                        </p>
+                      )}
+                      {nextPlan && (
+                        <p className="mt-2">
+                          Actualiza a <strong className="font-semibold">Plan {nextPlan}</strong> para continuar agregando recursos.
+                        </p>
+                      )}
+                    </div>
                   </AlertDescription>
                   <div className="flex flex-wrap gap-2 mt-3">
                     <Button
@@ -155,37 +168,39 @@ export function QuotaWarningBanner() {
                   <AlertTriangle className="h-5 w-5 text-white" />
                 </div>
                 <div className="flex-1">
-                  <AlertTitle className="text-orange-900 dark:text-orange-100 font-bold text-base mb-1">
+                  <AlertTitle className="text-orange-900 dark:text-orange-100 font-bold text-lg mb-2">
                     ⚠️ Acercándose al límite
                   </AlertTitle>
-                  <AlertDescription className="text-orange-800 dark:text-orange-200 text-sm">
-                    {showDoctorsWarning && (
-                      <div className="mb-1">
-                        Doctores: <strong>{usage.current_doctors}/{usage.max_doctors}</strong>
-                        {' '}({Math.round(doctorsPercentage)}% usado)
-                        {doctorsPercentage < 100 && (
-                          <span className="text-orange-700 dark:text-orange-300 font-medium">
-                            {' '}• {usage.max_doctors - usage.current_doctors} disponibles
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    {showLocationsWarning && (
-                      <div className="mb-1">
-                        Consultorios: <strong>{usage.current_locations}/{usage.max_locations}</strong>
-                        {' '}({Math.round(locationsPercentage)}% usado)
-                        {locationsPercentage < 100 && (
-                          <span className="text-orange-700 dark:text-orange-300 font-medium">
-                            {' '}• {usage.max_locations - usage.current_locations} disponibles
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    {nextPlan && (
-                      <p className="mt-1">
-                        Considera actualizar a <strong>Plan {nextPlan}</strong> para tener más espacio.
-                      </p>
-                    )}
+                  <AlertDescription className="text-orange-800 dark:text-orange-200">
+                    <div className="space-y-2">
+                      {showDoctorsWarning && (
+                        <p>
+                          <strong className="font-semibold">Doctores:</strong> {usage.current_doctors}/{usage.max_doctors}
+                          {' '}({Math.round(doctorsPercentage)}% usado)
+                          {doctorsPercentage < 100 && (
+                            <span className="ml-1 text-orange-700 dark:text-orange-300">
+                              • {usage.max_doctors - usage.current_doctors} disponible{usage.max_doctors - usage.current_doctors > 1 ? 's' : ''}
+                            </span>
+                          )}
+                        </p>
+                      )}
+                      {showLocationsWarning && (
+                        <p>
+                          <strong className="font-semibold">Consultorios:</strong> {usage.current_locations}/{usage.max_locations}
+                          {' '}({Math.round(locationsPercentage)}% usado)
+                          {locationsPercentage < 100 && (
+                            <span className="ml-1 text-orange-700 dark:text-orange-300">
+                              • {usage.max_locations - usage.current_locations} disponible{usage.max_locations - usage.current_locations > 1 ? 's' : ''}
+                            </span>
+                          )}
+                        </p>
+                      )}
+                      {nextPlan && (
+                        <p className="mt-2">
+                          Considera actualizar a <strong className="font-semibold">Plan {nextPlan}</strong> para tener más espacio.
+                        </p>
+                      )}
+                    </div>
                   </AlertDescription>
                   <div className="flex flex-wrap gap-2 mt-3">
                     <Button

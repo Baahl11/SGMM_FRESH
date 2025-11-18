@@ -16,14 +16,30 @@ if (!supabaseUrl || !supabaseKey) {
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-const ADMIN_USER_ID = 'a4356f21-d82b-4ec7-8ab4-84f59d2b5798'; // gm_melgarejo@hotmail.com
+const ADMIN_EMAIL = 'gmelgarejom@gmail.com'; // Correct admin email
 
 async function updateAdminAccount() {
   console.log('🔧 Updating admin account to Enterprise Lifetime...\n');
 
+  let ADMIN_USER_ID;
+
   try {
+    // 0. Get user ID from email
+    console.log('Step 0: Finding user by email:', ADMIN_EMAIL);
+    const { data: authData } = await supabase.auth.admin.listUsers();
+    const user = authData?.users?.find(u => u.email === ADMIN_EMAIL);
+    
+    if (!user) {
+      console.error('❌ User not found:', ADMIN_EMAIL);
+      process.exit(1);
+    }
+    
+    ADMIN_USER_ID = user.id;
+    console.log('✅ Found user:', ADMIN_EMAIL);
+    console.log('   User ID:', ADMIN_USER_ID);
+
     // 1. Delete all existing subscriptions for admin
-    console.log('Step 1: Deleting existing subscriptions...');
+    console.log('\nStep 1: Deleting existing subscriptions...');
     const { error: deleteError } = await supabase
       .from('subscriptions')
       .delete()
@@ -70,6 +86,7 @@ async function updateAdminAccount() {
       .single();
 
     console.log('\n📊 Final Subscription Status:');
+    console.log('- Email:', ADMIN_EMAIL);
     console.log('- Plan:', verification.plan_tier);
     console.log('- Status:', verification.status);
     console.log('- Max Doctors:', verification.max_doctors);
@@ -77,6 +94,7 @@ async function updateAdminAccount() {
     console.log('- Features:', verification.features);
 
     console.log('\n✅ Admin account successfully updated to Enterprise Lifetime!');
+    console.log('\n⚠️  IMPORTANT: Close your session and log in again to see changes!');
   } catch (error) {
     console.error('❌ Unexpected error:', error);
     process.exit(1);
@@ -84,3 +102,4 @@ async function updateAdminAccount() {
 }
 
 updateAdminAccount();
+
