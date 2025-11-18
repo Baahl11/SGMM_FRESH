@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Check, Sparkles, Zap, Crown, Loader2, AlertCircle } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { STRIPE_PRICES } from '@/lib/stripe/server'
+import { STRIPE_PRICES } from '@/lib/stripe/client'
 
 const currencyFormatter = new Intl.NumberFormat('es-MX', {
   style: 'currency',
@@ -43,6 +43,7 @@ const plans: Plan[] = [
     popular: false,
     features: [
       '1 doctor',
+      '1 consultorio',
       '200 citas/mes',
       '20 items de inventario',
       '10 tipos de tratamientos',
@@ -66,6 +67,7 @@ const plans: Plan[] = [
     popular: true,
     features: [
       'Hasta 10 doctores',
+      '5 consultorios',
       'Citas ilimitadas',
       'Inventario ilimitado',
       'Tratamientos ilimitados',
@@ -73,7 +75,7 @@ const plans: Plan[] = [
       'Bundles y paquetes',
       'Reportes avanzados',
       'Control de gastos fijos',
-      'WhatsApp Business (BYOK)',
+      'Mensajería interna',
       'Soporte prioritario',
     ],
   },
@@ -123,14 +125,13 @@ function PricingContent() {
       const priceId = billingCycle === 'monthly' ? plan.monthlyPriceId : plan.annualPriceId
 
       // Llamar a la API para crear Checkout Session
-      const response = await fetch('/api/create-checkout-session', {
+      const response = await fetch('/api/stripe/checkout', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           priceId,
-          planTier: plan.id,
         }),
       })
 
@@ -323,14 +324,19 @@ function PricingContent() {
               onClick={async () => {
                 setLoadingPlan('lifetime')
                 try {
-                  const response = await fetch('/api/create-checkout-session', {
+                  const response = await fetch('/api/stripe/checkout', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                       priceId: STRIPE_PRICES.LIFETIME,
-                      planTier: 'enterprise',
                     }),
                   })
+                  
+                  if (!response.ok) {
+                    const data = await response.json()
+                    throw new Error(data.error || 'Error al crear sesión de pago')
+                  }
+                  
                   const { url } = await response.json()
                   if (url) window.location.href = url
                 } catch (err: any) {

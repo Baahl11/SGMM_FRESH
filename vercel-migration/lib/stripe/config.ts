@@ -23,7 +23,7 @@ export const PLAN_FEATURES = {
   },
   pro: {
     max_doctors: 10,
-    max_locations: 5,
+    max_locations: 1, // Solo 1 ubicación - Multi-ubicación es Enterprise
     features: [
       'agenda_4_views',
       'patients_basic',
