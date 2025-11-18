@@ -483,6 +483,7 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
   }
 
   console.log('✅ Deposit payment succeeded:', paymentIntent.id)
+  console.log('📋 Payment Intent metadata:', paymentIntent.metadata)
 
   const { createClient: createServiceClient } = await import('@supabase/supabase-js')
   const supabaseAdmin = createServiceClient(
@@ -495,29 +496,68 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
     ? await stripe.paymentMethods.retrieve(paymentIntent.payment_method as string)
     : null
 
+  // 🔍 Buscar el depósito - primero por payment_intent_id, luego por booking_id
+  let deposit = null
+  
+  // Intento 1: Buscar por payment_intent_id
+  const { data: depositByPI } = await supabaseAdmin
+    .from('booking_deposits')
+    .select('*')
+    .eq('payment_intent_id', paymentIntent.id)
+    .single()
+  
+  if (depositByPI) {
+    deposit = depositByPI
+    console.log('✅ Found deposit by payment_intent_id')
+  } else {
+    console.log('⚠️ Deposit not found by payment_intent_id, trying booking_id...')
+    
+    // Intento 2: Buscar por booking_id en metadata + status processing
+    const bookingId = paymentIntent.metadata?.booking_id
+    if (bookingId) {
+      const { data: depositByBooking } = await supabaseAdmin
+        .from('booking_deposits')
+        .select('*')
+        .eq('booking_id', bookingId)
+        .eq('payment_status', 'processing')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+      
+      if (depositByBooking) {
+        deposit = depositByBooking
+        console.log('✅ Found deposit by booking_id:', bookingId)
+      }
+    }
+  }
+
+  if (!deposit) {
+    console.error('❌ Deposit not found for payment intent:', paymentIntent.id)
+    console.error('❌ Tried payment_intent_id and booking_id:', paymentIntent.metadata?.booking_id)
+    return
+  }
+
+  console.log('📝 Updating deposit:', deposit.id)
+
   // Actualizar el depósito
-  const { data: deposit, error: updateError } = await supabaseAdmin
+  const { error: updateError } = await supabaseAdmin
     .from('booking_deposits')
     .update({
+      payment_intent_id: paymentIntent.id, // ⚠️ Guardar el payment_intent_id ahora
       payment_status: 'succeeded',
       paid_at: new Date().toISOString(),
       payment_method_type: paymentMethod?.type || null,
       last4: paymentMethod?.type === 'card' ? paymentMethod.card?.last4 : null,
       card_brand: paymentMethod?.type === 'card' ? paymentMethod.card?.brand : null,
     })
-    .eq('payment_intent_id', paymentIntent.id)
-    .select()
-    .single()
+    .eq('id', deposit.id)
 
   if (updateError) {
     console.error('❌ Error updating deposit:', updateError)
     return
   }
 
-  if (!deposit) {
-    console.error('❌ Deposit not found for payment intent:', paymentIntent.id)
-    return
-  }
+  console.log('✅ Deposit updated successfully')
 
   // Actualizar la reserva a confirmada
   await supabaseAdmin
@@ -528,6 +568,8 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
     })
     .eq('id', deposit.booking_id)
 
+  console.log('✅ Booking confirmed:', deposit.booking_id)
+
   // Enviar notificación de confirmación
   try {
     const { data: booking } = await supabaseAdmin
@@ -537,7 +579,7 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
       .single()
 
     if (booking) {
-      await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/notifications/send`, {
+      await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/notifications/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
