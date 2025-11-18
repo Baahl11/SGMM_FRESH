@@ -38,7 +38,9 @@ export async function getUserPlan(userId: string): Promise<{ plan_tier: PlanTier
     .select('plan_tier, max_doctors, max_locations, status')
     .eq('user_id', userId)
     .in('status', ['active', 'trialing'])
-    .single()
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle() // Use maybeSingle to handle 0 or 1 result gracefully
 
   if (error || !subscription) {
     console.error('Error fetching user subscription:', error)
