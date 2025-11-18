@@ -386,12 +386,34 @@ function PricingContent() {
               onClick={async () => {
                 setLoadingPlan('lifetime')
                 try {
+                  // Para Lifetime, pedir email si no está autenticado
+                  let userEmail = null
+                  
+                  // Intentar obtener usuario (sin redirigir)
+                  try {
+                    const res = await fetch('/api/auth/session')
+                    const data = await res.json()
+                    userEmail = data?.user?.email
+                  } catch {
+                    // No autenticado
+                  }
+
+                  // Si no hay email, pedirlo
+                  if (!userEmail) {
+                    userEmail = prompt('Ingresa tu email para continuar con la compra:')
+                    if (!userEmail) {
+                      setLoadingPlan(null)
+                      return
+                    }
+                  }
+
                   if (paymentGateway === 'stripe') {
                     const response = await fetch('/api/stripe/checkout', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({
                         priceId: STRIPE_PRICES.LIFETIME,
+                        email: userEmail,
                       }),
                     })
                     
@@ -409,6 +431,7 @@ function PricingContent() {
                       body: JSON.stringify({
                         planTier: 'lifetime',
                         billingCycle: 'once',
+                        email: userEmail,
                       }),
                     })
                     
