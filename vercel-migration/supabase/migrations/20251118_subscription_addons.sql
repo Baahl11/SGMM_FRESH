@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS subscription_addons (
   
   -- Add-on details
   addon_type TEXT NOT NULL CHECK (addon_type IN ('extra_location', 'extra_doctor', 'integration', 'telemedicine')),
-  stripe_subscription_item_id TEXT UNIQUE, -- Stripe subscription item ID (for billing)
+  stripe_subscription_item_id TEXT, -- Stripe subscription item ID (for billing) - NULL for admin/test accounts
   stripe_price_id TEXT NOT NULL,
   
   -- Quantity and pricing
@@ -49,7 +49,13 @@ CREATE INDEX IF NOT EXISTS idx_subscription_addons_type
   ON subscription_addons(addon_type) WHERE status = 'active';
 
 CREATE INDEX IF NOT EXISTS idx_subscription_addons_stripe_item 
-  ON subscription_addons(stripe_subscription_item_id) WHERE stripe_subscription_item_id IS NOT NULL;
+  ON subscription_addons(stripe_subscription_item_id) 
+  WHERE stripe_subscription_item_id IS NOT NULL;
+
+-- Unique constraint for real Stripe subscription items only
+CREATE UNIQUE INDEX IF NOT EXISTS idx_subscription_addons_stripe_item_unique
+  ON subscription_addons(stripe_subscription_item_id)
+  WHERE stripe_subscription_item_id IS NOT NULL AND stripe_subscription_item_id LIKE 'si_%';
 
 -- ============================================================================
 -- 2. HELPER FUNCTIONS

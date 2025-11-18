@@ -62,16 +62,22 @@ export async function POST(request: Request) {
       .eq('status', 'active')
       .maybeSingle();
 
-    let stripeSubscriptionItemId: string;
+    const isRealStripeSubscription = subscription.stripe_subscription_id && 
+                                     subscription.stripe_subscription_id.startsWith('sub_');
+    
+    let stripeSubscriptionItemId: string | null = null;
     let newQuantity: number;
 
-    if (existingAddon && existingAddon.stripe_subscription_item_id) {
-      // Update existing add-on quantity in Stripe
+    if (existingAddon) {
+      // Update existing add-on quantity
       newQuantity = existingAddon.quantity + quantity;
       
-      await stripe.subscriptionItems.update(existingAddon.stripe_subscription_item_id, {
-        quantity: newQuantity,
-      });
+      // Only update Stripe if it's a real subscription
+      if (isRealStripeSubscription && existingAddon.stripe_subscription_item_id?.startsWith('si_')) {
+        await stripe.subscriptionItems.update(existingAddon.stripe_subscription_item_id, {
+          quantity: newQuantity,
+        });
+      }
 
       stripeSubscriptionItemId = existingAddon.stripe_subscription_item_id;
 
@@ -89,23 +95,20 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Error al actualizar add-on' }, { status: 500 });
       }
     } else {
-      // Create new Stripe subscription item if user has Stripe subscription
-      if (subscription.stripe_subscription_id && subscription.stripe_subscription_id.startsWith('sub_')) {
+      // Create new add-on
+      newQuantity = quantity;
+
+      // Only create Stripe subscription item for real subscriptions
+      if (isRealStripeSubscription) {
         const subscriptionItem = await stripe.subscriptionItems.create({
           subscription: subscription.stripe_subscription_id,
           price: addonConfig.priceId,
           quantity: quantity,
         });
-
         stripeSubscriptionItemId = subscriptionItem.id;
-      } else {
-        // For admin/test accounts without Stripe subscription, use fake ID
-        stripeSubscriptionItemId = `si_test_${addon_type}_${Date.now()}`;
       }
 
-      newQuantity = quantity;
-
-      // Create new add-on in database
+      // Create new add-on in database (stripe_subscription_item_id can be null for test accounts)
       const { error: insertError } = await supabase
         .from('subscription_addons')
         .insert({
