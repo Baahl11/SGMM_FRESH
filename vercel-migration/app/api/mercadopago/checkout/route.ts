@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
             currency_id: 'MXN',
             unit_price: amount,
           },
-        },
+        ],
         payer: {
           email: user?.email || email || undefined,
         },
