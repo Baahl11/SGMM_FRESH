@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
     console.log('🔍 Looking for booking:', booking_id);
     const { data: booking, error: bookingError } = await supabase
       .from('public_bookings')
-      .select('*, user_profiles!clinic_user_id(name, email)')
+      .select('*')
       .eq('id', booking_id)
       .single();
 
@@ -76,6 +76,15 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       );
     }
+
+    // Obtener info del doctor separadamente
+    const { data: doctorProfile } = await supabase
+      .from('user_profiles')
+      .select('name, email')
+      .eq('user_id', booking.clinic_user_id)
+      .single();
+
+    const doctorName = doctorProfile?.name || 'Doctor';
 
     // 2. Verificar si ya existe un depósito para esta reserva
     const { data: existingDeposit } = await supabase
@@ -126,7 +135,7 @@ export async function POST(request: NextRequest) {
             currency: 'mxn',
             product_data: {
               name: `Depósito - ${booking.service_name}`,
-              description: `Depósito para cita con ${booking.user_profiles?.name || 'Doctor'}\nFecha: ${booking.booking_date} ${booking.booking_time}`,
+              description: `Depósito para cita con ${doctorName}\nFecha: ${booking.booking_date} ${booking.booking_time}`,
               images: [],
             },
             unit_amount: Math.round(amount * 100), // Stripe usa centavos
