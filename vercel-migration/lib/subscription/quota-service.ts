@@ -23,7 +23,7 @@ export interface QuotaCheckResult {
 }
 
 /**
- * Obtiene el plan actual del usuario
+ * Obtiene el plan actual del usuario + add-ons activos
  */
 export async function getUserPlan(userId: string): Promise<{ plan_tier: PlanTier; max_doctors: number; max_locations: number } | null> {
   const supabase = createClient()
@@ -47,10 +47,33 @@ export async function getUserPlan(userId: string): Promise<{ plan_tier: PlanTier
     return null
   }
 
+  // Get active add-ons to calculate total limits
+  const { data: addons } = await supabase
+    .from('subscription_addons')
+    .select('addon_type, quantity')
+    .eq('user_id', userId)
+    .eq('status', 'active')
+
+  let extraDoctors = 0
+  let extraLocations = 0
+
+  if (addons && addons.length > 0) {
+    addons.forEach(addon => {
+      if (addon.addon_type === 'extra_doctor') {
+        extraDoctors += addon.quantity || 0
+      } else if (addon.addon_type === 'extra_location') {
+        extraLocations += addon.quantity || 0
+      }
+    })
+  }
+
+  const baseDoctors = subscription.max_doctors || PLAN_FEATURES[subscription.plan_tier as PlanTier].max_doctors
+  const baseLocations = subscription.max_locations || PLAN_FEATURES[subscription.plan_tier as PlanTier].max_locations
+
   return {
     plan_tier: subscription.plan_tier as PlanTier,
-    max_doctors: subscription.max_doctors || PLAN_FEATURES[subscription.plan_tier as PlanTier].max_doctors,
-    max_locations: subscription.max_locations || PLAN_FEATURES[subscription.plan_tier as PlanTier].max_locations,
+    max_doctors: baseDoctors + extraDoctors,
+    max_locations: baseLocations + extraLocations,
   }
 }
 

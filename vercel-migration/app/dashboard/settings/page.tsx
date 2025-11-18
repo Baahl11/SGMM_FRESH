@@ -2,9 +2,16 @@
 
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { Users, Building2, Calendar, Clock, CalendarX, Globe, Mail, FileText, UserPlus, MessageSquare, Settings } from 'lucide-react'
+import { Users, Building2, Calendar, Clock, CalendarX, Globe, Mail, FileText, UserPlus, MessageSquare, Settings, Plus } from 'lucide-react'
 
 const sections = [
+  {
+    name: 'Add-ons',
+    href: '/dashboard/settings/addons',
+    icon: Plus,
+    description: 'Ubicaciones y doctores extra',
+    color: 'from-violet-500 to-violet-600'
+  },
   {
     name: 'Equipo',
     href: '/dashboard/settings/team',

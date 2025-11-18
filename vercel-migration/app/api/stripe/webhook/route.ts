@@ -78,6 +78,12 @@ export async function POST(request: NextRequest) {
         await handlePaymentIntentCanceled(event.data.object as Stripe.PaymentIntent)
         break
 
+      // Add-on events
+      case 'customer.subscription.updated':
+        // Handle subscription item changes (add-ons added/removed)
+        await handleSubscriptionItemsUpdate(event.data.object as Stripe.Subscription)
+        break
+
       default:
         console.log(`Unhandled event type: ${event.type}`)
     }
@@ -668,5 +674,93 @@ async function handlePaymentIntentCanceled(paymentIntent: Stripe.PaymentIntent) 
     console.log('🚫 Deposit marked as cancelled')
   }
 }
+
+/**
+ * Handle subscription items update (add-ons)
+ * Syncs add-on subscription items from Stripe to database
+ */
+async function handleSubscriptionItemsUpdate(subscription: Stripe.Subscription) {
+  console.log('🔄 Processing subscription items update:', subscription.id)
+
+  const { createClient: createServiceClient } = await import('@supabase/supabase-js')
+  const supabaseAdmin = createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
+  // Get the subscription from database to find user_id
+  const { data: dbSubscription } = await supabaseAdmin
+    .from('subscriptions')
+    .select('user_id, id')
+    .eq('stripe_subscription_id', subscription.id)
+    .single()
+
+  if (!dbSubscription) {
+    console.log('⚠️ Subscription not found in database:', subscription.id)
+    return
+  }
+
+  // Get addon price IDs from env
+  const addonPriceIds = {
+    extra_location: process.env.NEXT_PUBLIC_STRIPE_PRICE_ADDON_EXTRA_LOCATION,
+    extra_doctor: process.env.NEXT_PUBLIC_STRIPE_PRICE_ADDON_EXTRA_DOCTOR,
+  }
+
+  // Process each subscription item
+  for (const item of subscription.items.data) {
+    const priceId = item.price.id
+    let addonType: string | null = null
+
+    // Determine addon type from price ID
+    if (priceId === addonPriceIds.extra_location) {
+      addonType = 'extra_location'
+    } else if (priceId === addonPriceIds.extra_doctor) {
+      addonType = 'extra_doctor'
+    }
+
+    // Skip if not an add-on
+    if (!addonType) continue
+
+    // Check if add-on already exists
+    const { data: existingAddon } = await supabaseAdmin
+      .from('subscription_addons')
+      .select('*')
+      .eq('stripe_subscription_item_id', item.id)
+      .maybeSingle()
+
+    const unitPrice = item.price.unit_amount ? item.price.unit_amount / 100 : 0
+
+    if (existingAddon) {
+      // Update existing add-on
+      await supabaseAdmin
+        .from('subscription_addons')
+        .update({
+          quantity: item.quantity || 1,
+          status: subscription.status === 'active' || subscription.status === 'trialing' ? 'active' : 'canceled',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', existingAddon.id)
+
+      console.log(`✅ Updated add-on: ${addonType} (${item.quantity})`)
+    } else {
+      // Create new add-on
+      await supabaseAdmin
+        .from('subscription_addons')
+        .insert({
+          user_id: dbSubscription.user_id,
+          subscription_id: dbSubscription.id,
+          addon_type: addonType,
+          stripe_subscription_item_id: item.id,
+          stripe_price_id: priceId,
+          quantity: item.quantity || 1,
+          unit_price: unitPrice,
+          status: subscription.status === 'active' || subscription.status === 'trialing' ? 'active' : 'canceled',
+        })
+
+      console.log(`✅ Created add-on: ${addonType} (${item.quantity})`)
+    }
+  }
+}
+
 
 
