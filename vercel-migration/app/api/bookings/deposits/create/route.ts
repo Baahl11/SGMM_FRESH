@@ -150,8 +150,8 @@ export async function POST(request: NextRequest) {
           clinic_user_id: booking.clinic_user_id,
         },
       },
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/booking/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/booking/cancelled?booking_id=${booking_id}`,
+      success_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/booking/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/booking/cancelled?booking_id=${booking_id}`,
       metadata: {
         deposit_type: 'booking_deposit',
         booking_id,
