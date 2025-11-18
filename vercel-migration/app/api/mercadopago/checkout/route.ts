@@ -6,21 +6,28 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
 
-    // 1. Verificar autenticación
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    }
-
-    // 2. Obtener datos del request
+    // 1. Obtener datos del request
     const body = await request.json()
-    const { planTier, billingCycle } = body as {
+    const { planTier, billingCycle, email } = body as {
       planTier: 'basico' | 'pro' | 'enterprise' | 'lifetime'
       billingCycle: 'monthly' | 'annual' | 'once'
+      email?: string
+    }
+
+    // 2. Si NO es Lifetime, verificar autenticación
+    const isLifetime = planTier === 'lifetime'
+    let user = null
+    
+    if (!isLifetime) {
+      const {
+        data: { user: authUser },
+        error: authError,
+      } = await supabase.auth.getUser()
+
+      if (authError || !authUser) {
+        return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+      }
+      user = authUser
     }
 
     if (!planTier) {
@@ -73,9 +80,9 @@ export async function POST(request: NextRequest) {
             currency_id: 'MXN',
             unit_price: amount,
           },
-        ],
+        },
         payer: {
-          email: user.email || undefined,
+          email: user?.email || email || undefined,
         },
         back_urls: {
           success: `${request.headers.get('origin')}/dashboard?mp_status=approved`,
@@ -85,9 +92,10 @@ export async function POST(request: NextRequest) {
         auto_return: 'approved',
         notification_url: `${request.headers.get('origin')}/api/mercadopago/webhook`,
         metadata: {
-          user_id: user.id,
+          user_id: user?.id || 'guest',
           plan_tier: planTier,
           billing_cycle: billingCycle,
+          email: user?.email || email,
         },
         ...(auto_recurring ? { auto_recurring } : {}),
       },

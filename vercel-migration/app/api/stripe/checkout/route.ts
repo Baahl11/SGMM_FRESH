@@ -4,20 +4,28 @@ import { createClient } from '@/lib/supabase/server'
 
 export async function POST(request: NextRequest) {
   try {
-    // 1. Obtener el usuario autenticado
     const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'No autenticado' },
-        { status: 401 }
-      )
-    }
-
-    // 2. Obtener el price_id del body
+    
+    // 1. Obtener el price_id del body
     const body = await request.json()
-    const { priceId } = body as { priceId: string }
+    const { priceId, email } = body as { priceId: string; email?: string }
+
+    // 2. Verificar si es Lifetime (no requiere auth)
+    const isLifetime = priceId === STRIPE_PRICES.LIFETIME
+    
+    // 3. Si NO es Lifetime, verificar autenticación
+    let user = null
+    if (!isLifetime) {
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
+      
+      if (authError || !authUser) {
+        return NextResponse.json(
+          { error: 'No autenticado' },
+          { status: 401 }
+        )
+      }
+      user = authUser
+    }
 
     if (!priceId) {
       return NextResponse.json(
@@ -46,29 +54,32 @@ export async function POST(request: NextRequest) {
 
     const isSubscription = subscriptionPriceIds.has(priceId)
 
-    // 3. Verificar si el usuario ya tiene un Stripe customer ID
-    const { data: existingSubscription } = await supabase
-      .from('subscriptions')
-      .select('stripe_customer_id')
-      .eq('user_id', user.id)
-      .single()
+    // 4. Obtener o crear customer ID
+    let customerId = null
+    
+    if (user) {
+      // Usuario autenticado - buscar customer existente
+      const { data: existingSubscription } = await supabase
+        .from('subscriptions')
+        .select('stripe_customer_id')
+        .eq('user_id', user.id)
+        .single()
 
-    let customerId = existingSubscription?.stripe_customer_id
+      customerId = existingSubscription?.stripe_customer_id
 
-    // 4. Si no tiene customer ID, crear uno nuevo
-    if (!customerId) {
-      const customer = await stripe.customers.create({
-        email: user.email,
-        metadata: {
-          supabase_user_id: user.id,
-        },
-      })
-      customerId = customer.id
+      if (!customerId) {
+        const customer = await stripe.customers.create({
+          email: user.email,
+          metadata: {
+            supabase_user_id: user.id,
+          },
+        })
+        customerId = customer.id
+      }
     }
 
     // 5. Crear Checkout Session
-    const session = await stripe.checkout.sessions.create({
-      customer: customerId,
+    const sessionConfig: any = {
       line_items: [
         {
           price: priceId,
@@ -78,19 +89,25 @@ export async function POST(request: NextRequest) {
       mode: isSubscription ? 'subscription' : 'payment',
       success_url: `${request.headers.get('origin')}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${request.headers.get('origin')}/pricing?canceled=true`,
-      metadata: {
-        user_id: user.id,
-      },
-      ...(isSubscription
-        ? {
-            subscription_data: {
-              metadata: {
-                user_id: user.id,
-              },
-            },
-          }
-        : {}),
-    })
+      metadata: user ? { user_id: user.id } : { guest_purchase: 'true' },
+    }
+
+    // Si tiene customer ID, agregarlo
+    if (customerId) {
+      sessionConfig.customer = customerId
+    } else if (email) {
+      // Si no hay usuario pero sí email (Lifetime sin registro)
+      sessionConfig.customer_email = email
+    }
+
+    // Metadata para suscripciones
+    if (isSubscription) {
+      sessionConfig.subscription_data = {
+        metadata: user ? { user_id: user.id } : { guest_purchase: 'true' },
+      }
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionConfig)
 
     // 6. Retornar la URL del checkout
     return NextResponse.json({ url: session.url })
