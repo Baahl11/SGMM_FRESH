@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useState } from 'react'
+import { Suspense, useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -9,6 +9,7 @@ import { Check, Sparkles, Zap, Crown, Loader2, AlertCircle, CreditCard, Star, Tr
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { STRIPE_PRICES } from '@/lib/stripe/client'
 import Image from 'next/image'
+import { createClient } from '@/lib/supabase/client'
 
 // Payment gateway configuration with real logos
 const PAYMENT_GATEWAYS = {
@@ -123,21 +124,62 @@ const plans: Plan[] = [
 function PricingContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const supabase = createClient()
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly')
   const [paymentGateway, setPaymentGateway] = useState<'stripe' | 'mercadopago'>('stripe')
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [hasActiveSubscription, setHasActiveSubscription] = useState(false)
 
   // Obtener parámetros de URL para mostrar mensajes
   const reason = searchParams.get('reason')
   const feature = searchParams.get('feature')
   const checkout = searchParams.get('checkout')
 
+  // Check authentication status
+  useEffect(() => {
+    async function checkAuth() {
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (user) {
+        setIsAuthenticated(true)
+        
+        // Check if user has active subscription or trial
+        const { data: subscription } = await supabase
+          .from('subscriptions')
+          .select('*')
+          .eq('user_id', user.id)
+          .in('status', ['active', 'trialing'])
+          .single()
+        
+        if (subscription) {
+          setHasActiveSubscription(true)
+        }
+      }
+    }
+    
+    checkAuth()
+  }, [])
+
   const handleSelectPlan = async (plan: Plan) => {
     try {
       setLoadingPlan(plan.id)
       setError(null)
 
+      // Si no está autenticado, redirigir a registro con el plan seleccionado
+      if (!isAuthenticated) {
+        router.push(`/auth/register?plan=${plan.id}&billing=${billingCycle}`)
+        return
+      }
+
+      // Si ya tiene suscripción activa, redirigir al dashboard
+      if (hasActiveSubscription) {
+        router.push('/dashboard')
+        return
+      }
+
+      // Si está autenticado pero quiere cambiar de plan, proceder con pago
       if (paymentGateway === 'stripe') {
         // Checkout con Stripe
         const priceId = billingCycle === 'monthly' ? plan.monthlyPriceId : plan.annualPriceId
@@ -401,6 +443,16 @@ function PricingContent() {
                         <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                         Procesando...
                       </>
+                    ) : hasActiveSubscription ? (
+                      <>
+                        Ir al Dashboard
+                        <Zap className="ml-2 h-5 w-5" />
+                      </>
+                    ) : isAuthenticated ? (
+                      <>
+                        Actualizar Plan
+                        <Zap className="ml-2 h-5 w-5" />
+                      </>
                     ) : (
                       <>
                         Comenzar prueba gratis
@@ -408,9 +460,11 @@ function PricingContent() {
                       </>
                     )}
                   </Button>
-                  <p className="text-xs text-center text-gray-500 dark:text-gray-400 mt-3">
-                    7 días gratis • Sin tarjeta requerida
-                  </p>
+                  {!isAuthenticated && (
+                    <p className="text-xs text-center text-gray-500 dark:text-gray-400 mt-3">
+                      7 días gratis
+                    </p>
+                  )}
 
                   <ul className="mt-8 space-y-4">
                     {plan.features.map((feature, index) => (
