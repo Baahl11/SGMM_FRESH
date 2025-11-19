@@ -9,7 +9,7 @@ require('dotenv').config({ path: '.env.local' })
 const Stripe = require('stripe')
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2025-10-29.clover',
+  apiVersion: '2025-09-30.clover',
 })
 
 async function createEnterprisePrices() {
