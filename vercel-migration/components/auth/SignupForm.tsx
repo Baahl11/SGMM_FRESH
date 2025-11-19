@@ -15,6 +15,8 @@ export function SignupForm() {
   const searchParams = useSearchParams()
   const prefilledEmail = searchParams.get('email') || ''
   const redirectUrl = searchParams.get('redirect') || ''
+  const planFromUrl = searchParams.get('plan') || ''
+  const billingFromUrl = searchParams.get('billing') || ''
   
   const [email, setEmail] = useState(prefilledEmail)
   const [password, setPassword] = useState('')
@@ -70,20 +72,27 @@ export function SignupForm() {
       if (data.user) {
         if (data.user.identities && data.user.identities.length === 0) {
           toast.error('Este email ya está registrado', {
-            description: 'Por favor inicia sesión',
+            description: 'Por favor inicia sesión en vez de crear una cuenta nueva',
           })
+          setTimeout(() => {
+            router.push('/auth/signin')
+          }, 2000)
           return
         }
 
         toast.success('¡Cuenta creada exitosamente!', {
-          description: 'Ahora selecciona tu plan para comenzar',
+          description: 'Redirigiendo...',
         })
 
         setTimeout(() => {
           // If there's a redirect URL (from team invitation), go there
           if (redirectUrl) {
             router.push(redirectUrl)
+          } else if (planFromUrl && billingFromUrl) {
+            // Si vienen parámetros de plan, ir directo al dashboard (ya tiene trial automático)
+            router.push('/dashboard')
           } else {
+            // Si no, mostrar selector de plan
             router.push('/select-trial-plan')
           }
         }, 1500)
