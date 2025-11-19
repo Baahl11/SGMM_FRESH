@@ -78,6 +78,11 @@ export async function POST(request: NextRequest) {
         await handlePaymentIntentCanceled(event.data.object as Stripe.PaymentIntent)
         break
 
+      // Stripe Connect events
+      case 'application_fee.created':
+        await handleApplicationFeeCreated(event.data.object as Stripe.ApplicationFee)
+        break
+
       // Add-on events
       case 'customer.subscription.updated':
         // Handle subscription item changes (add-ons added/removed)
@@ -762,5 +767,60 @@ async function handleSubscriptionItemsUpdate(subscription: Stripe.Subscription) 
   }
 }
 
+/**
+ * Handle application_fee.created - Tracking de comisiones de plataforma
+ * Se dispara cuando se cobra una comisión por Stripe Connect
+ */
+async function handleApplicationFeeCreated(fee: Stripe.ApplicationFee) {
+  console.log('💰 Application fee created:', fee.id, '-', fee.amount / 100, 'MXN')
+
+  const { createClient: createServiceClient } = await import('@supabase/supabase-js')
+  const supabaseAdmin = createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
+  // Buscar el depósito relacionado usando el charge ID
+  const { data: deposit } = await supabaseAdmin
+    .from('booking_deposits')
+    .select('*')
+    .eq('payment_intent_id', fee.charge)
+    .single()
+
+  if (!deposit) {
+    console.error('❌ Deposit not found for application fee:', fee.id)
+    return
+  }
+
+  const totalAmount = deposit.amount
+  const feeAmount = fee.amount / 100 // Convertir de centavos a MXN
+  const netAmount = totalAmount - feeAmount
+  const feePercentage = (feeAmount / totalAmount) * 100
+
+  console.log(`💸 Fee breakdown: Total $${totalAmount} - Fee $${feeAmount} = Net $${netAmount}`)
+
+  // Registrar la comisión en platform_fees
+  const { error } = await supabaseAdmin
+    .from('platform_fees')
+    .insert({
+      booking_deposit_id: deposit.id,
+      clinic_user_id: deposit.clinic_user_id,
+      connected_account_id: deposit.connected_account_id,
+      total_amount: totalAmount,
+      fee_amount: feeAmount,
+      fee_percentage: feePercentage,
+      net_amount: netAmount,
+      stripe_application_fee_id: fee.id,
+      payment_intent_id: deposit.payment_intent_id,
+      status: 'collected',
+      collected_at: new Date().toISOString(),
+    })
+
+  if (error) {
+    console.error('❌ Error creating platform fee record:', error)
+  } else {
+    console.log(`✅ Platform fee tracked: $${feeAmount.toFixed(2)} MXN (${feePercentage.toFixed(2)}%)`)
+  }
+}
 
 

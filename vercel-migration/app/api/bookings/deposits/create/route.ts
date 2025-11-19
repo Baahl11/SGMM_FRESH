@@ -123,9 +123,56 @@ export async function POST(request: NextRequest) {
 
     const refundPolicy = settings?.refund_policy || '24_hours';
 
-    // 4. Crear Stripe Checkout Session
+    // 3.1 Verificar si el médico tiene Stripe Connect configurado
+    const { data: connectedAccount } = await supabase
+      .from('connected_accounts')
+      .select('stripe_account_id, onboarding_completed, charges_enabled')
+      .eq('user_id', booking.clinic_user_id)
+      .single();
+
+    // 3.2 Obtener configuración de comisiones de plataforma
+    const { data: feeSettings } = await supabase
+      .from('platform_fee_settings')
+      .select('*')
+      .single();
+
+    // Calcular comisión de plataforma
+    let platformFeeAmount = 0;
+    let netAmount = amount;
+    let useConnect = false;
+
+    if (connectedAccount?.stripe_account_id && connectedAccount?.charges_enabled && feeSettings?.is_active) {
+      useConnect = true;
+      
+      // Calcular fee según configuración
+      if (feeSettings.fee_type === 'percentage') {
+        platformFeeAmount = (amount * (feeSettings.fee_percentage / 100));
+      } else if (feeSettings.fee_type === 'fixed') {
+        platformFeeAmount = feeSettings.fixed_fee_amount;
+      } else if (feeSettings.fee_type === 'hybrid') {
+        platformFeeAmount = (amount * (feeSettings.fee_percentage / 100)) + feeSettings.fixed_fee_amount;
+      }
+
+      // Aplicar límites min/max
+      if (feeSettings.min_fee_amount && platformFeeAmount < feeSettings.min_fee_amount) {
+        platformFeeAmount = feeSettings.min_fee_amount;
+      }
+      if (feeSettings.max_fee_amount && platformFeeAmount > feeSettings.max_fee_amount) {
+        platformFeeAmount = feeSettings.max_fee_amount;
+      }
+
+      netAmount = amount - platformFeeAmount;
+
+      console.log(`💰 Using Stripe Connect - Platform fee: $${platformFeeAmount} MXN (${feeSettings.fee_percentage}%)`);
+      console.log(`💰 Net to doctor: $${netAmount} MXN`);
+    } else {
+      console.log('⚠️ No Connected Account or not enabled - Using legacy centralized payment');
+    }
+
+    // 4. Crear Stripe Checkout Session (con o sin Connect)
     console.log('🔐 Creating Stripe Checkout Session...');
-    const session = await stripe.checkout.sessions.create({
+    
+    const sessionParams: any = {
       payment_method_types: ['card'],
       mode: 'payment',
       customer_email: patient_email,
@@ -143,13 +190,6 @@ export async function POST(request: NextRequest) {
           quantity: 1,
         },
       ],
-      payment_intent_data: {
-        metadata: {
-          deposit_type: 'booking_deposit',
-          booking_id,
-          clinic_user_id: booking.clinic_user_id,
-        },
-      },
       success_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/booking/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/booking/cancelled?booking_id=${booking_id}`,
       metadata: {
@@ -161,8 +201,37 @@ export async function POST(request: NextRequest) {
         service_name: booking.service_name,
         booking_date: booking.booking_date,
         booking_time: booking.booking_time,
+        use_connect: useConnect ? 'true' : 'false',
       },
-    });
+    };
+
+    // Si usa Connect, agregar payment_intent_data con application_fee
+    if (useConnect && connectedAccount) {
+      sessionParams.payment_intent_data = {
+        application_fee_amount: Math.round(platformFeeAmount * 100), // En centavos
+        transfer_data: {
+          destination: connectedAccount.stripe_account_id,
+        },
+        metadata: {
+          deposit_type: 'booking_deposit',
+          booking_id,
+          clinic_user_id: booking.clinic_user_id,
+          platform_fee_percentage: feeSettings?.fee_percentage || 0,
+          platform_fee_amount: platformFeeAmount.toFixed(2),
+        },
+      };
+    } else {
+      // Sin Connect, solo metadata básico
+      sessionParams.payment_intent_data = {
+        metadata: {
+          deposit_type: 'booking_deposit',
+          booking_id,
+          clinic_user_id: booking.clinic_user_id,
+        },
+      };
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionParams);
 
     console.log('✅ Stripe session created:', session.id);
 
@@ -180,12 +249,17 @@ export async function POST(request: NextRequest) {
         checkout_url: session.url,
         payment_status: 'pending',
         applied_refund_policy: refundPolicy,
+        connected_account_id: useConnect && connectedAccount ? connectedAccount.stripe_account_id : null,
+        platform_fee_amount: useConnect ? platformFeeAmount : null,
+        net_amount: useConnect ? netAmount : amount,
         metadata: {
           patient_name,
           patient_email,
           service_name: booking.service_name,
           booking_date: booking.booking_date,
           booking_time: booking.booking_time,
+          use_connect: useConnect,
+          platform_fee_percentage: useConnect && feeSettings ? feeSettings.fee_percentage : null,
         },
       })
       .select()

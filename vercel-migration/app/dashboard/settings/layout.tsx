@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Users, Building2, Calendar, ArrowLeft, Clock, CalendarX, Globe, Mail, FileText, UserPlus, MessageSquare, MapPin, Receipt, Plus } from 'lucide-react'
+import { Users, Building2, Calendar, ArrowLeft, Clock, CalendarX, Globe, Mail, FileText, UserPlus, MessageSquare, MapPin, Receipt, Plus, CreditCard } from 'lucide-react'
 import AppLayout from '@/components/layout/app-layout'
 
 const sections = [
@@ -12,6 +12,12 @@ const sections = [
     href: '/dashboard/settings/addons',
     icon: Plus,
     description: 'Ubicaciones y doctores extra'
+  },
+  {
+    name: 'Pagos',
+    href: '/dashboard/settings/payments',
+    icon: CreditCard,
+    description: 'Stripe Connect y comisiones'
   },
   {
     name: 'Equipo',
