@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS connected_accounts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   stripe_account_id TEXT NOT NULL UNIQUE,
-  account_type TEXT NOT NULL DEFAULT 'express' CHECK (account_type IN ('express', 'standard')),
+  controller_config JSONB DEFAULT '{"fees":{"payer":"account"},"losses":{"payments":"stripe"},"stripe_dashboard":{"type":"full"}}'::jsonb,
   onboarding_completed BOOLEAN DEFAULT FALSE,
   charges_enabled BOOLEAN DEFAULT FALSE,
   payouts_enabled BOOLEAN DEFAULT FALSE,
@@ -31,7 +31,7 @@ CREATE INDEX IF NOT EXISTS idx_connected_accounts_status ON connected_accounts(o
 -- Comentarios
 COMMENT ON TABLE connected_accounts IS 'Cuentas de Stripe Connect para médicos que reciben pagos directos';
 COMMENT ON COLUMN connected_accounts.stripe_account_id IS 'ID de la cuenta Stripe Connect (acct_xxx)';
-COMMENT ON COLUMN connected_accounts.account_type IS 'express = Stripe maneja onboarding | standard = control total';
+COMMENT ON COLUMN connected_accounts.controller_config IS 'Configuración del controller: fees.payer=account, losses.payments=stripe, stripe_dashboard.type=full';
 COMMENT ON COLUMN connected_accounts.charges_enabled IS 'Puede recibir pagos (KYC completado)';
 COMMENT ON COLUMN connected_accounts.payouts_enabled IS 'Puede recibir transferencias a su banco';
 

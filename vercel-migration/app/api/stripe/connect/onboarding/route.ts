@@ -29,10 +29,24 @@ export async function POST(request: NextRequest) {
 
     let accountId = existingAccount?.stripe_account_id
 
-    // Si no existe, crear nueva cuenta Connect
+    // Si no existe, crear nueva cuenta Connect usando nueva API 2025-10-29
     if (!accountId) {
       const account = await stripe.accounts.create({
-        type: 'express',
+        // ⚠️ IMPORTANTE: NO usar type: 'express' - usar controller en su lugar
+        controller: {
+          // Connected account paga los fees de Stripe (no la plataforma)
+          fees: {
+            payer: 'account' as const
+          },
+          // Stripe maneja chargebacks y pérdidas
+          losses: {
+            payments: 'stripe' as const
+          },
+          // Connected account tiene acceso completo al dashboard
+          stripe_dashboard: {
+            type: 'full' as const
+          }
+        },
         country: 'MX',
         email: user.email,
         capabilities: {
@@ -52,7 +66,11 @@ export async function POST(request: NextRequest) {
       await supabase.from('connected_accounts').insert({
         user_id: user.id,
         stripe_account_id: accountId,
-        account_type: 'express',
+        controller_config: {
+          fees: { payer: 'account' },
+          losses: { payments: 'stripe' },
+          stripe_dashboard: { type: 'full' }
+        },
         onboarding_completed: false,
         charges_enabled: false,
         payouts_enabled: false,
