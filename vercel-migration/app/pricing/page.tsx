@@ -169,7 +169,7 @@ function PricingContent() {
 
       // Si no está autenticado, redirigir a registro con el plan seleccionado
       if (!isAuthenticated) {
-        router.push(`/auth/register?plan=${plan.id}&billing=${billingCycle}`)
+        router.push(`/auth/signup?plan=${plan.id}&billing=${billingCycle}`)
         return
       }
 
