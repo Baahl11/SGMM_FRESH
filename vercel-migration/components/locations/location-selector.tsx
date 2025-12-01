@@ -125,7 +125,7 @@ export function LocationSelector({
         {allowAll && userPlan !== 'basico' && (
           <SelectItem value="all">
             <div className="flex items-center gap-2">
-              <span className="font-medium">📊 Todas las ubicaciones</span>
+              <span className="font-medium">Todas las ubicaciones</span>
             </div>
           </SelectItem>
         )}
