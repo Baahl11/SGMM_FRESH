@@ -3,10 +3,17 @@
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Users, Building2, Calendar, ArrowLeft, Clock, CalendarX, Globe, Mail, FileText, UserPlus, MessageSquare, MapPin, Receipt, Plus, CreditCard } from 'lucide-react'
+import { Users, Building2, Calendar, ArrowLeft, Clock, CalendarX, Globe, Mail, FileText, UserPlus, MessageSquare, MapPin, Receipt, Plus, CreditCard, Upload } from 'lucide-react'
 import AppLayout from '@/components/layout/app-layout'
+import { GlassPanel } from '@/components/ui/glass-panel'
 
 const sections = [
+  {
+    name: 'Importar Datos',
+    href: '/dashboard/settings/import',
+    icon: Upload,
+    description: 'Importa pacientes y citas desde Excel'
+  },
   {
     name: 'Add-ons',
     href: '/dashboard/settings/addons',
@@ -108,91 +115,75 @@ export default function SettingsLayout({
 
   return (
     <AppLayout>
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
-      {/* Header */}
-      <div className="border-b border-gray-200/50 dark:border-gray-800/50 bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+      <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(79,70,229,0.18),_transparent_45%),_rgba(5,6,13,1)] px-4 py-8 sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-7xl flex-col gap-6">
+          <GlassPanel className="flex items-center justify-between border-white/10 bg-white/5 px-4 py-4 text-white sm:px-6">
             <div className="flex items-center gap-4">
-              <Link 
+              <Link
                 href="/dashboard"
-                className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
+                className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.35em] text-white/70 transition hover:text-white"
               >
-                <ArrowLeft className="w-4 h-4" />
-                <span>Dashboard</span>
+                <ArrowLeft className="h-4 w-4" />
+                Dashboard
               </Link>
-              <div className="h-6 w-px bg-gray-300 dark:bg-gray-700" />
-              <h1 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Configuración
-              </h1>
+              <div className="h-6 w-px bg-white/20" />
+              <div>
+                <p className="text-[0.7rem] uppercase tracking-[0.5em] text-white/50">Panel SGMM</p>
+                <h1 className="text-2xl font-semibold">Configuración</h1>
+              </div>
             </div>
-          </div>
-        </div>
-      </div>
+          </GlassPanel>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Sidebar Navigation */}
-          <nav className="lg:col-span-1 space-y-1">
-            {sections.map((section) => {
-              const isActive = pathname === section.href
-              const Icon = section.icon
-              
-              return (
-                <Link
-                  key={section.href}
-                  href={section.href}
-                  className="relative group block"
-                >
-                  <motion.div
-                    whileHover={{ x: 4 }}
-                    className={`
-                      flex items-start gap-3 px-4 py-3 rounded-xl transition-all cursor-pointer
-                      ${isActive 
-                        ? 'bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/50 dark:to-indigo-950/50 text-blue-600 dark:text-blue-400' 
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800/50'
-                      }
-                    `}
-                  >
-                    {isActive && (
+          <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
+            <GlassPanel className="h-fit border-white/10 bg-white/5 p-4 text-white">
+              <p className="mb-4 text-xs uppercase tracking-[0.45em] text-white/50">Módulos</p>
+              <nav className="space-y-2">
+                {sections.map((section) => {
+                  const isActive = pathname === section.href
+                  const Icon = section.icon
+
+                  return (
+                    <Link key={section.href} href={section.href} className="relative block">
                       <motion.div
-                        layoutId="activeSection"
-                        className="absolute inset-0 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/50 dark:to-indigo-950/50 rounded-xl -z-10"
-                        transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                      />
-                    )}
-                    
-                    <div className="relative z-10">
-                      <Icon className={`w-5 h-5 ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'}`} />
-                    </div>
-                    
-                    <div className="flex-1 relative z-10">
-                      <div className={`text-sm font-medium ${isActive ? 'text-blue-600 dark:text-blue-400' : ''}`}>
-                        {section.name}
-                      </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                        {section.description}
-                      </div>
-                    </div>
-                  </motion.div>
-                </Link>
-              )
-            })}
-          </nav>
+                        whileHover={{ x: 4 }}
+                        className={`flex items-start gap-3 overflow-hidden rounded-2xl border px-4 py-3 text-sm transition ${
+                          isActive
+                            ? 'border-white/40 bg-white/10 text-white'
+                            : 'border-white/5 text-white/70 hover:border-white/20 hover:text-white'
+                        }`}
+                      >
+                        {isActive && (
+                          <motion.div
+                            layoutId="settings-active"
+                            className="absolute inset-0 rounded-2xl bg-gradient-to-r from-white/20 to-white/5"
+                            transition={{ type: 'spring', bounce: 0.2, duration: 0.5 }}
+                          />
+                        )}
+                        <div className="relative z-10">
+                          <Icon className={`h-5 w-5 ${isActive ? 'text-white' : 'text-white/50'}`} />
+                        </div>
+                        <div className="relative z-10 flex-1">
+                          <p className="font-medium">{section.name}</p>
+                          <p className="text-xs text-white/60">{section.description}</p>
+                        </div>
+                      </motion.div>
+                    </Link>
+                  )
+                })}
+              </nav>
+            </GlassPanel>
 
-          {/* Main Content */}
-          <div className="lg:col-span-3">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4 }}
+              className="space-y-6"
             >
               {children}
             </motion.div>
           </div>
         </div>
       </div>
-    </div>
     </AppLayout>
   )
 }
