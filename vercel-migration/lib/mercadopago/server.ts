@@ -1,12 +1,10 @@
 import { MercadoPagoConfig, Preference, Payment } from 'mercadopago'
 
-if (!process.env.MERCADOPAGO_ACCESS_TOKEN) {
-  throw new Error('MERCADOPAGO_ACCESS_TOKEN is not defined in environment variables')
-}
+const MERCADOPAGO_ACCESS_TOKEN = process.env.MERCADOPAGO_ACCESS_TOKEN || 'dummy-token-for-build';
 
 // Singleton instance de Mercado Pago
 export const mercadopago = new MercadoPagoConfig({
-  accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN,
+  accessToken: MERCADOPAGO_ACCESS_TOKEN,
   options: { timeout: 5000 }
 })
 

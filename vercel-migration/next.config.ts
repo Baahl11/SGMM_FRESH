@@ -3,16 +3,23 @@ import path from "path";
 import withPWA from 'next-pwa';
 
 const nextConfig: NextConfig = {
-  // Desactivar ESLint y TypeScript checking durante build para deploy rápido
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+  // Configuración Turbopack vacía para Next.js 16+
+  turbopack: {},
   typescript: {
     ignoreBuildErrors: true,
   },
   serverExternalPackages: ['@supabase/supabase-js'],
   images: {
-    domains: ['localhost'],
+    remotePatterns: [
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.supabase.co',
+      },
+    ],
   },
   // Ensure Next uses this folder as the workspace root in a multi-lockfile repo
   outputFileTracingRoot: path.join(__dirname),
