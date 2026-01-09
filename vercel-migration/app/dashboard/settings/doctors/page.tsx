@@ -2,13 +2,15 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, Search, Sparkles } from 'lucide-react'
+import { Plus, Search, Sparkles, Stethoscope, Users as UsersIcon, UserCheck, UserX } from 'lucide-react'
 import toast, { Toaster } from 'react-hot-toast'
 import DoctorCard from '@/components/settings/DoctorCard'
 import DoctorModal from '@/components/settings/DoctorModal'
 import { useQuotaCheck } from '@/lib/hooks/use-quota-check'
 import { UpgradeModal } from '@/components/subscription/upgrade-modal'
 import { QuotaBadge } from '@/components/subscription/quota-badge'
+import { GlassPanel } from '@/components/ui/glass-panel'
+import { Input } from '@/components/ui/input'
 
 interface Doctor {
   id: string
@@ -31,6 +33,11 @@ export default function DoctorsPage() {
   const [editingDoctor, setEditingDoctor] = useState<Doctor | null>(null)
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
   const { usage, checkCanAddDoctor } = useQuotaCheck()
+
+  const totalDoctors = doctors.length
+  const activeDoctors = doctors.filter((doctor) => doctor.activo).length
+  const inactiveDoctors = totalDoctors - activeDoctors
+  const specialties = new Set(doctors.map((doctor) => doctor.especialidad?.trim()).filter(Boolean))
 
   useEffect(() => {
     loadDoctors()
@@ -122,103 +129,151 @@ export default function DoctorsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-96">
+      <GlassPanel className="flex h-96 items-center justify-center border-white/10 bg-white/5">
         <motion.div
           animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-          className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full"
+          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+          className="h-10 w-10 rounded-full border-2 border-white/30 border-t-transparent"
         />
-      </div>
+      </GlassPanel>
     )
   }
 
   return (
     <>
-      <Toaster 
+      <Toaster
         position="top-right"
         toastOptions={{
-          className: 'backdrop-blur-xl bg-white/90 dark:bg-gray-800/90 border border-gray-200 dark:border-gray-700',
+          className: 'border border-white/20 bg-white/10 text-white backdrop-blur-xl',
           duration: 3000,
         }}
       />
 
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-3">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                <Sparkles className="w-6 h-6 text-blue-500" />
-                Doctores
-              </h2>
-              {usage && <QuotaBadge usage={usage} type="doctors" />}
-            </div>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              {doctors.length} {doctors.length === 1 ? 'profesional registrado' : 'profesionales registrados'}
-            </p>
+        <GlassPanel className="relative overflow-hidden border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-white/0 p-6 text-white">
+          <div className="pointer-events-none absolute inset-0 opacity-70">
+            <div className="absolute -top-24 right-0 h-64 w-64 rounded-full bg-amber-400/25 blur-[140px]" />
+            <div className="absolute -bottom-16 left-0 h-56 w-56 rounded-full bg-emerald-400/20 blur-[130px]" />
           </div>
-          
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => {
-              setEditingDoctor(null)
-              setIsModalOpen(true)
-            }}
-            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-medium shadow-lg shadow-blue-500/25 transition-all"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Nuevo Doctor</span>
-          </motion.button>
+          <div className="relative flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+            <div className="space-y-3">
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-1 text-xs uppercase tracking-[0.35em] text-white/70">
+                <Sparkles className="h-4 w-4" />
+                Talento Médico
+              </div>
+              <div>
+                <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Doctores</h1>
+                <p className="mt-2 max-w-2xl text-sm text-white/70">
+                  Configura tu staff clínico, define especialidades y mantén el control de cupos disponibles.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              {usage && <QuotaBadge usage={usage} type="doctors" />}
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => {
+                  setEditingDoctor(null)
+                  setIsModalOpen(true)
+                }}
+                className="aura-cta aura-cta--primary"
+              >
+                <Plus className="h-4 w-4" />
+                Nuevo doctor
+              </motion.button>
+            </div>
+          </div>
+        </GlassPanel>
+
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <GlassPanel className="border-white/10 bg-white/5 p-5 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.35em] text-white/50">Registrados</p>
+                <p className="text-3xl font-semibold">{totalDoctors}</p>
+              </div>
+              <UsersIcon className="h-10 w-10 text-white/70" />
+            </div>
+          </GlassPanel>
+          <GlassPanel className="border-white/10 bg-white/5 p-5 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.35em] text-white/50">Activos</p>
+                <p className="text-3xl font-semibold text-emerald-200">{activeDoctors}</p>
+              </div>
+              <UserCheck className="h-10 w-10 text-emerald-300" />
+            </div>
+          </GlassPanel>
+          <GlassPanel className="border-white/10 bg-white/5 p-5 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.35em] text-white/50">Inactivos</p>
+                <p className="text-3xl font-semibold text-amber-200">{inactiveDoctors}</p>
+              </div>
+              <UserX className="h-10 w-10 text-amber-300" />
+            </div>
+          </GlassPanel>
+          <GlassPanel className="border-white/10 bg-white/5 p-5 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.35em] text-white/50">Especialidades</p>
+                <p className="text-3xl font-semibold text-sky-200">{specialties.size}</p>
+              </div>
+              <Stethoscope className="h-10 w-10 text-sky-300" />
+            </div>
+          </GlassPanel>
         </div>
 
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Buscar por nombre o especialidad..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-gray-900 dark:text-white placeholder-gray-400"
-          />
-        </div>
+        <GlassPanel className="border-white/10 bg-white/5 p-4">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
+            <Input
+              type="text"
+              placeholder="Buscar por nombre o especialidad..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-12 rounded-2xl border-white/15 bg-white/0 pl-10 text-white placeholder:text-white/40 focus-visible:ring-white/40"
+            />
+          </div>
+        </GlassPanel>
 
         {/* Doctors Grid */}
         {filteredDoctors.length === 0 ? (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="flex flex-col items-center justify-center py-16 px-4"
-          >
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl flex items-center justify-center mb-4">
-              <Sparkles className="w-8 h-8 text-blue-500" />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              {searchQuery ? 'No se encontraron doctores' : 'Aún no hay doctores'}
-            </h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400 text-center max-w-sm mb-6">
-              {searchQuery 
-                ? 'Intenta con otro término de búsqueda'
-                : 'Comienza agregando tu primer doctor al equipo médico'
-              }
-            </p>
-            {!searchQuery && (
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setIsModalOpen(true)}
-                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-medium shadow-lg shadow-blue-500/25"
-              >
-                <Plus className="w-5 h-5" />
-                <span>Agregar Primer Doctor</span>
-              </motion.button>
-            )}
-          </motion.div>
+          <GlassPanel className="border-white/10 bg-white/5 py-14 text-white">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="flex flex-col items-center justify-center px-4"
+            >
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10">
+                <Sparkles className="h-8 w-8 text-amber-300" />
+              </div>
+              <h3 className="mb-2 text-lg font-semibold">
+                {searchQuery ? 'No se encontraron doctores' : 'Aún no hay doctores'}
+              </h3>
+              <p className="mb-6 max-w-sm text-center text-sm text-white/70">
+                {searchQuery
+                  ? 'Intenta con otro término de búsqueda'
+                  : 'Comienza agregando tu primer doctor al equipo médico'}
+              </p>
+              {!searchQuery && (
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setIsModalOpen(true)}
+                  className="aura-cta aura-cta--primary"
+                >
+                  <Plus className="h-4 w-4" />
+                  Agregar primer doctor
+                </motion.button>
+              )}
+            </motion.div>
+          </GlassPanel>
         ) : (
-          <motion.div 
+          <motion.div
             layout
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+            className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3"
           >
             <AnimatePresence mode="popLayout">
               {filteredDoctors.map((doctor, index) => (

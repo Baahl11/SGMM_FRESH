@@ -90,9 +90,9 @@ export default function AgendaConfigModal({ isOpen, onClose }: AgendaConfigModal
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto backdrop-blur-xl bg-gradient-to-br from-white/95 via-white/90 to-white/95 border border-white/20 shadow-2xl">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold flex items-center justify-between">
+          <DialogTitle className="text-2xl font-bold flex items-center justify-between text-gray-900">
             <span>Configuración de Agenda</span>
             <Button
               variant="outline"

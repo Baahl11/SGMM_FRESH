@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion'
 import { Edit2, Clock, DollarSign, CheckCircle2, AlertCircle } from 'lucide-react'
+import { GlassPanel } from '@/components/ui/glass-panel'
 
 interface AppointmentType {
   id: string
@@ -20,126 +21,99 @@ interface AppointmentTypeCardProps {
 }
 
 export default function AppointmentTypeCard({ type, onEdit }: AppointmentTypeCardProps) {
+  const durationPercent = Math.min((type.duracion_minutos / 120) * 100, 100)
+
   return (
-    <motion.div
-      whileHover={{ y: -4 }}
-      className="group relative bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden transition-all hover:shadow-xl"
-      style={{ boxShadow: `0 4px 20px ${type.color}15` }}
-    >
-      {!type.activo && (
-        <div className="absolute top-3 right-3 z-10">
-          <span className="px-2 py-1 text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg">
-            Inactivo
-          </span>
+    <motion.div whileHover={{ y: -6 }} className="group">
+      <GlassPanel
+        className="relative overflow-hidden border-white/10 bg-gradient-to-br from-slate-900/70 via-slate-900/60 to-slate-900/40 p-6 text-white transition-all"
+        style={{ boxShadow: `0 20px 60px rgba(2,6,23,0.55)` }}
+      >
+        <div className="pointer-events-none absolute inset-0 opacity-60">
+          <div
+            className="absolute -top-16 right-0 h-40 w-40 rounded-full blur-[140px]"
+            style={{ backgroundColor: `${type.color}33` }}
+          />
+          <div className="absolute -bottom-20 left-4 h-36 w-36 rounded-full bg-slate-500/20 blur-[120px]" />
         </div>
-      )}
 
-      <div className="h-1.5 w-full" style={{ backgroundColor: type.color }} />
+        {!type.activo && (
+          <div className="absolute top-4 right-4 z-10">
+            <span className="rounded-full border border-white/30 bg-white/10 px-3 py-1 text-xs font-semibold text-rose-200">
+              Inactivo
+            </span>
+          </div>
+        )}
 
-      <div className="p-6">
-        {/* Header */}
-        <div className="flex items-start gap-4 mb-4">
+        <div className="relative flex items-start gap-4">
           <motion.div
-            whileHover={{ scale: 1.1 }}
-            className="w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-lg"
-            style={{ backgroundColor: type.color }}
+            whileHover={{ scale: 1.08 }}
+            className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/15 text-white"
+            style={{ backgroundColor: `${type.color}22`, boxShadow: `0 10px 25px ${type.color}30` }}
           >
-            <Clock className="w-6 h-6" />
+            <Clock className="h-6 w-6" />
           </motion.div>
-
-          <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white break-words">
-              {type.nombre}
-            </h3>
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold tracking-tight">{type.nombre}</h3>
             {type.descripcion && (
-              <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2 mt-1">
-                {type.descripcion}
-              </p>
+              <p className="mt-1 text-sm text-white/70 line-clamp-2">{type.descripcion}</p>
             )}
           </div>
         </div>
 
-        {/* Timeline Visual */}
-        <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-900 rounded-xl">
-          <div className="flex items-center gap-2 mb-2">
-            <Clock className="w-4 h-4 text-gray-400" />
-            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
-              DURACIÓN
-            </span>
+        <div className="relative mt-6 rounded-2xl border border-white/10 bg-white/5 p-4">
+          <div className="flex items-center justify-between text-xs text-white/60">
+            <span className="tracking-[0.3em]">DURACIÓN</span>
+            <span className="font-semibold text-white">{type.duracion_minutos} min</span>
           </div>
-          
-          {/* Timeline bar */}
-          <div className="relative">
-            <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${Math.min((type.duracion_minutos / 120) * 100, 100)}%` }}
-                transition={{ duration: 0.8, ease: "easeOut" }}
-                className="h-full rounded-full"
-                style={{ backgroundColor: type.color }}
-              />
-            </div>
-            <div className="flex justify-between mt-2">
-              <span className="text-xs text-gray-500 dark:text-gray-400">0 min</span>
-              <motion.span
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: 0.4 }}
-                className="text-sm font-bold text-gray-900 dark:text-white"
-              >
-                {type.duracion_minutos} min
-              </motion.span>
-              <span className="text-xs text-gray-500 dark:text-gray-400">120 min</span>
-            </div>
+          <div className="mt-3 h-2 rounded-full bg-white/10">
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${durationPercent}%` }}
+              transition={{ duration: 0.8, ease: 'easeOut' }}
+              className="h-full rounded-full"
+              style={{ background: type.color, boxShadow: `0 10px 25px ${type.color}44` }}
+            />
+          </div>
+          <div className="mt-2 flex items-center justify-between text-[11px] text-white/50">
+            <span>0 min</span>
+            <span>120 min</span>
           </div>
         </div>
 
-        {/* Info Grid */}
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          {/* Precio */}
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
           {type.precio_default !== null && (
-            <div className="flex items-center gap-2 p-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
-              <DollarSign className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-              <div>
-                <div className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-                  ${type.precio_default.toFixed(2)}
-                </div>
-              </div>
+            <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
+              <DollarSign className="h-4 w-4" />
+              <span className="font-semibold">${type.precio_default.toFixed(2)}</span>
             </div>
           )}
 
-          {/* Confirmación */}
-          <div className="flex items-center gap-2 p-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
+          <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm">
             {type.requiere_confirmacion ? (
               <>
-                <CheckCircle2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
-                  Confirmación
-                </span>
+                <CheckCircle2 className="h-4 w-4 text-sky-200" />
+                <span className="text-white">Requiere confirmación</span>
               </>
             ) : (
               <>
-                <AlertCircle className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-                  Directa
-                </span>
+                <AlertCircle className="h-4 w-4 text-white/60" />
+                <span className="text-white/70">Cita directa</span>
               </>
             )}
           </div>
         </div>
 
-        {/* Edit Button */}
         <motion.button
           whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
+          whileTap={{ scale: 0.97 }}
           onClick={onEdit}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-sm font-medium opacity-0 group-hover:opacity-100"
-          style={{ color: type.color }}
+          className="aura-cta aura-cta--ghost relative mt-5 w-full justify-center border-white/25 text-sm"
         >
-          <Edit2 className="w-4 h-4" />
-          <span>Editar</span>
+          <Edit2 className="h-4 w-4" />
+          Editar servicio
         </motion.button>
-      </div>
+      </GlassPanel>
     </motion.div>
   )
 }

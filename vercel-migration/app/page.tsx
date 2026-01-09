@@ -3,11 +3,14 @@
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { HeroSection } from '@/components/landing/hero-section'
-import { FeaturesSection } from '@/components/landing/features-section'
-import { PricingSection } from '@/components/landing/pricing-section'
-import { TestimonialsSection } from '@/components/landing/testimonials-section'
-import { Footer } from '@/components/landing/footer'
+import { MarketingNav } from '@/components/marketing/nav'
+import { MarketingHero } from '@/components/marketing/hero'
+import { MomentumStats } from '@/components/marketing/stats'
+import { FeatureNarrative } from '@/components/marketing/features'
+import { PremiumPricing } from '@/components/marketing/pricing'
+import { TestimonialShowcase } from '@/components/marketing/testimonials'
+import { MarketingFAQ } from '@/components/marketing/faq'
+import { MarketingFooter } from '@/components/marketing/footer'
 
 export default function Home() {
   const { data: session, status } = useSession()
@@ -49,12 +52,15 @@ export default function Home() {
 
   // Show landing page for non-authenticated users
   return (
-    <main className="min-h-screen">
-      <HeroSection />
-      <FeaturesSection />
-      <PricingSection />
-      <TestimonialsSection />
-      <Footer />
+    <main className="min-h-screen bg-[#030614]">
+      <MarketingNav />
+      <MarketingHero />
+      <MomentumStats />
+      <FeatureNarrative />
+      <PremiumPricing />
+      <TestimonialShowcase />
+      <MarketingFAQ />
+      <MarketingFooter />
     </main>
   )
 }

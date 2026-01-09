@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Palette } from 'lucide-react'
+import { X, Palette, Shield } from 'lucide-react'
+import { GlassPanel } from '@/components/ui/glass-panel'
 
 interface Doctor {
   id: string
@@ -77,6 +78,9 @@ export default function DoctorModal({ isOpen, onClose, onSave, doctor }: DoctorM
     onSave(formData)
   }
 
+  const inputClass = 'mt-3 w-full rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-white placeholder:text-white/35 focus:border-emerald-200 focus:ring-emerald-200/30 focus:outline-none transition'
+  const labelClass = 'text-xs uppercase tracking-[0.35em] text-white/60'
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -90,225 +94,212 @@ export default function DoctorModal({ isOpen, onClose, onSave, doctor }: DoctorM
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
           />
 
-          {/* Modal */}
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              transition={{ type: "spring", duration: 0.5 }}
-              className="w-full max-w-lg bg-white dark:bg-gray-800 rounded-2xl shadow-2xl overflow-hidden my-8"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Header */}
-              <div className="relative px-6 py-5 border-b border-gray-200 dark:border-gray-700">
-                <div 
-                  className="absolute inset-x-0 top-0 h-1"
-                  style={{ backgroundColor: formData.color }}
-                />
-                <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                    {doctor ? 'Editar Doctor' : 'Nuevo Doctor'}
-                  </h2>
-                  <motion.button
-                    whileHover={{ scale: 1.1, rotate: 90 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={onClose}
-                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                  >
-                    <X className="w-5 h-5 text-gray-500" />
-                  </motion.button>
-                </div>
-              </div>
 
-              {/* Form */}
-              <form onSubmit={handleSubmit} className="p-6 space-y-5">
-                {/* Avatar Preview */}
-                <div className="flex justify-center">
-                  <motion.div
-                    whileHover={{ scale: 1.1, rotate: 5 }}
-                    className="w-20 h-20 rounded-2xl flex items-center justify-center text-white font-bold text-2xl shadow-lg"
-                    style={{ backgroundColor: formData.color }}
-                  >
-                    {formData.nombre.charAt(0).toUpperCase() || '?'}
-                  </motion.div>
-                </div>
+                    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4 sm:p-8">
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                        transition={{ type: 'spring', duration: 0.45 }}
+                        className="w-full max-w-2xl"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <GlassPanel className="relative overflow-hidden border-white/10 bg-gradient-to-b from-slate-950/95 via-slate-950/90 to-slate-950/85 p-0">
+                          <div className="pointer-events-none absolute inset-0 opacity-75">
+                            <div className="absolute -top-24 right-0 h-72 w-72 rounded-full bg-indigo-500/35 blur-[170px]" />
+                            <div className="absolute -bottom-28 left-0 h-72 w-72 rounded-full bg-sky-400/25 blur-[150px]" />
+                          </div>
 
-                {/* Nombre */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Nombre Completo *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.nombre}
-                    onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-gray-900 dark:text-white"
-                    placeholder="Dr. Juan Pérez"
-                  />
-                </div>
+                          <div className="relative border-b border-white/10 px-6 py-6 sm:px-10 sm:py-8">
+                            <div className="flex items-start gap-4">
+                              <motion.div
+                                whileHover={{ scale: 1.05, rotate: 4 }}
+                                className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/15 bg-white/10 text-white"
+                                style={{ boxShadow: `0 15px 45px ${formData.color}33` }}
+                              >
+                                <Shield className="h-7 w-7" />
+                              </motion.div>
+                              <div className="flex-1">
+                                <p className="text-xs uppercase tracking-[0.35em] text-white/60">
+                                  {doctor ? 'Actualizar perfil' : 'Nuevo integrante'}
+                                </p>
+                                <h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
+                                  {doctor ? 'Editar doctor' : 'Registrar doctor'}
+                                </h2>
+                                <p className="mt-1 text-sm text-white/70">
+                                  Completa los datos clínicos, canal de contacto y color de agenda.
+                                </p>
+                              </div>
+                              <motion.button
+                                whileHover={{ scale: 1.1, rotate: 90 }}
+                                whileTap={{ scale: 0.9 }}
+                                onClick={onClose}
+                                className="rounded-2xl border border-white/15 p-2 text-white/70 transition hover:border-white/40 hover:text-white"
+                              >
+                                <X className="h-5 w-5" />
+                              </motion.button>
+                            </div>
+                          </div>
 
-                {/* Especialidad */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Especialidad
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.especialidad}
-                    onChange={(e) => setFormData({ ...formData, especialidad: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-gray-900 dark:text-white"
-                    placeholder="Medicina General"
-                  />
-                </div>
+                          <form onSubmit={handleSubmit} className="relative space-y-8 px-6 py-6 sm:px-10 sm:py-10">
+                            <div className="flex flex-col items-center gap-4 rounded-3xl border border-white/10 bg-white/5 p-6 text-center">
+                              <motion.div
+                                whileHover={{ scale: 1.05 }}
+                                className="flex h-24 w-24 items-center justify-center rounded-3xl text-3xl font-semibold text-white"
+                                style={{ background: formData.color }}
+                              >
+                                {formData.nombre.charAt(0).toUpperCase() || '?'}
+                              </motion.div>
+                              <p className="text-sm text-white/70">Este color se usa en agendas, excepciones y reportes.</p>
+                            </div>
 
-                {/* Grid 2 columnas */}
-                <div className="grid grid-cols-2 gap-4">
-                  {/* Cédula */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Cédula Profesional
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.cedula_profesional}
-                      onChange={(e) => setFormData({ ...formData, cedula_profesional: e.target.value })}
-                      className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-gray-900 dark:text-white"
-                      placeholder="12345678"
-                    />
-                  </div>
+                            <div className="grid gap-6 sm:grid-cols-2">
+                              <div className="sm:col-span-2">
+                                <label className={labelClass}>Nombre completo *</label>
+                                <input
+                                  type="text"
+                                  required
+                                  value={formData.nombre}
+                                  onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                                  className={inputClass}
+                                  placeholder="Dr. Juan Pérez"
+                                />
+                              </div>
+                              <div>
+                                <label className={labelClass}>Especialidad</label>
+                                <input
+                                  type="text"
+                                  value={formData.especialidad}
+                                  onChange={(e) => setFormData({ ...formData, especialidad: e.target.value })}
+                                  className={inputClass}
+                                  placeholder="Medicina General"
+                                />
+                              </div>
+                              <div>
+                                <label className={labelClass}>Correo *</label>
+                                <input
+                                  type="email"
+                                  required
+                                  value={formData.email}
+                                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                  className={inputClass}
+                                  placeholder="doctor@ejemplo.com"
+                                />
+                              </div>
+                              <div>
+                                <label className={labelClass}>Cédula profesional</label>
+                                <input
+                                  type="text"
+                                  value={formData.cedula_profesional}
+                                  onChange={(e) => setFormData({ ...formData, cedula_profesional: e.target.value })}
+                                  className={inputClass}
+                                  placeholder="12345678"
+                                />
+                              </div>
+                              <div>
+                                <label className={labelClass}>Teléfono</label>
+                                <input
+                                  type="tel"
+                                  value={formData.telefono}
+                                  onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+                                  className={inputClass}
+                                  placeholder="555-1234"
+                                />
+                              </div>
+                            </div>
 
-                  {/* Teléfono */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Teléfono
-                    </label>
-                    <input
-                      type="tel"
-                      value={formData.telefono}
-                      onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
-                      className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-gray-900 dark:text-white"
-                      placeholder="555-1234"
-                    />
-                  </div>
-                </div>
+                            <div>
+                              <label className={labelClass}>Color de identificación</label>
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                {PRESET_COLORS.map((color) => (
+                                  <motion.button
+                                    key={color}
+                                    type="button"
+                                    whileHover={{ scale: 1.08 }}
+                                    whileTap={{ scale: 0.92 }}
+                                    onClick={() => setFormData({ ...formData, color })}
+                                    className={`h-11 w-11 rounded-2xl border-2 transition ${
+                                      formData.color === color ? 'border-white shadow-lg shadow-black/20' : 'border-transparent opacity-70 hover:opacity-100'
+                                    }`}
+                                    style={{ backgroundColor: color }}
+                                  />
+                                ))}
+                                <motion.button
+                                  type="button"
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.9 }}
+                                  onClick={() => setShowColorPicker(!showColorPicker)}
+                                  className="flex h-11 w-11 items-center justify-center rounded-2xl border-2 border-dashed border-white/30 text-white/60"
+                                >
+                                  <Palette className="h-5 w-5" />
+                                </motion.button>
+                              </div>
+                              {showColorPicker && (
+                                <motion.div
+                                  initial={{ opacity: 0, height: 0 }}
+                                  animate={{ opacity: 1, height: 'auto' }}
+                                  className="mt-3"
+                                >
+                                  <input
+                                    type="color"
+                                    value={formData.color}
+                                    onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                                    className="h-12 w-full cursor-pointer rounded-2xl border border-white/10 bg-transparent"
+                                  />
+                                </motion.div>
+                              )}
+                            </div>
 
-                {/* Email */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-gray-900 dark:text-white"
-                    placeholder="doctor@ejemplo.com"
-                  />
-                </div>
+                            <div className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-white/5 p-5 sm:flex-row sm:items-center sm:justify-between">
+                              <div>
+                                <p className="text-sm font-semibold text-white">Estado del doctor</p>
+                                <p className="text-xs text-white/60">
+                                  {formData.activo ? 'Puede aparecer en agendas e informes' : 'Oculto y sin acceso activo'}
+                                </p>
+                              </div>
+                              <motion.button
+                                type="button"
+                                whileTap={{ scale: 0.96 }}
+                                onClick={() => setFormData({ ...formData, activo: !formData.activo })}
+                                className={`relative inline-flex h-12 w-24 items-center rounded-full border px-1 transition ${
+                                  formData.activo ? 'border-emerald-300/60 bg-emerald-400/25' : 'border-white/15 bg-white/5'
+                                }`}
+                              >
+                                <motion.span
+                                  layout
+                                  transition={{ type: 'spring', stiffness: 450, damping: 30 }}
+                                  className={`inline-flex h-10 w-10 items-center justify-center rounded-full bg-white text-sm font-semibold text-slate-900 shadow-xl ${
+                                    formData.activo ? 'translate-x-12' : 'translate-x-0'
+                                  }`}
+                                >
+                                  {formData.activo ? 'ON' : 'OFF'}
+                                </motion.span>
+                              </motion.button>
+                            </div>
 
-                {/* Color Picker */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Color de Identificación
-                  </label>
-                  <div className="flex gap-2">
-                    {PRESET_COLORS.map((color) => (
-                      <motion.button
-                        key={color}
-                        type="button"
-                        whileHover={{ scale: 1.2 }}
-                        whileTap={{ scale: 0.9 }}
-                        onClick={() => setFormData({ ...formData, color })}
-                        className={`w-10 h-10 rounded-xl transition-all ${
-                          formData.color === color 
-                            ? 'ring-2 ring-offset-2 ring-gray-400 dark:ring-gray-500 ring-offset-white dark:ring-offset-gray-800' 
-                            : 'hover:scale-110'
-                        }`}
-                        style={{ backgroundColor: color }}
-                      />
-                    ))}
-                    
-                    <motion.button
-                      type="button"
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
-                      onClick={() => setShowColorPicker(!showColorPicker)}
-                      className="w-10 h-10 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center hover:border-gray-400 dark:hover:border-gray-500 transition-colors"
-                    >
-                      <Palette className="w-5 h-5 text-gray-400" />
-                    </motion.button>
-                  </div>
-
-                  {showColorPicker && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="mt-3"
-                    >
-                      <input
-                        type="color"
-                        value={formData.color}
-                        onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                        className="w-full h-12 rounded-xl cursor-pointer"
-                      />
-                    </motion.div>
-                  )}
-                </div>
-
-                {/* Active Toggle */}
-                <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-xl">
-                  <div>
-                    <div className="text-sm font-medium text-gray-900 dark:text-white">
-                      Estado
+                            <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:justify-end">
+                              <motion.button
+                                type="button"
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.97 }}
+                                onClick={onClose}
+                                className="aura-cta aura-cta--ghost w-full justify-center sm:w-auto"
+                              >
+                                Cancelar
+                              </motion.button>
+                              <motion.button
+                                type="submit"
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.97 }}
+                                className="aura-cta aura-cta--primary w-full justify-center sm:w-auto"
+                              >
+                                {doctor ? 'Guardar cambios' : 'Crear doctor'}
+                              </motion.button>
+                            </div>
+                          </form>
+                        </GlassPanel>
+                      </motion.div>
                     </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      {formData.activo ? 'Doctor activo en el sistema' : 'Doctor desactivado'}
-                    </div>
-                  </div>
-                  <motion.button
-                    type="button"
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => setFormData({ ...formData, activo: !formData.activo })}
-                    className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
-                      formData.activo ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
-                    }`}
-                  >
-                    <motion.span
-                      layout
-                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ${
-                        formData.activo ? 'translate-x-6' : 'translate-x-1'
-                      }`}
-                    />
-                  </motion.button>
-                </div>
-
-                {/* Actions */}
-                <div className="flex gap-3 pt-4">
-                  <motion.button
-                    type="button"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={onClose}
-                    className="flex-1 px-4 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                  >
-                    Cancelar
-                  </motion.button>
-                  <motion.button
-                    type="submit"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-medium shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 transition-all"
-                  >
-                    {doctor ? 'Guardar Cambios' : 'Crear Doctor'}
-                  </motion.button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
         </>
       )}
     </AnimatePresence>

@@ -1,60 +1,17 @@
 'use client'
 
-import { createClient } from "@/lib/supabase/client";
-import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Package, Plus, Edit, Trash2, AlertCircle, TrendingUp, TrendingDown, X, Save, Eye } from 'lucide-react'
+import { createClient } from "@/lib/supabase/client";
 import AppLayout from "@/components/layout/app-layout"
-
-// UI Components
-const Card = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
-  <div className={`bg-white rounded-lg shadow-sm border border-gray-200 ${className}`}>{children}</div>
-)
-
-const CardHeader = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
-  <div className={`p-6 pb-4 border-b border-gray-100 ${className}`}>{children}</div>
-)
-
-const CardTitle = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
-  <h3 className={`text-lg font-semibold ${className}`}>{children}</h3>
-)
-
-const CardContent = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
-  <div className={`p-6 ${className}`}>{children}</div>
-)
-
-const Button = ({ children, className = "", variant = "default", size = "default", onClick, disabled = false, type = "button" }: any) => {
-  const baseClasses = "inline-flex items-center justify-center rounded-md transition-colors font-medium"
-  const variantClasses: Record<string, string> = {
-    default: "bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed",
-    outline: "border border-gray-300 bg-white hover:bg-gray-50 text-gray-700",
-    destructive: "bg-red-600 text-white hover:bg-red-700"
-  }
-  const sizeClasses: Record<string, string> = {
-    default: "px-4 py-2",
-    sm: "px-3 py-1.5 text-sm"
-  }
-  
-  return (
-    <button 
-      type={type}
-      className={`${baseClasses} ${variantClasses[variant] || variantClasses.default} ${sizeClasses[size] || sizeClasses.default} ${className}`} 
-      onClick={onClick}
-      disabled={disabled}
-    >
-      {children}
-    </button>
-  )
-}
-
-const Input = ({ className = "", ...props }: any) => (
-  <input className={`flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:cursor-not-allowed disabled:opacity-50 ${className}`} {...props} />
-)
-
-const Label = ({ children, htmlFor, className = "" }: any) => (
-  <label htmlFor={htmlFor} className={`text-sm font-medium text-gray-700 ${className}`}>{children}</label>
-)
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { GlassPanel } from "@/components/ui/glass-panel";
+import { cn } from "@/lib/utils";
+import { ToastProvider, useToast } from "@/components/ui/toast-container";
 
 interface InventoryItem {
   id: string;
@@ -66,7 +23,19 @@ interface InventoryItem {
   categoria?: string;
 }
 
-export default function InventoryPage() {
+const formatCurrency = (value?: number) => {
+  try {
+    return new Intl.NumberFormat('es-MX', {
+      style: 'currency',
+      currency: 'MXN'
+    }).format(value ?? 0);
+  } catch (error) {
+    return `$${(value ?? 0).toFixed(2)}`;
+  }
+};
+
+function InventoryPageContent() {
+  const toast = useToast();
   const supabase = createClient();
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
@@ -85,6 +54,31 @@ export default function InventoryPage() {
   const [precioUnitario, setPrecioUnitario] = useState("");
   const [categoria, setCategoria] = useState("");
 
+  const lowStockItems = useMemo(() => (
+    items.filter(item => item.stock_actual <= item.stock_minimo)
+  ), [items]);
+
+  const inventoryStats = useMemo(() => {
+    if (!items.length) {
+      return {
+        totalItems: 0,
+        totalValue: 0,
+        lowStock: 0,
+        categories: 0
+      };
+    }
+
+    const totalValue = items.reduce((acc, item) => acc + (item.stock_actual * item.precio_unitario), 0);
+    const categories = new Set(items.map(item => item.categoria).filter(Boolean)).size;
+
+    return {
+      totalItems: items.length,
+      totalValue,
+      lowStock: lowStockItems.length,
+      categories
+    };
+  }, [items, lowStockItems]);
+
   useEffect(() => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -95,7 +89,6 @@ export default function InventoryPage() {
         router.push('/auth/signin');
         return;
       }
-      
       fetchInventory();
     };
 
@@ -127,7 +120,7 @@ export default function InventoryPage() {
 
   const handleAddItem = async () => {
     if (!nombre || !stockActual || !precioUnitario) {
-      alert("Por favor completa los campos requeridos");
+      toast.warning("Completa los campos requeridos");
       return;
     }
 
@@ -150,15 +143,15 @@ export default function InventoryPage() {
       await fetchInventory();
       resetForm();
       setShowAddModal(false);
-      alert('Item agregado exitosamente');
+      toast.success('Item agregado correctamente');
     } catch (error: any) {
-      alert(error.message);
+      toast.error(error.message || 'Error al agregar item');
     }
   };
 
   const handleEditItem = async () => {
     if (!editingItem || !nombre || !stockActual || !precioUnitario) {
-      alert("Por favor completa los campos requeridos");
+      toast.warning("Completa los campos requeridos");
       return;
     }
 
@@ -181,9 +174,9 @@ export default function InventoryPage() {
       await fetchInventory();
       resetForm();
       setShowAddModal(false);
-      alert('Item actualizado exitosamente');
+      toast.success('Item actualizado correctamente');
     } catch (error: any) {
-      alert(error.message);
+      toast.error(error.message || 'Error al actualizar item');
     }
   };
 
@@ -198,9 +191,9 @@ export default function InventoryPage() {
       if (!response.ok) throw new Error('Error al eliminar item');
 
       await fetchInventory();
-      alert('Item eliminado exitosamente');
+      toast.success('Item eliminado correctamente');
     } catch (error: any) {
-      alert(error.message);
+      toast.error(error.message || 'Error al eliminar item');
     }
   };
 
@@ -217,9 +210,14 @@ export default function InventoryPage() {
 
   if (loadingAuth || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
+      <AppLayout>
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <div className="text-center text-white/70">
+            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-emerald-300" />
+            Sincronizando inventario...
+          </div>
+        </div>
+      </AppLayout>
     )
   }
 
@@ -227,215 +225,263 @@ export default function InventoryPage() {
     return null
   }
 
-  const lowStockItems = items.filter(item => item.stock_actual <= item.stock_minimo);
-
   return (
     <AppLayout>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
-        {/* Header Section */}
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between bg-white rounded-xl p-6 shadow-sm border border-orange-100 mb-8">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl flex items-center justify-center">
-              <Package className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
-                Inventario
-              </h1>
-              <p className="text-gray-600">Gestión de insumos médicos y equipamiento</p>
-            </div>
+      <div className="space-y-8">
+        <GlassPanel className="relative overflow-hidden p-6 sm:p-8">
+          <div className="pointer-events-none absolute inset-0 opacity-60">
+            <div className="absolute -top-32 right-0 h-72 w-72 rounded-full bg-amber-400/25 blur-[140px]" />
+            <div className="absolute -bottom-36 left-0 h-72 w-72 rounded-full bg-orange-500/30 blur-[160px]" />
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Link
-              href="/inventory/low-stock"
-              className="inline-flex items-center justify-center rounded-md border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-100"
-            >
-              <AlertCircle className="mr-2 h-4 w-4" />
-              Stock bajo
-            </Link>
-            <Link
-              href="/inventory/reports"
-              className="inline-flex items-center justify-center rounded-md border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 transition-colors hover:bg-indigo-100"
-            >
-              <TrendingUp className="mr-2 h-4 w-4" />
-              Reportes
-            </Link>
-            <Button onClick={() => { resetForm(); setShowAddModal(true); }}>
-              <Plus className="mr-2 h-4 w-4" />
-              Agregar Item
-            </Button>
-          </div>
-        </div>
-
-        {/* Low Stock Alert */}
-        {lowStockItems.length > 0 && (
-          <Card className="mb-6 bg-gradient-to-r from-red-50 to-orange-50 border-red-200">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <AlertCircle className="h-5 w-5 text-red-600" />
+          <div className="relative flex flex-col gap-8 text-white md:flex-row md:items-center md:justify-between">
+            <div className="space-y-5">
+              <div className="inline-flex items-center gap-3 rounded-full border border-white/15 bg-white/10 px-5 py-1 text-xs font-semibold uppercase tracking-[0.35em] text-white/70">
+                <Package className="h-4 w-4" />
+                Inventario inteligente
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="h-16 w-16 rounded-2xl border border-white/20 bg-gradient-to-br from-amber-400/30 to-red-400/30 p-4">
+                  <Package className="h-8 w-8" />
+                </div>
                 <div>
-                  <p className="font-semibold text-red-900">
-                    {lowStockItems.length} item{lowStockItems.length > 1 ? 's' : ''} con stock bajo
-                  </p>
-                  <p className="text-sm text-red-700">
-                    {lowStockItems.map(i => i.nombre).join(', ')}
-                  </p>
+                  <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Control en tiempo real</h1>
+                  <p className="text-sm text-white/70">Monitorea consumos críticos, valor del stock y categorías.</p>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="rounded-2xl border border-white/20 bg-white/10 p-4">
+                  <p className="text-xs uppercase tracking-[0.3em] text-white/50">Items</p>
+                  <p className="text-3xl font-semibold">{inventoryStats.totalItems}</p>
+                  <p className="text-xs text-white/60">Registrados</p>
+                </div>
+                <div className="rounded-2xl border border-white/20 bg-white/10 p-4">
+                  <p className="text-xs uppercase tracking-[0.3em] text-white/50">Valor total</p>
+                  <p className="text-3xl font-semibold">{formatCurrency(inventoryStats.totalValue)}</p>
+                  <p className="text-xs text-white/60">MXN</p>
+                </div>
+                <div className="rounded-2xl border border-rose-300/40 bg-rose-500/15 p-4">
+                  <p className="text-xs uppercase tracking-[0.3em] text-white/70">Stock bajo</p>
+                  <p className="text-3xl font-semibold">{inventoryStats.lowStock}</p>
+                  <p className="text-xs text-white/70">Alertas críticas</p>
+                </div>
+                <div className="rounded-2xl border border-emerald-300/40 bg-emerald-500/15 p-4">
+                  <p className="text-xs uppercase tracking-[0.3em] text-white/70">Categorías</p>
+                  <p className="text-3xl font-semibold">{inventoryStats.categories}</p>
+                  <p className="text-xs text-white/70">Segmentos activos</p>
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-col gap-3 md:items-end">
+              <button
+                onClick={() => { resetForm(); setShowAddModal(true); }}
+                className="aura-cta aura-cta--primary w-full px-6 text-base md:w-auto"
+              >
+                <Plus className="h-4 w-4" />
+                Agregar item
+              </button>
+              <div className="flex flex-wrap gap-3">
+                <Link href="/inventory/low-stock" className="aura-cta aura-cta--ghost px-6 text-sm">
+                  <AlertCircle className="h-4 w-4" />
+                  Stock bajo
+                </Link>
+                <Link href="/inventory/reports" className="aura-cta aura-cta--ghost px-6 text-sm">
+                  <TrendingUp className="h-4 w-4" />
+                  Reportes
+                </Link>
+              </div>
+            </div>
+          </div>
+        </GlassPanel>
+
+        {lowStockItems.length > 0 && (
+          <GlassPanel className="border border-amber-400/30 bg-amber-500/10 p-5 text-amber-50">
+            <div className="flex flex-wrap items-center gap-3">
+              <AlertCircle className="h-6 w-6 text-amber-200" />
+              <div>
+                <p className="text-base font-semibold">
+                  {lowStockItems.length} item{lowStockItems.length === 1 ? '' : 's'} requieren reposición
+                </p>
+                <p className="text-sm text-amber-100">
+                  {lowStockItems.map((item) => item.nombre).join(', ')}
+                </p>
+              </div>
+              <Link
+                href="/inventory/low-stock"
+                className="ml-auto text-sm font-semibold text-white/80 underline-offset-4 hover:underline"
+              >
+                Ver detalle
+              </Link>
+            </div>
+          </GlassPanel>
         )}
 
-        {/* Items Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {items.map((item) => {
-            const isLowStock = item.stock_actual <= item.stock_minimo;
-            const stockPercentage = item.stock_minimo > 0 
-              ? (item.stock_actual / item.stock_minimo) * 100 
-              : 100;
+        {items.length === 0 ? (
+          <GlassPanel className="flex flex-col items-center gap-4 px-6 py-16 text-center text-white/70">
+            <Package className="h-12 w-12 text-white/60" />
+            <div>
+              <p className="text-xl font-semibold text-white">Aún no hay items en inventario</p>
+              <p className="mt-2 text-sm text-white/70">Registra tu primer insumo para activar el seguimiento automático.</p>
+            </div>
+            <button
+              onClick={() => { resetForm(); setShowAddModal(true); }}
+              className="aura-cta aura-cta--primary"
+            >
+              <Plus className="h-4 w-4" />
+              Crear primer item
+            </button>
+          </GlassPanel>
+        ) : (
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
+            {items.map((item) => {
+              const isLowStock = item.stock_actual <= item.stock_minimo;
+              const stockPercentage = item.stock_minimo > 0 ? (item.stock_actual / item.stock_minimo) * 100 : 100;
+              const stockStatus = stockPercentage > 100 ? 'excedente' : stockPercentage > 50 ? 'normal' : 'bajo';
 
-            return (
-              <Card key={item.id} className={`${isLowStock ? 'border-red-300 bg-red-50/30' : ''}`}>
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <CardTitle className="text-lg">{item.nombre}</CardTitle>
+              return (
+                <GlassPanel
+                  key={item.id}
+                  className={cn(
+                    'space-y-5 border-white/10 p-5 text-white transition-shadow',
+                    isLowStock && 'border-rose-400/40 shadow-[0_25px_60px_rgba(244,63,94,0.25)]'
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.3em] text-white/50">Item</p>
+                      <h3 className="text-xl font-semibold leading-tight">{item.nombre}</h3>
                       {item.descripcion && (
-                        <p className="text-sm text-gray-600 mt-1">{item.descripcion}</p>
+                        <p className="mt-1 text-sm text-white/70 line-clamp-2">{item.descripcion}</p>
                       )}
                       {item.categoria && (
-                        <span className="inline-block mt-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
+                        <span className="glass-chip mt-3 border-white/30 bg-white/10 text-xs text-white">
                           {item.categoria}
                         </span>
                       )}
                     </div>
+                    <span
+                      className={cn(
+                        'rounded-full px-4 py-1 text-xs font-semibold uppercase tracking-[0.3em]',
+                        isLowStock
+                          ? 'border border-rose-300/60 bg-rose-500/20 text-rose-100'
+                          : 'border border-white/20 bg-white/10 text-white/70'
+                      )}
+                    >
+                      {isLowStock ? 'Stock bajo' : 'Saludable'}
+                    </span>
                   </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {/* Stock Info */}
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+
+                  <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-4">
                     <div>
-                      <p className="text-sm text-gray-600">Stock Actual</p>
-                      <p className={`text-2xl font-bold ${isLowStock ? 'text-red-600' : 'text-gray-900'}`}>
-                        {item.stock_actual}
-                      </p>
+                      <p className="text-xs uppercase tracking-[0.3em] text-white/50">Actual</p>
+                      <p className="text-3xl font-semibold">{item.stock_actual}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm text-gray-600">Mínimo</p>
-                      <p className="text-lg font-semibold text-gray-700">{item.stock_minimo}</p>
+                      <p className="text-xs uppercase tracking-[0.3em] text-white/50">Mínimo</p>
+                      <p className="text-xl font-semibold text-white/80">{item.stock_minimo}</p>
                     </div>
                   </div>
 
-                  {/* Stock Progress Bar */}
-                  <div className="space-y-1">
-                    <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                      <div 
-                        className={`h-full transition-all ${
-                          stockPercentage > 100 ? 'bg-green-500' :
-                          stockPercentage > 50 ? 'bg-yellow-500' : 'bg-red-500'
-                        }`}
-                        style={{ width: `${Math.min(stockPercentage, 100)}%` }}
+                  <div className="space-y-2">
+                    <div className="h-2 overflow-hidden rounded-full bg-white/10">
+                      <div
+                        className={cn(
+                          'h-full rounded-full transition-all',
+                          stockStatus === 'excedente' && 'bg-emerald-400',
+                          stockStatus === 'normal' && 'bg-amber-300',
+                          stockStatus === 'bajo' && 'bg-rose-400'
+                        )}
+                        style={{ width: `${Math.min(stockPercentage, 120)}%` }}
                       />
                     </div>
-                    <div className="flex items-center gap-1 text-xs">
-                      {stockPercentage > 100 ? (
-                        <><TrendingUp className="h-3 w-3 text-green-600" /> <span className="text-green-600">Stock excedente</span></>
-                      ) : stockPercentage > 50 ? (
-                        <><TrendingUp className="h-3 w-3 text-yellow-600" /> <span className="text-yellow-600">Stock normal</span></>
-                      ) : (
-                        <><TrendingDown className="h-3 w-3 text-red-600" /> <span className="text-red-600">Stock bajo</span></>
-                      )}
+                    <div className="flex items-center gap-2 text-xs text-white/70">
+                      {stockStatus === 'excedente' && <TrendingUp className="h-3 w-3 text-emerald-300" />}
+                      {stockStatus === 'normal' && <TrendingUp className="h-3 w-3 text-amber-300" />}
+                      {stockStatus === 'bajo' && <TrendingDown className="h-3 w-3 text-rose-300" />}
+                      <span className="capitalize">Stock {stockStatus}</span>
                     </div>
                   </div>
 
-                  {/* Price */}
-                  <div className="p-3 bg-blue-50 rounded-lg">
-                    <p className="text-sm text-blue-700">Precio Unitario</p>
-                    <p className="text-xl font-bold text-blue-900">${item.precio_unitario.toFixed(2)}</p>
-                    <p className="text-xs text-blue-600 mt-1">
-                      Valor total: ${(item.stock_actual * item.precio_unitario).toFixed(2)}
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <p className="text-xs uppercase tracking-[0.3em] text-white/50">Precio unitario</p>
+                    <p className="mt-2 text-2xl font-semibold">{formatCurrency(item.precio_unitario)}</p>
+                    <p className="text-xs text-white/60">
+                      Valor total: {formatCurrency(item.stock_actual * item.precio_unitario)}
                     </p>
                   </div>
 
-                  {/* Actions */}
-                  <div className="flex gap-2 pt-2">
-                    <Link 
-                      href={`/inventory/${item.id}`}
-                      className="flex-1 inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                  <div className="flex flex-wrap gap-3 pt-1">
+                    <Button
+                      asChild
+                      variant="ghost"
+                      className="flex-1 rounded-full border border-white/20 bg-white/5 text-white hover:bg-white/15"
                     >
-                      <Eye className="h-3 w-3 mr-1" />
-                      Detalle
-                    </Link>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="flex-1"
+                      <Link href={`/inventory/${item.id}`}>
+                        <Eye className="mr-2 h-4 w-4" />
+                        Detalle
+                      </Link>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="flex-1 rounded-full border border-white/20 bg-white/5 text-white hover:bg-white/15"
                       onClick={() => openEditModal(item)}
                     >
-                      <Edit className="h-3 w-3 mr-1" />
+                      <Edit className="mr-2 h-4 w-4" />
                       Editar
                     </Button>
-                    <Button 
-                      variant="destructive" 
-                      size="sm"
+                    <Button
+                      variant="ghost"
+                      className="rounded-full border border-rose-400/60 bg-rose-500/10 text-rose-100 hover:bg-rose-500/20"
                       onClick={() => handleDeleteItem(item.id)}
                     >
-                      <Trash2 className="h-3 w-3" />
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-
-        {items.length === 0 && (
-          <Card>
-            <CardContent className="text-center py-12">
-              <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">No hay items en el inventario</h3>
-              <p className="text-gray-600 mb-4">Comienza agregando tu primer item</p>
-              <Button onClick={() => { resetForm(); setShowAddModal(true); }}>
-                <Plus className="mr-2 h-4 w-4" />
-                Agregar Primer Item
-              </Button>
-            </CardContent>
-          </Card>
+                </GlassPanel>
+              );
+            })}
+          </div>
         )}
 
-        {/* Add/Edit Modal */}
         {showAddModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6 border-b border-gray-200 sticky top-0 bg-white">
-                <h3 className="text-lg font-semibold">
-                  {editingItem ? 'Editar Item' : 'Agregar Item'}
-                </h3>
-              </div>
-              <div className="p-6 space-y-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-8">
+            <GlassPanel className="relative w-full max-w-md space-y-4 border-white/20 p-6 text-white">
+              <div className="flex items-center justify-between">
                 <div>
-                  <Label htmlFor="nombre">Nombre *</Label>
+                  <p className="text-xs uppercase tracking-[0.3em] text-white/50">{editingItem ? 'Actualizar' : 'Nuevo'}</p>
+                  <h3 className="text-2xl font-semibold">{editingItem ? 'Editar item' : 'Agregar item'}</h3>
+                </div>
+                <button
+                  onClick={() => { setShowAddModal(false); resetForm(); }}
+                  className="rounded-full border border-white/15 p-2 text-white/60 hover:text-white"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="nombre" className="text-white/80">Nombre *</Label>
                   <Input
                     id="nombre"
                     value={nombre}
                     onChange={(e: any) => setNombre(e.target.value)}
                     placeholder="Ej: Botox Allergan 100U"
+                    className="mt-2 border-white/20 bg-white/5 text-white placeholder:text-white/40"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="descripcion">Descripción</Label>
+                  <Label htmlFor="descripcion" className="text-white/80">Descripción</Label>
                   <textarea
                     id="descripcion"
                     value={descripcion}
                     onChange={(e) => setDescripcion(e.target.value)}
                     placeholder="Descripción del item..."
-                    className="flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[80px]"
+                    className="mt-2 w-full rounded-2xl border border-white/20 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-emerald-300"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-4 md:grid-cols-2">
                   <div>
-                    <Label htmlFor="stock">Stock Actual *</Label>
+                    <Label htmlFor="stock" className="text-white/80">Stock actual *</Label>
                     <Input
                       id="stock"
                       type="number"
@@ -443,10 +489,11 @@ export default function InventoryPage() {
                       value={stockActual}
                       onChange={(e: any) => setStockActual(e.target.value)}
                       placeholder="0"
+                      className="mt-2 border-white/20 bg-white/5 text-white placeholder:text-white/40"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="minimo">Stock Mínimo</Label>
+                    <Label htmlFor="minimo" className="text-white/80">Stock mínimo</Label>
                     <Input
                       id="minimo"
                       type="number"
@@ -454,11 +501,12 @@ export default function InventoryPage() {
                       value={stockMinimo}
                       onChange={(e: any) => setStockMinimo(e.target.value)}
                       placeholder="0"
+                      className="mt-2 border-white/20 bg-white/5 text-white placeholder:text-white/40"
                     />
                   </div>
                 </div>
                 <div>
-                  <Label htmlFor="precio">Precio Unitario *</Label>
+                  <Label htmlFor="precio" className="text-white/80">Precio unitario *</Label>
                   <Input
                     id="precio"
                     type="number"
@@ -466,38 +514,48 @@ export default function InventoryPage() {
                     value={precioUnitario}
                     onChange={(e: any) => setPrecioUnitario(e.target.value)}
                     placeholder="0.00"
+                    className="mt-2 border-white/20 bg-white/5 text-white placeholder:text-white/40"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="categoria">Categoría</Label>
+                  <Label htmlFor="categoria" className="text-white/80">Categoría</Label>
                   <Input
                     id="categoria"
                     value={categoria}
                     onChange={(e: any) => setCategoria(e.target.value)}
                     placeholder="Ej: Insumos, Medicamentos"
+                    className="mt-2 border-white/20 bg-white/5 text-white placeholder:text-white/40"
                   />
                 </div>
               </div>
-              <div className="p-6 border-t border-gray-200 flex gap-3 sticky bottom-0 bg-white">
-                <Button 
-                  onClick={editingItem ? handleEditItem : handleAddItem} 
-                  className="flex-1"
+
+              <div className="flex flex-col gap-3 pt-2 sm:flex-row">
+                <button
+                  onClick={editingItem ? handleEditItem : handleAddItem}
+                  className="aura-cta aura-cta--primary flex-1"
                 >
-                  <Save className="mr-2 h-4 w-4" />
-                  {editingItem ? 'Guardar Cambios' : 'Agregar Item'}
-                </Button>
-                <Button 
-                  variant="outline" 
+                  <Save className="h-4 w-4" />
+                  {editingItem ? 'Guardar cambios' : 'Agregar item'}
+                </button>
+                <button
                   onClick={() => { setShowAddModal(false); resetForm(); }}
+                  className="aura-cta aura-cta--ghost flex-1"
                 >
-                  <X className="mr-2 h-4 w-4" />
                   Cancelar
-                </Button>
+                </button>
               </div>
-            </div>
+            </GlassPanel>
           </div>
         )}
       </div>
     </AppLayout>
+  )
+}
+
+export default function InventoryPage() {
+  return (
+    <ToastProvider>
+      <InventoryPageContent />
+    </ToastProvider>
   )
 }

@@ -1,16 +1,19 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { GlassPanel } from '@/components/ui/glass-panel';
 import { Loader2, CheckCircle, XCircle, AlertCircle, Upload, FileCheck, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { SAT_REGIMEN_FISCAL } from '@/lib/types/facturama';
 import type { FacturamaConfig, FacturamaConfigInput } from '@/lib/types/facturama';
+
+const inputClass =
+  'h-12 w-full rounded-2xl border border-white/10 bg-white/5 px-4 text-sm text-white placeholder:text-white/60 focus-visible:border-emerald-400 focus-visible:ring-2 focus-visible:ring-emerald-400/30';
 
 export default function FacturacionSettingsPage() {
   const [config, setConfig] = useState<Partial<FacturamaConfig> | null>(null);
@@ -18,15 +21,12 @@ export default function FacturacionSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<'success' | 'error' | null>(null);
-
-  // Certificate upload states
   const [cerFile, setCerFile] = useState<File | null>(null);
   const [keyFile, setKeyFile] = useState<File | null>(null);
   const [keyPassword, setKeyPassword] = useState('');
   const [uploadingCerts, setUploadingCerts] = useState(false);
   const [hasCertificates, setHasCertificates] = useState(false);
   const [deletingCerts, setDeletingCerts] = useState(false);
-
   const [formData, setFormData] = useState<FacturamaConfigInput>({
     api_user: '',
     api_password: '',
@@ -71,7 +71,7 @@ export default function FacturacionSettingsPage() {
           setConfig(data.config);
           setFormData({
             api_user: data.config.api_user || '',
-            api_password: '', // Never pre-fill password
+            api_password: '',
             is_sandbox: data.config.is_sandbox ?? true,
             emisor_rfc: data.config.emisor_rfc || '',
             emisor_razon_social: data.config.emisor_razon_social || '',
@@ -96,28 +96,26 @@ export default function FacturacionSettingsPage() {
     }
   };
 
-  const handleCancel = () => {
-    // Reset form to loaded config state
-    if (config) {
+  const resetForm = (source?: Partial<FacturamaConfig> | null) => {
+    if (source) {
       setFormData({
-        api_user: config.api_user || '',
-        api_password: '', // Never pre-fill password
-        is_sandbox: config.is_sandbox ?? true,
-        emisor_rfc: config.emisor_rfc || '',
-        emisor_razon_social: config.emisor_razon_social || '',
-        emisor_regimen_fiscal: config.emisor_regimen_fiscal || '612',
-        emisor_codigo_postal: config.emisor_codigo_postal || '',
-        emisor_email: config.emisor_email || '',
-        emisor_telefono: config.emisor_telefono || '',
-        emisor_direccion: config.emisor_direccion || '',
-        emisor_ciudad: config.emisor_ciudad || '',
-        emisor_estado: config.emisor_estado || '',
-        serie_default: config.serie_default || 'A',
-        folio_inicial: config.folio_inicial || 1,
-        auto_send_email: config.auto_send_email !== false,
+        api_user: source.api_user || '',
+        api_password: '',
+        is_sandbox: source.is_sandbox ?? true,
+        emisor_rfc: source.emisor_rfc || '',
+        emisor_razon_social: source.emisor_razon_social || '',
+        emisor_regimen_fiscal: source.emisor_regimen_fiscal || '612',
+        emisor_codigo_postal: source.emisor_codigo_postal || '',
+        emisor_email: source.emisor_email || '',
+        emisor_telefono: source.emisor_telefono || '',
+        emisor_direccion: source.emisor_direccion || '',
+        emisor_ciudad: source.emisor_ciudad || '',
+        emisor_estado: source.emisor_estado || '',
+        serie_default: source.serie_default || 'A',
+        folio_inicial: source.folio_inicial || 1,
+        auto_send_email: source.auto_send_email !== false,
       });
     } else {
-      // If no config exists, reset to initial empty state
       setFormData({
         api_user: '',
         api_password: '',
@@ -136,6 +134,10 @@ export default function FacturacionSettingsPage() {
         auto_send_email: true,
       });
     }
+  };
+
+  const handleCancel = () => {
+    resetForm(config);
     setTestResult(null);
     toast.info('Cambios descartados');
   };
@@ -170,6 +172,7 @@ export default function FacturacionSettingsPage() {
         toast.error(data.error || 'Error al conectar con Facturama');
       }
     } catch (error) {
+      console.error('Error testing connection:', error);
       setTestResult('error');
       toast.error('Error al probar conexión');
     } finally {
@@ -177,12 +180,16 @@ export default function FacturacionSettingsPage() {
     }
   };
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSave = async (event: React.FormEvent) => {
+    event.preventDefault();
 
-    // Validate required fields
-    if (!formData.api_user || !formData.api_password || !formData.emisor_rfc || 
-        !formData.emisor_razon_social || !formData.emisor_codigo_postal) {
+    if (
+      !formData.api_user ||
+      !formData.api_password ||
+      !formData.emisor_rfc ||
+      !formData.emisor_razon_social ||
+      !formData.emisor_codigo_postal
+    ) {
       toast.error('Complete todos los campos requeridos');
       return;
     }
@@ -201,7 +208,7 @@ export default function FacturacionSettingsPage() {
       if (response.ok) {
         setConfig(data.config);
         toast.success('Configuración guardada exitosamente');
-        loadConfig(); // Reload
+        loadConfig();
       } else {
         toast.error(data.error || 'Error al guardar configuración');
       }
@@ -222,14 +229,14 @@ export default function FacturacionSettingsPage() {
     setUploadingCerts(true);
 
     try {
-      const formData = new FormData();
-      formData.append('certificate_cer', cerFile);
-      formData.append('certificate_key', keyFile);
-      formData.append('key_password', keyPassword);
+      const payload = new FormData();
+      payload.append('certificate_cer', cerFile);
+      payload.append('certificate_key', keyFile);
+      payload.append('key_password', keyPassword);
 
       const response = await fetch('/api/facturama/certificates', {
         method: 'POST',
-        body: formData,
+        body: payload,
       });
 
       const data = await response.json();
@@ -240,9 +247,8 @@ export default function FacturacionSettingsPage() {
         setCerFile(null);
         setKeyFile(null);
         setKeyPassword('');
-        // Reset file inputs
-        const cerInput = document.getElementById('cer_file') as HTMLInputElement;
-        const keyInput = document.getElementById('key_file') as HTMLInputElement;
+        const cerInput = document.getElementById('cer_file') as HTMLInputElement | null;
+        const keyInput = document.getElementById('key_file') as HTMLInputElement | null;
         if (cerInput) cerInput.value = '';
         if (keyInput) keyInput.value = '';
       } else {
@@ -284,505 +290,550 @@ export default function FacturacionSettingsPage() {
     }
   };
 
+  const isConfigured = Boolean(config?.is_configured);
+  const heroStats = [
+    {
+      label: 'Integración',
+      value: isConfigured ? 'Activa' : 'Pendiente',
+      helper: isConfigured ? 'Facturas listas para emitirse' : 'Completa las credenciales',
+      accent: isConfigured ? 'text-emerald-200' : 'text-white',
+    },
+    {
+      label: 'Ambiente',
+      value: formData.is_sandbox ? 'Sandbox' : 'Producción',
+      helper: formData.is_sandbox ? 'Solo pruebas' : 'Emitirá CFDI reales',
+      accent: formData.is_sandbox ? 'text-sky-200' : 'text-amber-200',
+    },
+    {
+      label: 'Certificados CSD',
+      value: hasCertificates ? 'Cargados' : 'Pendientes',
+      helper: hasCertificates ? 'Encriptados de forma segura' : 'Sube tus .cer / .key',
+      accent: hasCertificates ? 'text-emerald-200' : 'text-white',
+    },
+  ];
+
+  const onboardingSteps = [
+    {
+      title: 'Crea tu cuenta',
+      description: 'Regístrate en facturama.mx usando el correo de la clínica.',
+      action: {
+        label: 'Abrir Facturama',
+        href: 'https://www.facturama.mx/registro',
+      },
+    },
+    {
+      title: 'Activa la API',
+      description: 'Compra la anualidad API (carrito → pestaña API) para emitir ilimitado.',
+    },
+    {
+      title: 'Conecta Facturama',
+      description: 'Desactiva sandbox, ingresa usuario/contraseña y prueba la conexión desde el panel.',
+    },
+    {
+      title: 'Completa tu CFDI',
+      description: 'RFC, razón social, CP fiscal y régimen deben coincidir con el SAT.',
+    },
+  ];
+
+  const sandboxChip = formData.is_sandbox ? 'bg-white/10 text-white' : 'bg-amber-500/20 text-amber-100';
+  const regimenEntries = Object.entries(SAT_REGIMEN_FISCAL);
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin" />
+      <div className="flex h-[60vh] items-center justify-center">
+        <GlassPanel className="flex items-center gap-3 border-white/10 bg-white/5 px-6 py-4 text-white">
+          <Loader2 className="h-5 w-5 animate-spin text-emerald-300" />
+          Cargando configuración de Facturama...
+        </GlassPanel>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto py-8 max-w-4xl">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold">Configuración de Facturación</h1>
-        <p className="text-muted-foreground mt-2">
-          Configure su integración con Facturama para generar facturas electrónicas (CFDI)
-        </p>
+    <div className="space-y-8 pb-16 text-white">
+      <GlassPanel className="relative overflow-hidden border-white/10 bg-gradient-to-br from-emerald-500/20 via-indigo-600/10 to-slate-950 p-6 md:p-8">
+        <div className="grid gap-8 lg:grid-cols-2">
+          <div>
+            <div className="mb-5 flex items-center gap-3 text-white/70">
+              <div className="rounded-2xl bg-white/10 p-3">
+                <FileCheck className="h-6 w-6" />
+              </div>
+              <span className="text-xs uppercase tracking-[0.45em] text-white/60">Facturación CFDI</span>
+            </div>
+            <h1 className="text-3xl font-semibold md:text-4xl">Conecta Facturama y emite CFDI desde el panel</h1>
+            <p className="mt-4 text-base text-white/80">
+              Tus credenciales y certificados se cifran para que puedas timbrar facturas en segundos, sin salir del panel.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Button asChild className="aura-cta">
+                <a href="https://www.facturama.mx/registro" target="_blank" rel="noopener noreferrer">
+                  Crear cuenta Facturama
+                </a>
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="rounded-2xl border border-white/15 bg-white/5 text-white hover:bg-white/10"
+                onClick={() => {
+                  if (typeof window !== 'undefined') {
+                    window.open('https://ayuda.facturama.mx', '_blank');
+                  }
+                }}
+              >
+                Centro de ayuda Facturama
+              </Button>
+            </div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
+            {heroStats.map((stat) => (
+              <div key={stat.label} className="rounded-3xl border border-white/10 bg-white/5 p-5">
+                <p className="text-xs uppercase tracking-[0.35em] text-white/60">{stat.label}</p>
+                <p className={`mt-3 text-3xl font-semibold ${stat.accent}`}>{stat.value}</p>
+                <p className="mt-2 text-sm text-white/70">{stat.helper}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </GlassPanel>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <GlassPanel className="space-y-5 p-6 lg:col-span-2">
+          <div className="flex items-center gap-3 text-white">
+            <AlertCircle className="h-5 w-5 text-amber-200" />
+            <div>
+              <p className="text-xs uppercase tracking-[0.4em] text-white/60">Checklist</p>
+              <h2 className="text-2xl font-semibold">Pasos para activar la timbradora</h2>
+            </div>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            {onboardingSteps.map((step) => (
+              <div key={step.title} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <p className="text-sm font-semibold text-white">{step.title}</p>
+                <p className="mt-2 text-sm text-white/70">{step.description}</p>
+                {step.action && (
+                  <Button
+                    asChild
+                    variant="ghost"
+                    className="mt-3 h-9 rounded-2xl border border-white/15 bg-white/5 text-xs uppercase tracking-[0.3em] text-white/70 hover:text-white"
+                  >
+                    <a href={step.action.href} target="_blank" rel="noopener noreferrer">
+                      {step.action.label}
+                    </a>
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+        </GlassPanel>
+        <GlassPanel className="space-y-4 p-6">
+          <p className="text-sm font-semibold text-white">Tips para evitar errores 401</p>
+          <ul className="space-y-2 text-sm text-white/70">
+            <li>• Confirma que compraste la anualidad API en Facturama.</li>
+            <li>• Usa exactamente el mismo correo y contraseña.</li>
+            <li>• Para producción, apaga el modo sandbox.</li>
+            <li>• Espera unos minutos después de pagar la suscripción.</li>
+          </ul>
+          <div className={`rounded-2xl border ${sandboxChip} border-white/15 px-4 py-3 text-xs uppercase tracking-[0.4em]`}>
+            Modo actual: {formData.is_sandbox ? 'Sandbox' : 'Producción'}
+          </div>
+        </GlassPanel>
       </div>
 
-      {/* Information Banner */}
-      <Card className="mb-6 border-blue-200 bg-blue-50">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <AlertCircle className="h-5 w-5 text-blue-600" />
-            <CardTitle className="text-blue-900">Guía Rápida: Activar Facturación Electrónica</CardTitle>
+      {isConfigured && (
+        <GlassPanel className="flex items-center justify-between border-emerald-400/40 bg-emerald-500/10 p-5 text-white">
+          <div className="flex items-center gap-3">
+            <CheckCircle className="h-5 w-5 text-emerald-300" />
+            <div>
+              <p className="text-sm font-semibold">Configuración activa</p>
+              <p className="text-xs text-white/70">El sistema puede timbrar CFDI usando tus datos actuales.</p>
+            </div>
           </div>
-          <CardDescription className="text-blue-700 space-y-4">
-            <p className="font-medium text-base">
-              Sigue estos pasos para empezar a facturar automáticamente:
-            </p>
+          <Button
+            type="button"
+            variant="ghost"
+            className="rounded-2xl border border-white/15 bg-white/5 text-white hover:bg-white/10"
+            onClick={loadConfig}
+          >
+            Actualizar datos
+          </Button>
+        </GlassPanel>
+      )}
 
-            {/* Paso 1 */}
-            <div className="bg-white p-4 rounded-lg border border-blue-100">
-              <h3 className="font-semibold text-blue-900 mb-2">📝 Paso 1: Crea tu cuenta en Facturama</h3>
-              <p className="text-sm mb-2">Regístrate gratis en el sitio oficial de facturación:</p>
-              <a 
-                href="https://www.facturama.mx/registro" 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="inline-block bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
-              >
-                Ir a Facturama.mx →
-              </a>
-              <p className="text-xs text-gray-600 mt-2">Usa el mismo email que usas en tu clínica</p>
-            </div>
-
-            {/* Paso 2 */}
-            <div className="bg-white p-4 rounded-lg border border-blue-100">
-              <h3 className="font-semibold text-blue-900 mb-2">💳 Paso 2: Activa el servicio de facturación</h3>
-              <p className="text-sm mb-2">Dentro de tu cuenta Facturama:</p>
-              <ol className="text-sm space-y-1 ml-4">
-                <li>1. Ve al <strong>carrito de compras</strong> (arriba a la derecha)</li>
-                <li>2. Clic en la pestaña <strong>"API"</strong></li>
-                <li>3. Compra la <strong>"Anualidad API"</strong> - cuesta $1,650 al año</li>
-                <li>4. Paga con tarjeta (¡facturas ilimitadas todo el año!)</li>
-              </ol>
-              <div className="mt-2 bg-green-50 p-2 rounded border border-green-200">
-                <p className="text-xs text-green-800">✅ Recibirás un email cuando tu servicio esté activo (toma unos minutos)</p>
-              </div>
-            </div>
-
-            {/* Paso 3 */}
-            <div className="bg-white p-4 rounded-lg border border-blue-100">
-              <h3 className="font-semibold text-blue-900 mb-2">🔑 Paso 3: Conecta AgendaMedPro con Facturama</h3>
-              <p className="text-sm mb-2">Configura la conexión aquí mismo:</p>
-              <ol className="text-sm space-y-1 ml-4">
-                <li>1. <strong>Apaga</strong> el switch "Modo Sandbox" (debe estar en gris)</li>
-                <li>2. Escribe tu <strong>email de Facturama</strong> en "Usuario API"</li>
-                <li>3. Escribe tu <strong>contraseña de Facturama</strong> en "Contraseña API"</li>
-                <li>4. Clic en <strong>"Probar Conexión"</strong> - debe salir ✅ verde</li>
-              </ol>
-            </div>
-
-            {/* Paso 4 */}
-            <div className="bg-white p-4 rounded-lg border border-blue-100">
-              <h3 className="font-semibold text-blue-900 mb-2">🏥 Paso 4: Completa los datos de tu clínica</h3>
-              <p className="text-sm mb-2">Llena la información fiscal (la que aparece en tus facturas):</p>
-              <ul className="text-sm space-y-1 ml-4">
-                <li>• RFC de tu clínica/consultorio</li>
-                <li>• Nombre completo del negocio (razón social)</li>
-                <li>• Código postal de tu dirección fiscal</li>
-                <li>• Régimen fiscal (si no sabes cuál es, pregunta a tu contador)</li>
-              </ul>
-            </div>
-
-            {/* Errores comunes */}
-            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-sm font-medium text-yellow-900 mb-2">
-                ⚠️ <strong>¿Dice "Error 401" al probar?</strong>
-              </p>
-              <ul className="text-sm text-yellow-800 space-y-1 ml-4">
-                <li>• Verifica que <strong>SÍ compraste</strong> la suscripción API en Facturama</li>
-                <li>• Revisa que el email y contraseña sean correctos</li>
-                <li>• Si es para producción, <strong>desactiva</strong> el modo Sandbox</li>
-                <li>• Espera unos minutos si acabas de pagar (el servicio tarda en activarse)</li>
-              </ul>
-            </div>
-          </CardDescription>
-        </CardHeader>
-      </Card>
-
-      {config?.is_configured && (
-        <Card className="mb-6 border-green-200 bg-green-50">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <CheckCircle className="h-5 w-5 text-green-600" />
-              <CardTitle className="text-green-900">Configuración Activa</CardTitle>
-            </div>
-            <CardDescription className="text-green-700">
-              Su sistema de facturación está configurado y listo para usar
-            </CardDescription>
-          </CardHeader>
-        </Card>
+      {testResult && (
+        <GlassPanel
+          className={`flex items-center gap-3 border ${
+            testResult === 'success' ? 'border-emerald-400/50 bg-emerald-500/10' : 'border-rose-400/50 bg-rose-500/10'
+          } p-4 text-sm`}
+        >
+          {testResult === 'success' ? (
+            <CheckCircle className="h-4 w-4 text-emerald-200" />
+          ) : (
+            <XCircle className="h-4 w-4 text-rose-200" />
+          )}
+          <span>
+            {testResult === 'success'
+              ? 'Conexión validada con Facturama.'
+              : 'No pudimos conectar con Facturama, revisa tus credenciales.'}
+          </span>
+        </GlassPanel>
       )}
 
       <form onSubmit={handleSave} className="space-y-6">
-        {/* Facturama API Credentials */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Credenciales de Facturama</CardTitle>
-            <CardDescription>
-              Obtenga sus credenciales en{' '}
-              <a
-                href="https://www.facturama.mx"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary underline"
-              >
-                facturama.mx
-              </a>
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <Switch
-                checked={formData.is_sandbox}
-                onCheckedChange={(checked) => setFormData({ ...formData, is_sandbox: checked })}
+        <GlassPanel className="space-y-5 p-6">
+          <div>
+            <p className="text-xs uppercase tracking-[0.35em] text-white/60">Credenciales</p>
+            <h2 className="text-2xl font-semibold text-white">Conexión con Facturama</h2>
+            <p className="mt-2 text-sm text-white/70">Las llaves se cifran en reposo con AES-256 y rotación automática.</p>
+          </div>
+          <div className="grid gap-5 md:grid-cols-2">
+            <div>
+              <Label htmlFor="api_user" className="text-white">
+                Usuario API (correo)
+              </Label>
+              <Input
+                id="api_user"
+                value={formData.api_user}
+                onChange={(event) => setFormData({ ...formData, api_user: event.target.value })}
+                className={inputClass}
+                placeholder="correo@facturama.mx"
               />
-              <Label>Modo Sandbox (pruebas)</Label>
             </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="api_user">Usuario API *</Label>
-                <Input
-                  id="api_user"
-                  value={formData.api_user}
-                  onChange={(e) => setFormData({ ...formData, api_user: e.target.value })}
-                  placeholder="usuario@example.com"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="api_password">Contraseña API *</Label>
-                <Input
-                  id="api_password"
-                  type="password"
-                  value={formData.api_password}
-                  onChange={(e) => setFormData({ ...formData, api_password: e.target.value })}
-                  placeholder="••••••••"
-                  required
-                />
-              </div>
+            <div>
+              <Label htmlFor="api_password" className="text-white">
+                Contraseña API
+              </Label>
+              <Input
+                id="api_password"
+                type="password"
+                value={formData.api_password}
+                onChange={(event) => setFormData({ ...formData, api_password: event.target.value })}
+                className={inputClass}
+                placeholder="••••••••"
+              />
             </div>
-
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+            <div>
+              <p className="text-sm font-semibold text-white">Modo Sandbox</p>
+              <p className="text-xs text-white/70">Úsalo sólo para pruebas. Para timbrar real debe estar apagado.</p>
+            </div>
+            <Switch
+              checked={formData.is_sandbox}
+              onCheckedChange={(checked) => setFormData({ ...formData, is_sandbox: checked })}
+            />
+          </div>
+          <div className="flex flex-wrap gap-3">
             <Button
               type="button"
-              variant="outline"
               onClick={handleTestConnection}
-              disabled={testing || !formData.api_user || !formData.api_password}
+              disabled={testing}
+              className="aura-cta aura-cta--ghost"
             >
-              {testing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {testResult === 'success' && <CheckCircle className="mr-2 h-4 w-4 text-green-600" />}
-              {testResult === 'error' && <XCircle className="mr-2 h-4 w-4 text-red-600" />}
-              Probar Conexión
+              {testing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Probando...
+                </>
+              ) : (
+                <>Probar conexión</>
+              )}
             </Button>
-          </CardContent>
-        </Card>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={handleCancel}
+              className="rounded-2xl border border-white/15 text-white"
+            >
+              Descartar cambios
+            </Button>
+          </div>
+        </GlassPanel>
 
-        {/* Emisor (Business) Information */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Datos del Emisor (Su Negocio)</CardTitle>
-            <CardDescription>Información fiscal de su clínica/consultorio</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="emisor_rfc">RFC *</Label>
-                <Input
-                  id="emisor_rfc"
-                  value={formData.emisor_rfc}
-                  onChange={(e) => setFormData({ ...formData, emisor_rfc: e.target.value.toUpperCase() })}
-                  placeholder="XAXX010101000"
-                  maxLength={13}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="emisor_codigo_postal">Código Postal *</Label>
-                <Input
-                  id="emisor_codigo_postal"
-                  value={formData.emisor_codigo_postal}
-                  onChange={(e) => setFormData({ ...formData, emisor_codigo_postal: e.target.value })}
-                  placeholder="12345"
-                  maxLength={5}
-                  required
-                />
-              </div>
+        <GlassPanel className="space-y-5 p-6">
+          <div>
+            <p className="text-xs uppercase tracking-[0.35em] text-white/60">Datos fiscales</p>
+            <h2 className="text-2xl font-semibold">Emisor CFDI</h2>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <Label htmlFor="emisor_rfc" className="text-white">
+                RFC *
+              </Label>
+              <Input
+                id="emisor_rfc"
+                value={formData.emisor_rfc}
+                onChange={(event) => setFormData({ ...formData, emisor_rfc: event.target.value.toUpperCase() })}
+                className={inputClass}
+                placeholder="XAXX010101000"
+              />
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="emisor_razon_social">Razón Social *</Label>
+            <div>
+              <Label htmlFor="emisor_razon_social" className="text-white">
+                Razón social *
+              </Label>
               <Input
                 id="emisor_razon_social"
                 value={formData.emisor_razon_social}
-                onChange={(e) => setFormData({ ...formData, emisor_razon_social: e.target.value })}
-                placeholder="Clínica Dental Example S.A. de C.V."
-                required
+                onChange={(event) => setFormData({ ...formData, emisor_razon_social: event.target.value })}
+                className={inputClass}
+                placeholder="Clínica Ejemplo S.A. de C.V."
               />
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="emisor_regimen_fiscal">Régimen Fiscal *</Label>
+            <div>
+              <Label htmlFor="emisor_codigo_postal" className="text-white">
+                Código postal *
+              </Label>
+              <Input
+                id="emisor_codigo_postal"
+                value={formData.emisor_codigo_postal}
+                onChange={(event) => setFormData({ ...formData, emisor_codigo_postal: event.target.value })}
+                className={inputClass}
+                placeholder="01234"
+              />
+            </div>
+            <div>
+              <Label className="text-white">Régimen fiscal *</Label>
               <Select
                 value={formData.emisor_regimen_fiscal}
                 onValueChange={(value) => setFormData({ ...formData, emisor_regimen_fiscal: value })}
               >
-                <SelectTrigger>
-                  <SelectValue />
+                <SelectTrigger className={`${inputClass} text-left`}>
+                  <SelectValue placeholder="Selecciona régimen" />
                 </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(SAT_REGIMEN_FISCAL).map(([code, description]) => (
-                    <SelectItem key={code} value={code}>
-                      {code} - {description}
+                <SelectContent className="border-white/10 bg-slate-900 text-white">
+                  {regimenEntries.map(([clave, descripcion]) => (
+                    <SelectItem key={clave} value={clave}>
+                      {clave} — {descripcion}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="emisor_email">Email</Label>
-                <Input
-                  id="emisor_email"
-                  type="email"
-                  value={formData.emisor_email}
-                  onChange={(e) => setFormData({ ...formData, emisor_email: e.target.value })}
-                  placeholder="contacto@clinica.com"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="emisor_telefono">Teléfono</Label>
-                <Input
-                  id="emisor_telefono"
-                  value={formData.emisor_telefono}
-                  onChange={(e) => setFormData({ ...formData, emisor_telefono: e.target.value })}
-                  placeholder="5551234567"
-                />
-              </div>
+            <div>
+              <Label htmlFor="emisor_email" className="text-white">
+                Correo de contacto
+              </Label>
+              <Input
+                id="emisor_email"
+                type="email"
+                value={formData.emisor_email}
+                onChange={(event) => setFormData({ ...formData, emisor_email: event.target.value })}
+                className={inputClass}
+                placeholder="facturacion@clinica.com"
+              />
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="emisor_direccion">Dirección</Label>
+            <div>
+              <Label htmlFor="emisor_telefono" className="text-white">
+                Teléfono
+              </Label>
+              <Input
+                id="emisor_telefono"
+                value={formData.emisor_telefono}
+                onChange={(event) => setFormData({ ...formData, emisor_telefono: event.target.value })}
+                className={inputClass}
+                placeholder="55 1234 5678"
+              />
+            </div>
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            <div>
+              <Label htmlFor="emisor_direccion" className="text-white">
+                Dirección
+              </Label>
               <Input
                 id="emisor_direccion"
                 value={formData.emisor_direccion}
-                onChange={(e) => setFormData({ ...formData, emisor_direccion: e.target.value })}
-                placeholder="Calle Principal #123, Colonia Centro"
+                onChange={(event) => setFormData({ ...formData, emisor_direccion: event.target.value })}
+                className={inputClass}
+                placeholder="Av. Reforma 123"
               />
             </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="emisor_ciudad">Ciudad</Label>
-                <Input
-                  id="emisor_ciudad"
-                  value={formData.emisor_ciudad}
-                  onChange={(e) => setFormData({ ...formData, emisor_ciudad: e.target.value })}
-                  placeholder="Ciudad de México"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="emisor_estado">Estado</Label>
-                <Input
-                  id="emisor_estado"
-                  value={formData.emisor_estado}
-                  onChange={(e) => setFormData({ ...formData, emisor_estado: e.target.value })}
-                  placeholder="CDMX"
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Invoice Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Configuración de Facturas</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="serie_default">Serie por Defecto</Label>
-                <Input
-                  id="serie_default"
-                  value={formData.serie_default}
-                  onChange={(e) => setFormData({ ...formData, serie_default: e.target.value })}
-                  placeholder="A"
-                  maxLength={10}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="folio_inicial">Folio Inicial</Label>
-                <Input
-                  id="folio_inicial"
-                  type="number"
-                  value={formData.folio_inicial}
-                  onChange={(e) => setFormData({ ...formData, folio_inicial: parseInt(e.target.value) || 1 })}
-                  min={1}
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <Switch
-                checked={formData.auto_send_email}
-                onCheckedChange={(checked) => setFormData({ ...formData, auto_send_email: checked })}
+            <div>
+              <Label htmlFor="emisor_ciudad" className="text-white">
+                Ciudad
+              </Label>
+              <Input
+                id="emisor_ciudad"
+                value={formData.emisor_ciudad}
+                onChange={(event) => setFormData({ ...formData, emisor_ciudad: event.target.value })}
+                className={inputClass}
+                placeholder="CDMX"
               />
-              <Label>Enviar facturas por email automáticamente</Label>
             </div>
-          </CardContent>
-        </Card>
+            <div>
+              <Label htmlFor="emisor_estado" className="text-white">
+                Estado
+              </Label>
+              <Input
+                id="emisor_estado"
+                value={formData.emisor_estado}
+                onChange={(event) => setFormData({ ...formData, emisor_estado: event.target.value })}
+                className={inputClass}
+                placeholder="Ciudad de México"
+              />
+            </div>
+          </div>
+        </GlassPanel>
 
-        {/* CSD Certificates Upload */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Certificados del SAT (Sello Digital)</CardTitle>
-            <CardDescription>
-              Necesarios para emitir facturas oficiales con validez fiscal
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Information Banner */}
-            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="flex items-start gap-2">
-                <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                <div className="text-sm text-blue-900 space-y-3">
-                  <p className="font-semibold text-base">¿Qué son los certificados CSD?</p>
-                  <p>
-                    Son archivos de seguridad del SAT que "firman" digitalmente tus facturas. 
-                    Sin ellos, no puedes facturar oficialmente (solo en modo prueba).
-                  </p>
-
-                  <div className="bg-white p-3 rounded border border-blue-100">
-                    <p className="font-medium mb-2">📋 Cómo conseguir tus certificados:</p>
-                    <ol className="space-y-2 ml-4">
-                      <li className="text-sm">
-                        <strong>1. Entra al portal del SAT</strong>
-                        <br />
-                        <a href="https://www.sat.gob.mx" target="_blank" className="text-blue-600 underline">www.sat.gob.mx</a> 
-                        {' '}(necesitas tu e.firma para entrar)
-                      </li>
-                      <li className="text-sm">
-                        <strong>2. Ve a "Trámites y Servicios"</strong>
-                        <br />
-                        Busca la opción "Certificado de Sello Digital" (CSD)
-                      </li>
-                      <li className="text-sm">
-                        <strong>3. Genera un nuevo certificado</strong>
-                        <br />
-                        Te va a pedir una contraseña (¡guárdala bien!)
-                      </li>
-                      <li className="text-sm">
-                        <strong>4. Descarga 2 archivos:</strong>
-                        <br />
-                        • Un archivo <code className="bg-blue-100 px-1 rounded text-xs">.cer</code> (certificado público)
-                        <br />
-                        • Un archivo <code className="bg-blue-100 px-1 rounded text-xs">.key</code> (llave privada)
-                      </li>
-                    </ol>
-                  </div>
-
-                  <div className="bg-yellow-50 p-3 rounded border border-yellow-200">
-                    <p className="text-xs text-yellow-900">
-                      <strong>⏱️ Nota:</strong> El SAT tarda entre 24 y 48 horas en generar tus certificados. 
-                      No te preocupes, puedes configurar todo lo demás mientras tanto.
-                    </p>
-                  </div>
-                </div>
+        <GlassPanel className="space-y-5 p-6">
+          <div>
+            <p className="text-xs uppercase tracking-[0.35em] text-white/60">Series y envío</p>
+            <h2 className="text-2xl font-semibold">Control de folios</h2>
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            <div>
+              <Label htmlFor="serie_default" className="text-white">
+                Serie predeterminada
+              </Label>
+              <Input
+                id="serie_default"
+                value={formData.serie_default}
+                onChange={(event) => setFormData({ ...formData, serie_default: event.target.value.toUpperCase() })}
+                className={inputClass}
+                placeholder="A"
+              />
+            </div>
+            <div>
+              <Label htmlFor="folio_inicial" className="text-white">
+                Folio inicial
+              </Label>
+              <Input
+                id="folio_inicial"
+                type="number"
+                min={1}
+                value={formData.folio_inicial}
+                onChange={(event) => setFormData({ ...formData, folio_inicial: Number(event.target.value) })}
+                className={inputClass}
+              />
+            </div>
+            <div className="flex flex-col justify-between rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div>
+                <p className="text-sm font-semibold">Enviar CFDI al paciente</p>
+                <p className="text-xs text-white/70">El sistema mandará el PDF/XML al correo del paciente automáticamente.</p>
+              </div>
+              <div className="mt-3 flex justify-end">
+                <Switch
+                  checked={formData.auto_send_email}
+                  onCheckedChange={(checked) => setFormData({ ...formData, auto_send_email: checked })}
+                />
               </div>
             </div>
+          </div>
+        </GlassPanel>
 
-            {hasCertificates ? (
-              <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <FileCheck className="h-5 w-5 text-green-600" />
-                    <div>
-                      <p className="font-medium text-green-900">Certificados CSD configurados</p>
-                      <p className="text-sm text-green-700">Sus certificados están cargados y listos para usar</p>
-                    </div>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    onClick={handleDeleteCertificates}
-                    disabled={deletingCerts}
-                  >
-                    {deletingCerts ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="mr-2 h-4 w-4" />
-                    )}
-                    Eliminar
-                  </Button>
-                </div>
-              </div>
+        <GlassPanel className="flex flex-wrap gap-3 p-6">
+          <Button type="submit" disabled={saving} className="aura-cta aura-cta--primary">
+            {saving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Guardando...
+              </>
             ) : (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="cer_file">Archivo .cer (Certificado)</Label>
-                    <Input
-                      id="cer_file"
-                      type="file"
-                      accept=".cer"
-                      onChange={(e) => setCerFile(e.target.files?.[0] || null)}
-                    />
-                    {cerFile && (
-                      <p className="text-xs text-muted-foreground">
-                        ✓ {cerFile.name} ({(cerFile.size / 1024).toFixed(2)} KB)
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="key_file">Archivo .key (Llave Privada)</Label>
-                    <Input
-                      id="key_file"
-                      type="file"
-                      accept=".key"
-                      onChange={(e) => setKeyFile(e.target.files?.[0] || null)}
-                    />
-                    {keyFile && (
-                      <p className="text-xs text-muted-foreground">
-                        ✓ {keyFile.name} ({(keyFile.size / 1024).toFixed(2)} KB)
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="key_password">Contraseña del archivo .key</Label>
-                  <Input
-                    id="key_password"
-                    type="password"
-                    value={keyPassword}
-                    onChange={(e) => setKeyPassword(e.target.value)}
-                    placeholder="••••••••"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Esta es la contraseña que proporcionó al SAT al generar el certificado CSD
-                  </p>
-                </div>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleUploadCertificates}
-                  disabled={uploadingCerts || !cerFile || !keyFile || !keyPassword}
-                >
-                  {uploadingCerts ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Upload className="mr-2 h-4 w-4" />
-                  )}
-                  Subir Certificados CSD
-                </Button>
-              </div>
+              <>Guardar configuración</>
             )}
-          </CardContent>
-        </Card>
-
-        <div className="flex justify-end gap-4">
-          <Button type="button" variant="outline" onClick={handleCancel} disabled={saving}>
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            className="rounded-2xl border border-white/15 text-white"
+            onClick={handleCancel}
+          >
             Cancelar
           </Button>
-          <Button type="submit" disabled={saving}>
-            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Guardar Configuración
-          </Button>
-        </div>
+        </GlassPanel>
       </form>
+
+      <GlassPanel className="space-y-5 p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-xs uppercase tracking-[0.35em] text-white/60">Certificados CSD</p>
+            <h2 className="text-2xl font-semibold text-white">Sube tu .cer y .key encriptados</h2>
+          </div>
+          {hasCertificates && (
+            <span className="rounded-full border border-emerald-400/40 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-100">
+              Certificados cargados
+            </span>
+          )}
+        </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          <div>
+            <Label htmlFor="cer_file" className="text-white">
+              Archivo .cer
+            </Label>
+            <Input
+              id="cer_file"
+              type="file"
+              accept=".cer"
+              className="h-12 rounded-2xl border border-white/15 bg-white/5 text-sm text-white"
+              onChange={(event) => setCerFile(event.target.files?.[0] || null)}
+            />
+          </div>
+          <div>
+            <Label htmlFor="key_file" className="text-white">
+              Archivo .key
+            </Label>
+            <Input
+              id="key_file"
+              type="file"
+              accept=".key"
+              className="h-12 rounded-2xl border border-white/15 bg-white/5 text-sm text-white"
+              onChange={(event) => setKeyFile(event.target.files?.[0] || null)}
+            />
+          </div>
+          <div>
+            <Label htmlFor="key_password" className="text-white">
+              Contraseña del .key
+            </Label>
+            <Input
+              id="key_password"
+              type="password"
+              value={keyPassword}
+              onChange={(event) => setKeyPassword(event.target.value)}
+              className={inputClass}
+              placeholder="••••••"
+            />
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          <Button
+            type="button"
+            onClick={handleUploadCertificates}
+            disabled={uploadingCerts}
+            className="aura-cta aura-cta--ghost"
+          >
+            {uploadingCerts ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Subiendo...
+              </>
+            ) : (
+              <>
+                <Upload className="mr-2 h-4 w-4" /> Subir certificados
+              </>
+            )}
+          </Button>
+          {hasCertificates && (
+            <Button
+              type="button"
+              variant="ghost"
+              className="rounded-2xl border border-rose-400/40 text-rose-200 hover:bg-rose-500/10"
+              onClick={handleDeleteCertificates}
+              disabled={deletingCerts}
+            >
+              {deletingCerts ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Eliminando...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="mr-2 h-4 w-4" /> Borrar certificados
+                </>
+              )}
+            </Button>
+          )}
+        </div>
+        <p className="text-xs text-white/60">
+          Los archivos se cifran con AES-256 y se almacenan en infraestructura redundante. Puedes eliminarlos cuando quieras.
+        </p>
+      </GlassPanel>
     </div>
   );
 }

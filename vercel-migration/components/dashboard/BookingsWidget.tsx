@@ -12,6 +12,7 @@ import {
   XCircle,
   AlertCircle
 } from 'lucide-react';
+import { GlassPanel } from '@/components/ui/glass-panel';
 
 interface Booking {
   id: string;
@@ -87,11 +88,11 @@ export default function BookingsWidget() {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'pending':
-        return <AlertCircle className="h-4 w-4 text-yellow-600" />;
+        return <AlertCircle className="h-4 w-4 text-amber-300" />;
       case 'confirmed':
-        return <CheckCircle className="h-4 w-4 text-green-600" />;
+        return <CheckCircle className="h-4 w-4 text-emerald-300" />;
       case 'cancelled':
-        return <XCircle className="h-4 w-4 text-red-600" />;
+        return <XCircle className="h-4 w-4 text-rose-300" />;
       default:
         return null;
     }
@@ -115,120 +116,133 @@ export default function BookingsWidget() {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg border-2 border-gray-200 p-6">
+      <GlassPanel className="p-6">
         <div className="animate-pulse space-y-4">
-          <div className="h-6 bg-gray-200 rounded w-1/3"></div>
-          <div className="h-20 bg-gray-200 rounded"></div>
+          <div className="h-6 rounded-full bg-white/10 w-1/3"></div>
+          <div className="h-20 rounded-2xl bg-white/5"></div>
         </div>
-      </div>
+      </GlassPanel>
     );
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-lg border-2 border-gray-200 p-6"
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <CalendarDays className="h-5 w-5 text-teal-600" />
-          <h3 className="text-lg font-semibold text-gray-900">Reservas Online</h3>
-        </div>
-        <Link
-          href="/dashboard/bookings"
-          className="text-sm text-teal-600 hover:text-teal-700 flex items-center gap-1"
-        >
-          Ver todas
-          <ArrowRight className="h-4 w-4" />
-        </Link>
-      </div>
-
-      {/* Stats */}
-      {stats && (
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
-            <div className="text-2xl font-bold text-yellow-800">{stats.pending}</div>
-            <div className="text-xs text-yellow-600">Pendientes</div>
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full">
+      <GlassPanel className="p-6 space-y-6">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-4">
+            <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-emerald-400 to-sky-500 flex items-center justify-center">
+              <CalendarDays className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-[0.35em] text-white/60">Canal online</p>
+              <h3 className="text-2xl font-semibold text-white">Reservas Online</h3>
+              <p className="text-sm text-white/70">Controla tus citas confirmadas desde la web</p>
+            </div>
           </div>
-          <div className="bg-teal-50 p-3 rounded-lg border border-teal-200">
-            <div className="text-2xl font-bold text-teal-800">{stats.today}</div>
-            <div className="text-xs text-teal-600">Para hoy</div>
+          <Link
+            href="/dashboard/bookings"
+            className="flex items-center gap-2 text-sm text-white/80 hover:text-white"
+          >
+            Ver todas
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+
+        {stats && (
+          <div className="grid gap-4 md:grid-cols-2">
+            {[{
+              label: 'Pendientes',
+              value: stats.pending,
+              tone: 'from-amber-300/30 via-amber-500/20 to-transparent',
+              badge: 'Sin confirmar'
+            }, {
+              label: 'Para hoy',
+              value: stats.today,
+              tone: 'from-teal-300/30 via-sky-500/20 to-transparent',
+              badge: 'Agenda del día'
+            }].map(({ label, value, tone, badge }) => (
+              <div
+                key={label}
+                className={`rounded-2xl border border-white/10 bg-gradient-to-br ${tone} p-4`}
+              >
+                <p className="text-xs uppercase tracking-[0.35em] text-white/60">{label}</p>
+                <p className="mt-2 text-3xl font-semibold text-white">{value}</p>
+                <p className="text-sm text-white/70">{badge}</p>
+              </div>
+            ))}
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Recent Bookings */}
-      {recentBookings.length === 0 ? (
-        <div className="text-center py-8 text-gray-500 text-sm">
-          No hay reservas recientes
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {recentBookings.map((booking) => (
-            <div
-              key={booking.id}
-              className="p-3 bg-gray-50 rounded-lg border border-gray-200 hover:border-teal-500 transition-colors"
-            >
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <User className="h-4 w-4 text-gray-600" />
-                  <span className="font-medium text-sm text-gray-900">
-                    {booking.patient_name}
-                  </span>
-                  {getStatusIcon(booking.status)}
-                </div>
-              </div>
-              
-              <div className="text-xs text-gray-600 mb-2">
-                {booking.service_name}
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3 text-xs text-gray-600">
-                  <span className="flex items-center gap-1">
-                    <CalendarDays className="h-3 w-3" />
-                    {formatDate(booking.booking_date)}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    {formatTime(booking.booking_time)}
-                  </span>
+        {recentBookings.length === 0 ? (
+          <div className="rounded-2xl border border-white/10 bg-white/5 py-10 text-center text-sm text-white/60">
+            No hay reservas recientes
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {recentBookings.map((booking) => (
+              <div
+                key={booking.id}
+                className="rounded-2xl border border-white/10 bg-white/5 p-4 transition-colors hover:border-emerald-300/60"
+              >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-white/10 flex items-center justify-center">
+                      <User className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-white">{booking.patient_name}</p>
+                      <p className="text-sm text-white/70">{booking.service_name}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="flex items-center gap-1 text-white/70">
+                      <CalendarDays className="h-3.5 w-3.5" />
+                      {formatDate(booking.booking_date)}
+                    </span>
+                    <span className="flex items-center gap-1 text-white/70">
+                      <Clock className="h-3.5 w-3.5" />
+                      {formatTime(booking.booking_time)}
+                    </span>
+                    <span className="flex items-center gap-1 rounded-full border border-white/15 px-2 py-0.5 text-white/70">
+                      {getStatusIcon(booking.status)}
+                      <span className="capitalize">{booking.status}</span>
+                    </span>
+                  </div>
                 </div>
 
                 {booking.status === 'pending' && (
-                  <div className="flex gap-1">
+                  <div className="mt-3 flex gap-2">
                     <button
                       onClick={() => quickAction(booking.id, 'confirmed')}
-                      className="p-1 bg-green-100 hover:bg-green-200 rounded"
+                      className="flex items-center gap-2 rounded-full border border-white/10 bg-emerald-500/20 px-3 py-1 text-sm font-medium text-emerald-100 transition hover:bg-emerald-400/30"
                       title="Confirmar"
                     >
-                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      <CheckCircle className="h-4 w-4" />
+                      Confirmar
                     </button>
                     <button
                       onClick={() => quickAction(booking.id, 'cancelled')}
-                      className="p-1 bg-red-100 hover:bg-red-200 rounded"
+                      className="flex items-center gap-2 rounded-full border border-white/10 bg-rose-500/20 px-3 py-1 text-sm font-medium text-rose-100 transition hover:bg-rose-400/30"
                       title="Cancelar"
                     >
-                      <XCircle className="h-4 w-4 text-red-600" />
+                      <XCircle className="h-4 w-4" />
+                      Cancelar
                     </button>
                   </div>
                 )}
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
 
-      {/* CTA */}
-      <Link
-        href="/dashboard/bookings"
-        className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 transition-colors text-sm"
-      >
-        Gestionar todas las reservas
-        <ArrowRight className="h-4 w-4" />
-      </Link>
+        <Link
+          href="/dashboard/bookings"
+          className="flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-emerald-300 via-sky-300 to-violet-300 px-5 py-3 text-sm font-semibold text-slate-900 shadow-[0_15px_40px_rgba(56,189,248,0.35)] transition hover:-translate-y-0.5"
+        >
+          Gestionar todas las reservas
+          <ArrowRight className="h-4 w-4" />
+        </Link>
+      </GlassPanel>
     </motion.div>
   );
 }

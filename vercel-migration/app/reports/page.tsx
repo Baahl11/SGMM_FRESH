@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { GlassPanel } from "@/components/ui/glass-panel";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { safeSort, asArray } from "@/lib/safe";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -964,442 +966,413 @@ export default function ReportsPage() {
 
   return (
     <AppLayout>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg p-6 border border-white/20 mb-8">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center">
-                <svg className="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 00-2-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
-                  Reportes Financieros
-                </h1>
-                <p className="text-gray-600">Análisis detallado del rendimiento financiero</p>
-              </div>
+      <div className="min-h-screen bg-[#020617]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        {/* Hero Header */}
+        <GlassPanel className="relative overflow-hidden p-8 text-white">
+          <div className="pointer-events-none absolute inset-0 opacity-60">
+            <div className="absolute -top-32 right-0 h-72 w-72 rounded-full bg-indigo-400/30 blur-[140px]" />
+            <div className="absolute -bottom-40 left-0 h-72 w-72 rounded-full bg-purple-400/30 blur-[160px]" />
+          </div>
+          
+          <div className="relative space-y-4">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-1.5">
+              <BarChart3 className="h-4 w-4" />
+              <span className="text-sm font-medium">Analytics</span>
             </div>
-            <div className="flex items-center gap-3">
+            
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-400 to-purple-500 shadow-lg">
+                  <BarChart3 className="h-8 w-8 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-4xl font-bold">Reportes Financieros</h1>
+                  <p className="mt-1 text-white/80">Análisis detallado del rendimiento financiero</p>
+                </div>
+              </div>
+              
               <select 
                 value={selectedPeriod} 
                 onChange={(e) => setSelectedPeriod(e.target.value)}
-                className="bg-white border border-gray-200 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="glass-select"
               >
                 <option value="monthly12">Últimos 12 meses</option>
               </select>
             </div>
           </div>
-        </div>
+        </GlassPanel>
 
         {/* Error State */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-6 mb-8">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+          <GlassPanel className="border border-rose-400/30 bg-rose-500/10 p-6 text-rose-50">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full border border-rose-300/40 bg-rose-500/20">
+                  <AlertCircle className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold">Error al cargar reportes</h3>
+                  <p className="text-sm text-rose-100/80">{error}</p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold text-red-900">Error al cargar reportes</h3>
-                <p className="text-red-700 text-sm mt-1">{error}</p>
-                <button 
-                  onClick={loadReportData}
-                  className="mt-3 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
-                >
-                  Reintentar
-                </button>
-              </div>
+              <button
+                onClick={loadReportData}
+                className="aura-cta aura-cta--ghost"
+              >
+                Reintentar carga
+              </button>
             </div>
-          </div>
+          </GlassPanel>
         )}
 
         {/* Loading State */}
         {loading && (
-          <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-12 text-center mb-8">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-            <h3 className="font-semibold text-gray-900 mb-2">Cargando reportes...</h3>
-            <p className="text-gray-600 text-sm">Procesando datos financieros</p>
-          </div>
+          <GlassPanel className="border-white/10 p-12 text-center text-white">
+            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-indigo-300"></div>
+            <h3 className="text-lg font-semibold">Cargando reportes...</h3>
+            <p className="text-sm text-white/70">Procesando datos financieros</p>
+          </GlassPanel>
         )}
 
         {/* Content */}
         {!loading && !error && (
           <>
             {/* KPI Cards */}
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
-              <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg p-6 border border-white/20">
+            <div className="mb-8 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+              <GlassPanel className="border-white/10 p-6 text-white">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600 mb-1">Ingresos Hoy</p>
-                    <p className="text-2xl font-bold text-blue-600">
-                      {formatCurrency(reportData.todayMetrics.revenue)}
-                    </p>
+                    <p className="text-sm uppercase tracking-[0.3em] text-white/50">Ingresos hoy</p>
+                    <p className="text-3xl font-semibold">{formatCurrency(reportData.todayMetrics.revenue)}</p>
                   </div>
-                  <div className="p-3 rounded-xl bg-gradient-to-r from-blue-500 to-purple-500 text-white">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
+                  <div className="rounded-2xl border border-white/20 bg-gradient-to-br from-sky-500/40 to-indigo-500/40 p-3">
+                    <Calendar className="h-5 w-5" />
                   </div>
                 </div>
-              </div>
+              </GlassPanel>
 
-              <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg p-6 border border-white/20">
+              <GlassPanel className="border-white/10 p-6 text-white">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600 mb-1">Ingresos Totales</p>
-                    <p className="text-2xl font-bold text-green-600">
-                      {formatCurrency(totalRevenueSelected)}
-                    </p>
+                    <p className="text-sm uppercase tracking-[0.3em] text-white/50">Ingresos totales</p>
+                    <p className="text-3xl font-semibold text-emerald-200">{formatCurrency(totalRevenueSelected)}</p>
                   </div>
-                  <div className="p-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 text-white">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                    </svg>
+                  <div className="rounded-2xl border border-white/20 bg-gradient-to-br from-emerald-500/40 to-teal-500/40 p-3">
+                    <DollarSign className="h-5 w-5" />
                   </div>
                 </div>
-              </div>
+              </GlassPanel>
 
-              <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg p-6 border border-white/20">
+              <GlassPanel className="border-white/10 p-6 text-white">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600 mb-1">Ganancia Neta</p>
-                    <p className="text-2xl font-bold text-purple-600">
-                      {formatCurrency(totalProfitSelected)}
-                    </p>
+                    <p className="text-sm uppercase tracking-[0.3em] text-white/50">Ganancia neta</p>
+                    <p className="text-3xl font-semibold text-fuchsia-200">{formatCurrency(totalProfitSelected)}</p>
                   </div>
-                  <div className="p-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                    </svg>
+                  <div className="rounded-2xl border border-white/20 bg-gradient-to-br from-fuchsia-500/40 to-purple-500/40 p-3">
+                    <TrendingUp className="h-5 w-5" />
                   </div>
                 </div>
-              </div>
+              </GlassPanel>
 
-              <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg p-6 border border-white/20">
+              <GlassPanel className="border-white/10 p-6 text-white">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600 mb-1">Facturación</p>
-                    <p className="text-2xl font-bold text-orange-600">
-                      {reportData.billingAnalysis.billedPercentage.toFixed(1)}%
-                    </p>
+                    <p className="text-sm uppercase tracking-[0.3em] text-white/50">Facturación</p>
+                    <p className="text-3xl font-semibold text-orange-200">{reportData.billingAnalysis.billedPercentage.toFixed(1)}%</p>
                   </div>
-                  <div className="p-3 rounded-xl bg-gradient-to-r from-orange-500 to-red-500 text-white">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
+                  <div className="rounded-2xl border border-white/20 bg-gradient-to-br from-orange-500/40 to-rose-500/40 p-3">
+                    <FileText className="h-5 w-5" />
                   </div>
                 </div>
-              </div>
+              </GlassPanel>
             </div>
 
             {/* Visualizaciones principales */}
-            <div className="grid gap-6 md:grid-cols-2 mb-8">
+            <div className="mb-8 grid gap-6 md:grid-cols-2">
               <motion.div
-                className="relative overflow-hidden rounded-3xl border border-white/30 bg-white/80 p-6 shadow-xl shadow-indigo-500/5 backdrop-blur"
+                className="relative"
                 initial={{ opacity: 0, y: 24 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.45, ease: "easeOut", delay: 0.05 }}
               >
-                <div className="absolute inset-x-0 -top-16 h-32 bg-gradient-to-br from-indigo-200/30 via-transparent to-transparent blur-3xl" />
-                <div className="relative mb-6 flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.2em] text-indigo-500/80">Rendimiento consolidado</p>
-                    <h3 className="text-2xl font-semibold text-slate-900">
-                      Ingresos — {getPeriodLabel()}
-                    </h3>
-                    <p className="text-sm text-slate-500">Comparativa de ingresos, costos y utilidad neta</p>
-                  </div>
-                  {hasRevenueData && (
-                    <div className="grid gap-2 text-right text-xs font-medium text-slate-500">
-                      <div className="rounded-xl bg-indigo-50 px-3 py-2">
-                        <span className="block text-xs font-semibold uppercase tracking-widest text-indigo-500">Ingresos</span>
-                        <span className="text-sm font-bold text-indigo-600">{formatCurrencyCompact(totalRevenueSelected)}</span>
-                      </div>
-                      <div className="rounded-xl bg-rose-50 px-3 py-2">
-                        <span className="block text-xs font-semibold uppercase tracking-widest text-rose-500">Costos</span>
-                        <span className="text-sm font-bold text-rose-500">{formatCurrencyCompact(totalCostsSelected)}</span>
-                      </div>
-                      <div className="rounded-xl bg-emerald-50 px-3 py-2">
-                        <span className="block text-xs font-semibold uppercase tracking-widest text-emerald-500">Utilidad</span>
-                        <span className="text-sm font-bold text-emerald-500">{formatCurrencyCompact(totalProfitSelected)}</span>
-                      </div>
+                <GlassPanel className="relative overflow-hidden border-white/10 p-6 text-white">
+                  <div className="absolute inset-x-0 -top-16 h-32 bg-gradient-to-br from-indigo-500/30 via-transparent to-transparent blur-3xl" />
+                  <div className="relative mb-6 flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.2em] text-white/60">Rendimiento consolidado</p>
+                      <h3 className="text-2xl font-semibold">Ingresos — {getPeriodLabel()}</h3>
+                      <p className="text-sm text-white/70">Comparativa de ingresos, costos y utilidad neta</p>
                     </div>
-                  )}
-                </div>
-                <div className="relative h-72">
-                  {isClient ? renderRevenueChart() : renderChartLoading()}
-                </div>
+                    {hasRevenueData && (
+                      <div className="grid gap-2 text-right text-xs font-medium text-white/70">
+                        <div className="rounded-xl border border-white/10 bg-white/10 px-3 py-2">
+                          <span className="block text-xs font-semibold uppercase tracking-widest text-indigo-100">Ingresos</span>
+                          <span className="text-sm font-bold text-indigo-200">{formatCurrencyCompact(totalRevenueSelected)}</span>
+                        </div>
+                        <div className="rounded-xl border border-white/10 bg-white/10 px-3 py-2">
+                          <span className="block text-xs font-semibold uppercase tracking-widest text-rose-100">Costos</span>
+                          <span className="text-sm font-bold text-rose-100">{formatCurrencyCompact(totalCostsSelected)}</span>
+                        </div>
+                        <div className="rounded-xl border border-white/10 bg-white/10 px-3 py-2">
+                          <span className="block text-xs font-semibold uppercase tracking-widest text-emerald-100">Utilidad</span>
+                          <span className="text-sm font-bold text-emerald-100">{formatCurrencyCompact(totalProfitSelected)}</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="relative h-72">
+                    {isClient ? renderRevenueChart() : renderChartLoading()}
+                  </div>
+                </GlassPanel>
               </motion.div>
 
               <motion.div
-                className="relative overflow-hidden rounded-3xl border border-white/30 bg-white/80 p-6 shadow-xl shadow-purple-500/5 backdrop-blur"
+                className="relative"
                 initial={{ opacity: 0, y: 24 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.45, ease: "easeOut", delay: 0.12 }}
               >
-                <div className="absolute inset-x-0 -top-16 h-32 bg-gradient-to-br from-purple-300/30 via-transparent to-transparent blur-3xl" />
-                <div className="relative mb-6 flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.2em] text-purple-500/80">Mix de pagos</p>
-                    <h3 className="text-2xl font-semibold text-slate-900">Métodos de Pago</h3>
-                    <p className="text-sm text-slate-500">Distribución y pesos relativos por canal de cobro</p>
+                <GlassPanel className="relative overflow-hidden border-white/10 p-6 text-white">
+                  <div className="absolute inset-x-0 -top-16 h-32 bg-gradient-to-br from-purple-500/30 via-transparent to-transparent blur-3xl" />
+                  <div className="relative mb-6">
+                    <p className="text-xs uppercase tracking-[0.2em] text-white/60">Mix de pagos</p>
+                    <h3 className="text-2xl font-semibold">Métodos de pago</h3>
+                    <p className="text-sm text-white/70">Distribución y pesos relativos por canal de cobro</p>
                   </div>
-                </div>
-                <div className="relative h-72">
-                  {isClient ? renderPaymentMethodsChart() : renderChartLoading()}
-                </div>
+                  <div className="relative h-72">
+                    {isClient ? renderPaymentMethodsChart() : renderChartLoading()}
+                  </div>
+                </GlassPanel>
               </motion.div>
             </div>
 
             {/* Variable Expenses by Category */}
             <motion.div
-              className="rounded-3xl border border-white/30 bg-white/80 p-6 shadow-xl shadow-orange-500/5 backdrop-blur"
+              className="relative"
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.45, ease: "easeOut", delay: 0.18 }}
             >
-              <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/30">
-                    <Receipt className="h-5 w-5" />
+              <GlassPanel className="border-white/10 p-6 text-white">
+                <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-gradient-to-br from-orange-500/40 to-amber-400/40 text-white">
+                      <Receipt className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-semibold">Gastos variables por categoría</h3>
+                      <p className="text-sm text-white/70">Visualiza dónde se concentran los gastos extraordinarios</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-2xl font-semibold text-slate-900">Gastos variables por categoría</h3>
-                    <p className="text-sm text-slate-500">Visualiza dónde se concentran los gastos extraordinarios</p>
-                  </div>
+                  {hasVariableExpensesData && (
+                    <span className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white">
+                      Total: {formatCurrency(totalVariableExpenses)}
+                    </span>
+                  )}
                 </div>
-                {hasVariableExpensesData && (
-                  <span className="rounded-full bg-orange-50 px-4 py-2 text-sm font-semibold text-orange-600">
-                    Total: {formatCurrency(totalVariableExpenses)}
-                  </span>
-                )}
-              </div>
 
-              {hasVariableExpensesData ? (
-                <div className="space-y-5">
-                  {variableExpensesByCategory.map((category, index) => {
-                    const percentage = totalVariableExpenses > 0 ? (category.value / totalVariableExpenses) * 100 : 0;
-                    const clampedPercentage = Math.max(0, Math.min(percentage, 100));
-                    return (
-                      <motion.div
-                        key={`${category.name}-${index}`}
-                        initial={{ opacity: 0, y: 12 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.35, delay: index * 0.05 }}
-                        className="rounded-2xl border border-slate-100/70 bg-white/70 p-4 backdrop-blur"
-                      >
-                        <div className="flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-3">
-                            <span
-                              className="h-3.5 w-3.5 rounded-full"
+                {hasVariableExpensesData ? (
+                  <div className="space-y-5">
+                    {variableExpensesByCategory.map((category, index) => {
+                      const percentage = totalVariableExpenses > 0 ? (category.value / totalVariableExpenses) * 100 : 0;
+                      const clampedPercentage = Math.max(0, Math.min(percentage, 100));
+                      return (
+                        <motion.div
+                          key={`${category.name}-${index}`}
+                          initial={{ opacity: 0, y: 12 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.35, delay: index * 0.05 }}
+                          className="rounded-2xl border border-white/10 bg-white/5 p-4"
+                        >
+                          <div className="flex items-center justify-between text-sm">
+                            <div className="flex items-center gap-3">
+                              <span
+                                className="h-3.5 w-3.5 rounded-full"
+                                style={{ backgroundColor: category.color }}
+                              />
+                              <span className="font-medium text-white">{category.name}</span>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-semibold text-white">{formatCurrency(category.value)}</p>
+                              <p className="text-xs text-white/60">{clampedPercentage.toFixed(1)}%</p>
+                            </div>
+                          </div>
+                          <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-white/10">
+                            <motion.div
+                              className="h-full rounded-full"
                               style={{ backgroundColor: category.color }}
+                              initial={{ width: 0 }}
+                              animate={{ width: `${clampedPercentage}%` }}
+                              transition={{ duration: 0.6, delay: index * 0.05 + 0.1 }}
                             />
-                            <span className="font-medium text-slate-700">{category.name}</span>
                           </div>
-                          <div className="text-right">
-                            <p className="font-semibold text-slate-900">{formatCurrency(category.value)}</p>
-                            <p className="text-xs text-slate-500">{clampedPercentage.toFixed(1)}%</p>
-                          </div>
-                        </div>
-                        <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-slate-100/80">
-                          <motion.div
-                            className="h-full rounded-full"
-                            style={{ backgroundColor: category.color }}
-                            initial={{ width: 0 }}
-                            animate={{ width: `${clampedPercentage}%` }}
-                            transition={{ duration: 0.6, delay: index * 0.05 + 0.1 }}
-                          />
-                        </div>
-                      </motion.div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <ChartEmptyState
-                  title="Aún no registras gastos variables"
-                  description="Conecta tus compras extraordinarias y adjunta comprobantes para monitorear cada categoría y detectar desvíos."
-                  icon={<Receipt className="h-8 w-8" />}
-                />
-              )}
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <ChartEmptyState
+                    title="Aún no registras gastos variables"
+                    description="Conecta tus compras extraordinarias y adjunta comprobantes para monitorear cada categoría y detectar desvíos."
+                    icon={<Receipt className="h-8 w-8" />}
+                  />
+                )}
+              </GlassPanel>
             </motion.div>
 
             {/* Top Treatments */}
-            <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg p-6 border border-white/20">
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">
-                Tratamientos Más Rentables
-              </h3>
+            <GlassPanel className="border-white/10 p-6 text-white">
+              <h3 className="mb-4 text-xl font-semibold">Tratamientos más rentables</h3>
               <div className="space-y-4">
                 {reportData.topTreatments.length > 0 ? (
                   reportData.topTreatments.map((treatment, index) => (
-                    <div key={index} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                    <div key={index} className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-gradient-to-br from-blue-500/40 to-purple-500/40 text-white font-semibold">
                           {index + 1}
                         </div>
                         <div>
                           <p className="font-medium">{treatment.name}</p>
-                          <p className="text-sm text-gray-500">
+                          <p className="text-sm text-white/60">
                             {treatment.count} {treatment.count === 1 ? 'aplicación' : 'aplicaciones'}
                           </p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-bold text-green-600">{formatCurrency(treatment.revenue)}</p>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-lg font-semibold text-emerald-200">{formatCurrency(treatment.revenue)}</p>
+                        <p className="text-xs text-white/60">
                           {formatCurrency(treatment.revenue / treatment.count)} promedio
                         </p>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div className="text-center py-8">
-                    <svg className="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-                    </svg>
-                    <p className="text-gray-500">No hay datos de tratamientos</p>
+                  <div className="rounded-2xl border border-dashed border-white/20 px-6 py-12 text-center text-white/70">
+                    <Stethoscope className="mx-auto mb-4 h-10 w-10 text-white/60" />
+                    No hay datos de tratamientos
                   </div>
                 )}
               </div>
-            </div>
+            </GlassPanel>
           </>
         )}
 
         {/* Facturación Electrónica (CFDI) Section */}
         {!loading && !error && billingStats && (
-          <div className="mt-12">
-            {/* Section Header */}
-            <div className="bg-gradient-to-r from-purple-500 to-indigo-600 rounded-2xl shadow-lg p-6 mb-8 text-white">
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 bg-white/20 rounded-xl flex items-center justify-center">
+          <div className="mt-12 space-y-8">
+            <GlassPanel className="relative overflow-hidden border-white/10 p-6 text-white">
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-purple-600/30 to-indigo-600/20" />
+              <div className="relative flex items-center gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-white/20 bg-white/10">
                   <FileText className="h-6 w-6" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold">Facturación Electrónica (CFDI 4.0)</h2>
-                  <p className="text-purple-100">Análisis de facturas emitidas con validez fiscal ante el SAT</p>
+                  <h2 className="text-2xl font-bold">Facturación electrónica (CFDI 4.0)</h2>
+                  <p className="text-sm text-white/70">Análisis de facturas emitidas con validez fiscal ante el SAT</p>
                 </div>
               </div>
-            </div>
+            </GlassPanel>
 
             {/* Billing KPIs */}
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
-              <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg p-6 border border-white/20">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+              <GlassPanel className="border-white/10 p-6 text-white">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600 mb-1">Total Facturado</p>
-                    <p className="text-2xl font-bold text-purple-600">
-                      {formatCurrency(billingStats.summary.totalAmount)}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-sm uppercase tracking-[0.3em] text-white/50">Total facturado</p>
+                    <p className="text-3xl font-semibold text-purple-200">{formatCurrency(billingStats.summary.totalAmount)}</p>
+                    <p className="text-xs text-white/60">
                       {billingStats.summary.totalCount} {billingStats.summary.totalCount === 1 ? 'factura' : 'facturas'}
                     </p>
                   </div>
-                  <div className="p-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white">
+                  <div className="rounded-2xl border border-white/20 bg-gradient-to-br from-purple-500/40 to-pink-500/40 p-3">
                     <Receipt className="w-6 h-6" />
                   </div>
                 </div>
-              </div>
+              </GlassPanel>
 
-              <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg p-6 border border-white/20">
+              <GlassPanel className="border-white/10 p-6 text-white">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600 mb-1">Este Mes</p>
-                    <p className="text-2xl font-bold text-blue-600">
-                      {formatCurrency(billingStats.summary.currentMonthTotal)}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {billingStats.summary.currentMonthCount} facturas
-                    </p>
+                    <p className="text-sm uppercase tracking-[0.3em] text-white/50">Este mes</p>
+                    <p className="text-3xl font-semibold text-sky-200">{formatCurrency(billingStats.summary.currentMonthTotal)}</p>
+                    <p className="text-xs text-white/60">{billingStats.summary.currentMonthCount} facturas</p>
                   </div>
-                  <div className="p-3 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 text-white">
+                  <div className="rounded-2xl border border-white/20 bg-gradient-to-br from-sky-500/40 to-cyan-500/40 p-3">
                     <Calendar className="w-6 h-6" />
                   </div>
                 </div>
-              </div>
+              </GlassPanel>
 
-              <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg p-6 border border-white/20">
+              <GlassPanel className="border-white/10 p-6 text-white">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600 mb-1">Promedio</p>
-                    <p className="text-2xl font-bold text-green-600">
-                      {formatCurrency(billingStats.summary.averageAmount)}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">por factura</p>
+                    <p className="text-sm uppercase tracking-[0.3em] text-white/50">Promedio</p>
+                    <p className="text-3xl font-semibold text-emerald-200">{formatCurrency(billingStats.summary.averageAmount)}</p>
+                    <p className="text-xs text-white/60">por factura</p>
                   </div>
-                  <div className="p-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 text-white">
+                  <div className="rounded-2xl border border-white/20 bg-gradient-to-br from-emerald-500/40 to-teal-500/40 p-3">
                     <TrendingUp className="w-6 h-6" />
                   </div>
                 </div>
-              </div>
+              </GlassPanel>
 
-              <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg p-6 border border-white/20">
+              <GlassPanel className="border-white/10 p-6 text-white">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600 mb-1">Enviadas</p>
-                    <p className="text-2xl font-bold text-indigo-600">
-                      {billingStats.statusBreakdown.sent}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      de {billingStats.summary.totalCount} total
-                    </p>
+                    <p className="text-sm uppercase tracking-[0.3em] text-white/50">Enviadas</p>
+                    <p className="text-3xl font-semibold text-indigo-200">{billingStats.statusBreakdown.sent}</p>
+                    <p className="text-xs text-white/60">de {billingStats.summary.totalCount} total</p>
                   </div>
-                  <div className="p-3 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 text-white">
+                  <div className="rounded-2xl border border-white/20 bg-gradient-to-br from-indigo-500/40 to-purple-500/40 p-3">
                     <Mail className="w-6 h-6" />
                   </div>
                 </div>
-              </div>
+              </GlassPanel>
             </div>
 
             {/* Billing Trend Chart */}
-            <div className="grid gap-6 md:grid-cols-2 mb-8">
-              <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg p-6 border border-white/20 md:col-span-2">
-                <h3 className="text-xl font-semibold text-gray-900 mb-4">
-                  Tendencia de Facturación (Últimos 6 meses)
-                </h3>
-                <div className="h-80">
-                  {isClient ? renderBillingTrendChart() : renderChartLoading()}
-                </div>
+            <GlassPanel className="border-white/10 p-6 text-white">
+              <h3 className="text-xl font-semibold">Tendencia de facturación (últimos 6 meses)</h3>
+              <div className="mt-4 h-80">
+                {isClient ? renderBillingTrendChart() : renderChartLoading()}
               </div>
-            </div>
+            </GlassPanel>
 
             {/* Top Patients by Billing */}
-            <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg p-6 border border-white/20">
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">
-                Top 10 Pacientes por Facturación
-              </h3>
+            <GlassPanel className="border-white/10 p-6 text-white">
+              <h3 className="mb-4 text-xl font-semibold">Top 10 pacientes por facturación</h3>
               <div className="space-y-4">
                 {billingStats.topPatients.map((patient, index) => (
-                  <div key={patient.patient_id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                  <div key={patient.patient_id} className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-gradient-to-br from-purple-500/40 to-indigo-500/40 text-white font-semibold">
                         {index + 1}
                       </div>
                       <div>
                         <p className="font-medium">{patient.name}</p>
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-white/60">
                           {patient.count} {patient.count === 1 ? 'factura' : 'facturas'}
                         </p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="font-bold text-purple-600">{formatCurrency(patient.total)}</p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-lg font-semibold text-purple-200">{formatCurrency(patient.total)}</p>
+                      <p className="text-xs text-white/60">
                         {formatCurrency(patient.total / patient.count)} promedio
                       </p>
                     </div>
                   </div>
                 ))}
                 {billingStats.topPatients.length === 0 && (
-                  <div className="text-center py-8">
-                    <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500">No hay facturas emitidas</p>
+                  <div className="rounded-2xl border border-dashed border-white/20 px-6 py-12 text-center text-white/70">
+                    <FileText className="mx-auto mb-4 h-10 w-10 text-white/60" />
+                    No hay facturas emitidas
                   </div>
                 )}
               </div>
-            </div>
+            </GlassPanel>
           </div>
         )}
         </div>

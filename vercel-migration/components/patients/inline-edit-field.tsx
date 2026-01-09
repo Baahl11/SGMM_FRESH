@@ -82,7 +82,7 @@ export function InlineEditField({
   if (isEditing) {
     return (
       <div>
-        <p className="text-sm text-gray-600 mb-1">{label}</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/50 mb-2">{label}</p>
         <div className="flex items-start gap-2">
           <div className="flex-1">
             <input
@@ -91,16 +91,16 @@ export function InlineEditField({
               value={editValue}
               onChange={(e) => setEditValue(e.target.value)}
               onKeyDown={handleKeyDown}
-              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+              className={`w-full rounded-2xl border bg-white/5 px-4 py-3 text-sm text-white placeholder-white/40 shadow-inner focus:outline-none focus:ring-2 ${
                 error
-                  ? "border-red-300 focus:ring-red-500"
-                  : "border-gray-300 focus:ring-blue-500"
+                  ? "border-red-400/60 focus:ring-red-300"
+                  : "border-white/20 focus:ring-emerald-300"
               }`}
               placeholder={placeholder}
               disabled={isSaving}
             />
             {error && (
-              <div className="flex items-center gap-1 mt-1 text-sm text-red-600">
+              <div className="mt-2 flex items-center gap-1 text-sm text-red-300">
                 <AlertCircle className="h-4 w-4" />
                 <span>{error}</span>
               </div>
@@ -110,7 +110,7 @@ export function InlineEditField({
             <button
               onClick={handleSave}
               disabled={isSaving}
-              className="p-2 text-green-600 hover:bg-green-50 rounded-md transition-colors disabled:opacity-50"
+              className="rounded-xl border border-white/20 p-2 text-emerald-200 transition hover:bg-white/10 disabled:opacity-50"
               title="Guardar"
             >
               <Check className="h-4 w-4" />
@@ -118,7 +118,7 @@ export function InlineEditField({
             <button
               onClick={handleCancel}
               disabled={isSaving}
-              className="p-2 text-red-600 hover:bg-red-50 rounded-md transition-colors disabled:opacity-50"
+              className="rounded-xl border border-white/20 p-2 text-rose-200 transition hover:bg-white/10 disabled:opacity-50"
               title="Cancelar"
             >
               <X className="h-4 w-4" />
@@ -131,21 +131,21 @@ export function InlineEditField({
 
   return (
     <div>
-      <p className="text-sm text-gray-600">{label}</p>
+      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/50">{label}</p>
       <div className="flex items-center gap-2 group">
         <p
-          className={`font-medium ${
-            isEmpty ? "text-gray-400 italic" : "text-gray-900"
+          className={`font-semibold ${
+            isEmpty ? "text-white/40 italic" : "text-white"
           }`}
         >
           {isEmpty ? "No especificado" : value}
         </p>
         <button
           onClick={() => setIsEditing(true)}
-          className={`p-1 rounded-md transition-all ${
+          className={`rounded-xl border border-transparent p-1.5 text-white/50 transition ${
             isEmpty
-              ? "text-yellow-600 hover:bg-yellow-50"
-              : "text-gray-400 opacity-0 group-hover:opacity-100 hover:bg-gray-100"
+              ? "text-amber-300 hover:border-amber-200/40 hover:bg-amber-500/10"
+              : "opacity-0 group-hover:opacity-100 hover:border-white/20 hover:bg-white/10"
           }`}
           title={isEmpty ? "Agregar información" : "Editar"}
         >
@@ -153,7 +153,7 @@ export function InlineEditField({
         </button>
         {isEmpty && (
           <span title="Información faltante">
-            <AlertCircle className="h-4 w-4 text-yellow-500" />
+            <AlertCircle className="h-4 w-4 text-amber-300" />
           </span>
         )}
       </div>

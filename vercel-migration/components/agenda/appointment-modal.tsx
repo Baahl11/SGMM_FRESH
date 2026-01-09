@@ -509,13 +509,13 @@ export default function AppointmentModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto backdrop-blur-xl bg-gradient-to-br from-white/95 via-white/90 to-white/95 border border-white/20 shadow-2xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
+          <DialogTitle className="flex items-center gap-2 text-gray-900">
+            <Calendar className="h-5 w-5 text-purple-600" />
             {selectedAppointment ? "Editar Cita" : "Nueva Cita"}
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-gray-600">
             {selectedAppointment 
               ? "Modifica los detalles de la cita existente." 
               : "Completa la información para agendar una nueva cita médica."

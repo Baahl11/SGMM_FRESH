@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { MessageSquare, Eye, EyeOff, CheckCircle, AlertCircle, Loader2, ExternalLink } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { GlassPanel } from '@/components/ui/glass-panel';
 
 interface TwilioCredentials {
   account_sid: string;
@@ -79,152 +80,128 @@ export function TwilioCredentialsSection() {
     }
   };
 
+  const inputClass = 'w-full rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-white placeholder:text-white/40 focus:border-white/40 focus:outline-none';
+
   if (loading) {
     return (
-      <div className="bg-white rounded-lg border-2 border-gray-200 p-6 mb-6">
-        <div className="flex items-center justify-center py-8">
-          <Loader2 className="h-6 w-6 animate-spin text-teal-600" />
-        </div>
-      </div>
+      <GlassPanel className="flex items-center justify-center border-white/10 bg-white/5 py-10">
+        <Loader2 className="h-6 w-6 animate-spin text-emerald-300" />
+      </GlassPanel>
     );
   }
 
   return (
-    <div className="bg-white rounded-lg border-2 border-gray-200 p-6 mb-6">
-      <div className="flex items-center gap-2 mb-4">
-        <MessageSquare className="h-5 w-5 text-teal-600" />
-        <h3 className="text-lg font-semibold text-gray-900">Credenciales de Twilio SMS</h3>
+    <GlassPanel className="space-y-5 border-white/10 bg-white/5 p-6 text-white">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2 text-sm uppercase tracking-[0.35em] text-white/60">
+          <MessageSquare className="h-4 w-4 text-emerald-200" />
+          Twilio SMS
+        </div>
         {isConfigured && (
-          <span className="ml-auto flex items-center gap-1 text-sm text-green-600">
-            <CheckCircle className="h-4 w-4" />
-            Configurado
+          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/40 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-100">
+            <CheckCircle className="h-3.5 w-3.5" /> Configurado
           </span>
         )}
       </div>
 
-      <p className="text-sm text-gray-600 mb-4">
-        Configura tus credenciales de Twilio para enviar recordatorios por SMS a tus pacientes
+      <p className="text-sm text-white/70">
+        Activa recordatorios por SMS conectando tu propia cuenta de Twilio. Utilizamos tus credenciales encriptadas y solo se emplean para enviar mensajes automatizados.
       </p>
 
-      {/* Info Alert */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 flex items-start gap-3">
-        <AlertCircle className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
-        <div className="text-sm text-blue-900">
-          <p className="font-medium mb-1">¿Cómo obtener tus credenciales de Twilio?</p>
-          <ol className="list-decimal list-inside space-y-1 text-blue-800">
-            <li>Crea una cuenta en <a href="https://www.twilio.com" target="_blank" rel="noopener noreferrer" className="underline font-medium">twilio.com</a></li>
-            <li>Ve a la consola y copia tu <strong>Account SID</strong> y <strong>Auth Token</strong></li>
-            <li>Compra un número de teléfono en Twilio para enviar SMS</li>
-            <li>Pega las credenciales aquí y guarda</li>
-          </ol>
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/80">
+        <div className="flex items-start gap-3">
+          <AlertCircle className="mt-0.5 h-4 w-4 text-sky-200" />
+          <div>
+            <p className="font-semibold text-white">¿Cómo obtener tus credenciales?</p>
+            <ol className="mt-2 list-decimal space-y-1 pl-5 text-white/70">
+              <li>
+                Abre <a href="https://www.twilio.com" target="_blank" rel="noopener noreferrer" className="underline">twilio.com</a> y crea una cuenta.
+              </li>
+              <li>Desde la consola copia tu <strong>Account SID</strong> y <strong>Auth Token</strong>.</li>
+              <li>Compra un número y pégalo aquí con formato internacional (ej. +52).</li>
+            </ol>
+          </div>
         </div>
       </div>
 
       <div className="space-y-4">
-        {/* Account SID */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Account SID *
-          </label>
+          <label className="text-xs uppercase tracking-[0.35em] text-white/60">Account SID *</label>
           <input
             type="text"
             value={credentials.account_sid}
-            onChange={(e) => setCredentials(prev => ({ ...prev, account_sid: e.target.value }))}
+            onChange={(e) => setCredentials((prev) => ({ ...prev, account_sid: e.target.value }))}
             placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+            className={`${inputClass} mt-2`}
           />
-          <p className="text-xs text-gray-600 mt-1">
-            Encuentra tu Account SID en el{' '}
-            <a 
-              href="https://console.twilio.com" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-teal-600 hover:underline inline-flex items-center gap-1"
-            >
-              Twilio Console
-              <ExternalLink className="h-3 w-3" />
-            </a>
+          <p className="mt-1 text-xs text-white/60">
+            Disponible en <a href="https://console.twilio.com" target="_blank" rel="noopener noreferrer" className="text-emerald-200 underline inline-flex items-center gap-1">Twilio Console <ExternalLink className="h-3 w-3" /></a>
           </p>
         </div>
 
-        {/* Auth Token */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Auth Token *
-          </label>
-          <div className="relative">
+          <label className="text-xs uppercase tracking-[0.35em] text-white/60">Auth Token *</label>
+          <div className="relative mt-2">
             <input
               type={showAuthToken ? 'text' : 'password'}
               value={credentials.auth_token}
-              onChange={(e) => setCredentials(prev => ({ ...prev, auth_token: e.target.value }))}
+              onChange={(e) => setCredentials((prev) => ({ ...prev, auth_token: e.target.value }))}
               placeholder="••••••••••••••••••••••••••••••••"
-              className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+              className={`${inputClass} pr-12`}
             />
             <button
               type="button"
               onClick={() => setShowAuthToken(!showAuthToken)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-white/60"
             >
               {showAuthToken ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
             </button>
           </div>
-          <p className="text-xs text-gray-600 mt-1">
-            Tu Auth Token secreto - mantenerlo privado
-          </p>
+          <p className="mt-1 text-xs text-white/60">Mantén este token en privado.</p>
         </div>
 
-        {/* Phone Number */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Número de Teléfono Twilio *
-          </label>
+          <label className="text-xs uppercase tracking-[0.35em] text-white/60">Número Twilio *</label>
           <input
             type="tel"
             value={credentials.phone_number}
-            onChange={(e) => setCredentials(prev => ({ ...prev, phone_number: e.target.value }))}
-            placeholder="+1234567890"
-            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+            onChange={(e) => setCredentials((prev) => ({ ...prev, phone_number: e.target.value }))}
+            placeholder="+521234567890"
+            className={`${inputClass} mt-2`}
           />
-          <p className="text-xs text-gray-600 mt-1">
-            El número desde el cual se enviarán los SMS (debe incluir código de país, ej: +52 para México)
-          </p>
-        </div>
-
-        {/* Security Notice */}
-        <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-          <div className="flex items-start gap-2">
-            <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
-            <div className="text-sm text-green-900">
-              <p className="font-medium mb-1">🔒 Seguridad</p>
-              <p className="text-green-800">
-                Tus credenciales se almacenan de forma segura y encriptada en la base de datos.
-                Solo tú tienes acceso a esta información.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Save Button */}
-        <div className="flex items-center gap-3 pt-2">
-          <button
-            onClick={handleSave}
-            disabled={saving || !credentials.account_sid || !credentials.auth_token || !credentials.phone_number}
-            className="flex-1 px-6 py-3 bg-teal-600 text-white rounded-md hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium"
-          >
-            {saving ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Guardando...
-              </>
-            ) : (
-              <>
-                <CheckCircle className="h-4 w-4" />
-                Guardar Credenciales de Twilio
-              </>
-            )}
-          </button>
+          <p className="mt-1 text-xs text-white/60">Incluye el código de país, ej. +52 para México.</p>
         </div>
       </div>
-    </div>
+
+      <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-4 text-sm text-emerald-100">
+        <div className="flex items-start gap-2">
+          <CheckCircle className="mt-0.5 h-4 w-4" />
+          <div>
+            <p className="font-semibold">Seguridad</p>
+            <p className="text-emerald-50/90">Ciframos tus credenciales y solo se usan para envíos automáticos.</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3 pt-2">
+        <button
+          onClick={handleSave}
+          disabled={saving || !credentials.account_sid || !credentials.auth_token || !credentials.phone_number}
+          className="aura-cta aura-cta--primary flex-1 justify-center disabled:opacity-40"
+        >
+          {saving ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Guardando...
+            </>
+          ) : (
+            <>
+              <CheckCircle className="h-4 w-4" />
+              Guardar credenciales
+            </>
+          )}
+        </button>
+      </div>
+    </GlassPanel>
   );
 }

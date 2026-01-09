@@ -16,7 +16,9 @@ import {
   Filter,
   Calendar
 } from 'lucide-react';
-import { MainNav } from '@/components/layout/main-nav';
+import AppLayout from '@/components/layout/app-layout';
+import { GlassPanel } from '@/components/ui/glass-panel';
+import { cn } from '@/lib/utils';
 
 interface Booking {
   id: string;
@@ -144,16 +146,6 @@ export default function BookingsPage() {
     return time.slice(0, 5); // HH:MM
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'confirmed': return 'bg-green-100 text-green-800';
-      case 'cancelled': return 'bg-red-100 text-red-800';
-      case 'completed': return 'bg-blue-100 text-blue-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
   const getStatusText = (status: string) => {
     switch (status) {
       case 'pending': return 'Pendiente';
@@ -164,301 +156,366 @@ export default function BookingsPage() {
     }
   };
 
+  const statusBadgeStyles: Record<Booking['status'], string> = {
+    pending: 'bg-amber-400/20 text-amber-50 border border-amber-400/40 shadow-[0_10px_35px_rgba(251,191,36,0.2)]',
+    confirmed: 'bg-emerald-400/20 text-emerald-50 border border-emerald-400/40 shadow-[0_10px_35px_rgba(16,185,129,0.25)]',
+    cancelled: 'bg-rose-500/20 text-rose-50 border border-rose-400/40 shadow-[0_10px_35px_rgba(244,63,94,0.25)]',
+    completed: 'bg-sky-500/20 text-sky-50 border border-sky-400/40 shadow-[0_10px_35px_rgba(56,189,248,0.25)]'
+  };
+
+  const statCards = stats
+    ? [
+        {
+          key: 'total',
+          label: 'Reservas Totales',
+          value: stats.total,
+          hint: 'Histórico acumulado',
+          icon: CalendarDays,
+          accent: 'from-emerald-400/20 via-teal-400/10 to-cyan-500/5',
+        },
+        {
+          key: 'pending',
+          label: 'Pendientes',
+          value: stats.pending,
+          hint: 'Esperando confirmación',
+          icon: Clock3,
+          accent: 'from-amber-400/20 via-amber-300/10 to-transparent',
+        },
+        {
+          key: 'confirmed',
+          label: 'Confirmadas',
+          value: stats.confirmed,
+          hint: 'Listas para agenda',
+          icon: CheckCircle,
+          accent: 'from-emerald-500/20 via-emerald-400/10 to-transparent',
+        },
+        {
+          key: 'completed',
+          label: 'Completadas',
+          value: stats.completed,
+          hint: 'Atenciones realizadas',
+          icon: Calendar,
+          accent: 'from-sky-500/20 via-indigo-500/20 to-transparent',
+        },
+        {
+          key: 'cancelled',
+          label: 'Canceladas',
+          value: stats.cancelled,
+          hint: 'Requieren seguimiento',
+          icon: XCircle,
+          accent: 'from-rose-500/20 via-rose-400/10 to-transparent',
+        },
+        {
+          key: 'today',
+          label: 'Para hoy',
+          value: stats.today,
+          hint: 'Reservas del día',
+          icon: Clock,
+          accent: 'from-indigo-500/20 via-violet-500/10 to-transparent',
+        },
+      ]
+    : [];
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50/50">
-        <div className="bg-white border-b">
-          <div className="container mx-auto px-6 py-4">
-            <MainNav />
-          </div>
+      <AppLayout>
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-emerald-300"></div>
         </div>
-        <div className="flex justify-center items-center h-[calc(100vh-80px)]">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600"></div>
-        </div>
-      </div>
+      </AppLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50/50">
-      {/* Main Navigation */}
-      <div className="bg-white border-b">
-        <div className="container mx-auto px-6 py-4">
-          <MainNav />
-        </div>
-      </div>
-
-      <div className="container mx-auto px-6 py-8 max-w-7xl">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Reservas Online</h1>
-          <p className="text-gray-600">Gestiona todas las reservas recibidas a través de tu página pública</p>
-        </div>
-
-      {/* Stats */}
-      {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white p-4 rounded-lg border-2 border-gray-200"
-          >
-            <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
-            <div className="text-sm text-gray-600">Total</div>
-          </motion.div>
-          
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="bg-yellow-50 p-4 rounded-lg border-2 border-yellow-200"
-          >
-            <div className="text-2xl font-bold text-yellow-800">{stats.pending}</div>
-            <div className="text-sm text-yellow-600">Pendientes</div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="bg-green-50 p-4 rounded-lg border-2 border-green-200"
-          >
-            <div className="text-2xl font-bold text-green-800">{stats.confirmed}</div>
-            <div className="text-sm text-green-600">Confirmadas</div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="bg-blue-50 p-4 rounded-lg border-2 border-blue-200"
-          >
-            <div className="text-2xl font-bold text-blue-800">{stats.completed}</div>
-            <div className="text-sm text-blue-600">Completadas</div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="bg-red-50 p-4 rounded-lg border-2 border-red-200"
-          >
-            <div className="text-2xl font-bold text-red-800">{stats.cancelled}</div>
-            <div className="text-sm text-red-600">Canceladas</div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            className="bg-teal-50 p-4 rounded-lg border-2 border-teal-200"
-          >
-            <div className="text-2xl font-bold text-teal-800">{stats.today}</div>
-            <div className="text-sm text-teal-600">Hoy</div>
-          </motion.div>
-        </div>
-      )}
-
-      {/* Filters */}
-      <div className="bg-white p-4 rounded-lg border-2 border-gray-200 mb-6 flex flex-wrap gap-4">
-        <div className="flex items-center gap-2">
-          <Filter className="h-5 w-5 text-gray-600" />
-          <label className="text-sm font-medium text-gray-700">Estado:</label>
-          <select
-            value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-500"
-          >
-            <option value="all">Todos</option>
-            <option value="pending">Pendientes</option>
-            <option value="confirmed">Confirmadas</option>
-            <option value="completed">Completadas</option>
-            <option value="cancelled">Canceladas</option>
-          </select>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Calendar className="h-5 w-5 text-gray-600" />
-          <label className="text-sm font-medium text-gray-700">Fecha:</label>
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-500"
-          />
-          {selectedDate && (
-            <button
-              onClick={() => setSelectedDate('')}
-              className="text-sm text-teal-600 hover:text-teal-700"
-            >
-              Limpiar
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Bookings List */}
-      {bookings.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-lg border-2 border-gray-200">
-          <CalendarDays className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-600">No hay reservas para mostrar</p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {bookings.map((booking, index) => (
-            <motion.div
-              key={booking.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-              className="bg-white p-6 rounded-lg border-2 border-gray-200 hover:border-teal-500 transition-colors"
-            >
-              {/* Header */}
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="bg-teal-100 p-3 rounded-full">
-                    <User className="h-6 w-6 text-teal-600" />
+    <AppLayout>
+      <div className="space-y-8">
+        <GlassPanel className="relative overflow-hidden p-6 sm:p-8">
+          <div className="pointer-events-none absolute inset-0 opacity-60">
+            <div className="absolute -top-32 right-0 h-64 w-64 rounded-full bg-emerald-500/30 blur-[120px]" />
+            <div className="absolute -bottom-32 left-0 h-64 w-64 rounded-full bg-indigo-500/30 blur-[120px]" />
+          </div>
+          <div className="relative flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+            <div className="space-y-5">
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-white/70">
+                <CalendarDays className="h-4 w-4 text-emerald-300" />
+                Reservas
+              </div>
+              <div>
+                <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+                  Canal de reservas online
+                </h1>
+                <p className="mt-2 max-w-2xl text-base text-white/70">
+                  Visualiza el estado de cada solicitud, agrega notas internas y confirma citas con un solo clic.
+                </p>
+              </div>
+              {stats && (
+                <div className="flex flex-wrap gap-8 text-white/80">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.2em] text-white/50">Hoy</p>
+                    <p className="text-3xl font-semibold">{stats.today}</p>
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900">{booking.patient_name}</h3>
-                    <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
-                      <span className="flex items-center gap-1">
-                        <CalendarDays className="h-4 w-4" />
-                        {formatDate(booking.booking_date)}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-4 w-4" />
-                        {formatTime(booking.booking_time)}
-                      </span>
-                    </div>
+                    <p className="text-xs uppercase tracking-[0.2em] text-white/50">Pendientes</p>
+                    <p className="text-3xl font-semibold">{stats.pending}</p>
                   </div>
-                </div>
-                <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(booking.status)}`}>
-                  {getStatusText(booking.status)}
-                </span>
-              </div>
-
-              {/* Service Info */}
-              <div className="bg-gray-50 p-4 rounded-lg mb-4">
-                <div className="font-medium text-gray-900 mb-2">{booking.service_name}</div>
-                <div className="flex items-center gap-4 text-sm text-gray-600">
-                  <span>Duración: {booking.service_duration} min</span>
-                  <span>•</span>
-                  <span>Precio: ${booking.service_price.toLocaleString('es-MX')}</span>
-                </div>
-              </div>
-
-              {/* Contact Info */}
-              <div className="flex flex-wrap gap-4 mb-4 text-sm text-gray-600">
-                <span className="flex items-center gap-2">
-                  <Phone className="h-4 w-4" />
-                  {booking.patient_phone}
-                </span>
-                <span className="flex items-center gap-2">
-                  <Mail className="h-4 w-4" />
-                  {booking.patient_email}
-                </span>
-              </div>
-
-              {/* Patient Notes */}
-              {booking.notes && (
-                <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-                  <div className="text-sm font-medium text-blue-900 mb-1">Notas del paciente:</div>
-                  <div className="text-sm text-blue-800">{booking.notes}</div>
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.2em] text-white/50">Confirmadas</p>
+                    <p className="text-3xl font-semibold">{stats.confirmed}</p>
+                  </div>
                 </div>
               )}
+            </div>
+            <div className="flex flex-col gap-3 md:items-end">
+              <button
+                onClick={() => fetchBookings()}
+                className="aura-cta aura-cta--primary w-full px-6 text-base md:w-auto"
+              >
+                Actualizar reservas
+              </button>
+              <a
+                href="/agenda"
+                className="aura-cta aura-cta--ghost w-full px-6 text-base md:w-auto"
+              >
+                Revisar agenda
+              </a>
+            </div>
+          </div>
+        </GlassPanel>
 
-              {/* Clinic Notes */}
-              <div className="mb-4">
-                {editingNotes === booking.id ? (
-                  <div className="space-y-2">
-                    <textarea
-                      value={notesText}
-                      onChange={(e) => setNotesText(e.target.value)}
-                      placeholder="Notas internas de la clínica..."
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-500"
-                      rows={3}
-                    />
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => saveNotes(booking.id)}
-                        className="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700"
-                      >
-                        Guardar
-                      </button>
-                      <button
-                        onClick={() => setEditingNotes(null)}
-                        className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
-                      >
-                        Cancelar
-                      </button>
+        {stats && (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+            {statCards.map((card, index) => (
+              <motion.div
+                key={card.key}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+              >
+                <GlassPanel className="relative overflow-hidden p-5">
+                  <div className={cn('pointer-events-none absolute inset-0 opacity-60 blur-3xl bg-gradient-to-br', card.accent)} />
+                  <div className="relative flex flex-col gap-3">
+                    <div className="inline-flex items-center gap-3">
+                      <div className="rounded-2xl border border-white/20 bg-white/10 p-3 text-white">
+                        <card.icon className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-white/70">{card.label}</p>
+                        <p className="text-xs uppercase tracking-[0.3em] text-white/50">{card.hint}</p>
+                      </div>
+                    </div>
+                    <p className="text-3xl font-semibold text-white">{card.value}</p>
+                  </div>
+                </GlassPanel>
+              </motion.div>
+            ))}
+          </div>
+        )}
+
+        <GlassPanel className="p-6">
+          <div className="flex flex-wrap items-center gap-6">
+            <div className="flex flex-wrap items-center gap-3 text-white/80">
+              <Filter className="h-5 w-5 text-white/60" />
+              <label className="text-sm font-medium uppercase tracking-[0.3em] text-white/60">Estado</label>
+              <select
+                value={selectedStatus}
+                onChange={(e) => setSelectedStatus(e.target.value)}
+                className="glass-select min-w-[180px]"
+              >
+                <option value="all">Todos</option>
+                <option value="pending">Pendientes</option>
+                <option value="confirmed">Confirmadas</option>
+                <option value="completed">Completadas</option>
+                <option value="cancelled">Canceladas</option>
+              </select>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 text-white/80">
+              <Calendar className="h-5 w-5 text-white/60" />
+              <label className="text-sm font-medium uppercase tracking-[0.3em] text-white/60">Fecha</label>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="glass-select min-w-[180px]"
+              />
+              {selectedDate && (
+                <button
+                  onClick={() => setSelectedDate('')}
+                  className="text-sm font-medium text-emerald-200 transition hover:text-emerald-100"
+                >
+                  Limpiar
+                </button>
+              )}
+            </div>
+          </div>
+        </GlassPanel>
+
+        {bookings.length === 0 ? (
+          <GlassPanel className="flex flex-col items-center gap-4 px-6 py-12 text-center text-white/70">
+            <CalendarDays className="h-12 w-12 text-white/60" />
+            <p className="text-lg font-semibold text-white">Aún no hay reservas</p>
+            <p className="max-w-md text-sm">
+              Cuando un paciente reserve desde tu landing pública aparecerá aquí para que la confirmes y la mandes a la agenda.
+            </p>
+          </GlassPanel>
+        ) : (
+          <div className="space-y-5">
+            {bookings.map((booking, index) => (
+              <motion.div
+                key={booking.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+              >
+                <GlassPanel className="space-y-6 p-6">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                      <div className="rounded-2xl border border-white/15 bg-gradient-to-br from-emerald-400/20 via-cyan-400/10 to-indigo-500/20 p-3 text-white">
+                        <User className="h-6 w-6" />
+                      </div>
+                      <div className="space-y-2">
+                        <h3 className="text-xl font-semibold text-white">{booking.patient_name}</h3>
+                        <div className="flex flex-wrap gap-4 text-sm text-white/70">
+                          <span className="flex items-center gap-1">
+                            <CalendarDays className="h-4 w-4" />
+                            {formatDate(booking.booking_date)}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-4 w-4" />
+                            {formatTime(booking.booking_time)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <span
+                      className={cn(
+                        'rounded-full px-4 py-1 text-xs font-semibold uppercase tracking-[0.3em]',
+                        statusBadgeStyles[booking.status]
+                      )}
+                    >
+                      {getStatusText(booking.status)}
+                    </span>
+                  </div>
+
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-4 text-sm text-white/80">
+                      <div>
+                        <p className="text-sm font-semibold text-white">{booking.service_name}</p>
+                        <p className="text-xs uppercase tracking-[0.3em] text-white/50">{booking.service_duration} min</p>
+                      </div>
+                      <p className="text-lg font-semibold text-emerald-200">
+                        ${booking.service_price.toLocaleString('es-MX')}
+                      </p>
                     </div>
                   </div>
-                ) : (
+
+                  <div className="flex flex-wrap gap-4 text-sm text-white/70">
+                    <span className="flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-white/50" />
+                      {booking.patient_phone}
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-white/50" />
+                      {booking.patient_email}
+                    </span>
+                  </div>
+
+                  {booking.notes && (
+                    <div className="rounded-2xl border border-sky-400/20 bg-sky-500/10 p-4 text-sm text-sky-50">
+                      <p className="font-semibold uppercase tracking-[0.3em] text-sky-200">Notas del paciente</p>
+                      <p className="mt-2 text-white/90">{booking.notes}</p>
+                    </div>
+                  )}
+
                   <div>
-                    {booking.clinic_notes ? (
-                      <div className="p-3 bg-purple-50 rounded-lg">
-                        <div className="text-sm font-medium text-purple-900 mb-1">Notas de la clínica:</div>
-                        <div className="text-sm text-purple-800">{booking.clinic_notes}</div>
+                    {editingNotes === booking.id ? (
+                      <div className="space-y-3">
+                        <textarea
+                          value={notesText}
+                          onChange={(e) => setNotesText(e.target.value)}
+                          placeholder="Notas internas de la clínica..."
+                          className="w-full rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-white placeholder:text-white/40 focus:border-emerald-300/60 focus:outline-none focus:ring-emerald-300/30"
+                          rows={4}
+                        />
+                        <div className="flex flex-wrap gap-3">
+                          <button
+                            onClick={() => saveNotes(booking.id)}
+                            className="inline-flex items-center gap-2 rounded-full border border-emerald-400/40 bg-emerald-400/20 px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5"
+                          >
+                            Guardar notas
+                          </button>
+                          <button
+                            onClick={() => setEditingNotes(null)}
+                            className="inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-sm font-semibold text-white/70 transition hover:text-white"
+                          >
+                            Cancelar
+                          </button>
+                        </div>
                       </div>
-                    ) : null}
+                    ) : (
+                      <div className="space-y-3">
+                        {booking.clinic_notes && (
+                          <div className="rounded-2xl border border-violet-400/20 bg-violet-500/10 p-4 text-sm text-violet-50">
+                            <p className="font-semibold uppercase tracking-[0.3em] text-violet-200">Notas de la clínica</p>
+                            <p className="mt-2 text-white/90">{booking.clinic_notes}</p>
+                          </div>
+                        )}
+                        <button
+                          onClick={() => {
+                            setEditingNotes(booking.id);
+                            setNotesText(booking.clinic_notes || '');
+                          }}
+                          className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-200 transition hover:text-emerald-100"
+                        >
+                          <MessageSquare className="h-4 w-4" />
+                          {booking.clinic_notes ? 'Editar notas' : 'Agregar notas'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap gap-3 border-t border-white/10 pt-4">
+                    {booking.status === 'pending' && (
+                      <>
+                        <button
+                          onClick={() => updateBookingStatus(booking.id, 'confirmed')}
+                          className="inline-flex items-center gap-2 rounded-full border border-emerald-400/40 bg-emerald-400/20 px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5"
+                        >
+                          <CheckCircle className="h-4 w-4" />
+                          Confirmar
+                        </button>
+                        <button
+                          onClick={() => updateBookingStatus(booking.id, 'cancelled')}
+                          className="inline-flex items-center gap-2 rounded-full border border-rose-400/40 bg-rose-500/20 px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5"
+                        >
+                          <XCircle className="h-4 w-4" />
+                          Cancelar
+                        </button>
+                      </>
+                    )}
+
+                    {booking.status === 'confirmed' && (
+                      <button
+                        onClick={() => updateBookingStatus(booking.id, 'completed')}
+                        className="inline-flex items-center gap-2 rounded-full border border-sky-400/40 bg-sky-500/20 px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5"
+                      >
+                        <Clock3 className="h-4 w-4" />
+                        Marcar completada
+                      </button>
+                    )}
+
                     <button
-                      onClick={() => {
-                        setEditingNotes(booking.id);
-                        setNotesText(booking.clinic_notes || '');
-                      }}
-                      className="mt-2 text-sm text-teal-600 hover:text-teal-700 flex items-center gap-1"
+                      onClick={() => deleteBooking(booking.id)}
+                      className="ml-auto inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-sm font-semibold text-white/70 transition hover:text-white"
                     >
-                      <MessageSquare className="h-4 w-4" />
-                      {booking.clinic_notes ? 'Editar notas' : 'Agregar notas'}
+                      Eliminar
                     </button>
                   </div>
-                )}
-              </div>
-
-              {/* Actions */}
-              <div className="flex flex-wrap gap-2 pt-4 border-t border-gray-200">
-                {booking.status === 'pending' && (
-                  <>
-                    <button
-                      onClick={() => updateBookingStatus(booking.id, 'confirmed')}
-                      className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-                    >
-                      <CheckCircle className="h-4 w-4" />
-                      Confirmar
-                    </button>
-                    <button
-                      onClick={() => updateBookingStatus(booking.id, 'cancelled')}
-                      className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
-                    >
-                      <XCircle className="h-4 w-4" />
-                      Cancelar
-                    </button>
-                  </>
-                )}
-                
-                {booking.status === 'confirmed' && (
-                  <button
-                    onClick={() => updateBookingStatus(booking.id, 'completed')}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                  >
-                    <Clock3 className="h-4 w-4" />
-                    Marcar como completada
-                  </button>
-                )}
-
-                <button
-                  onClick={() => deleteBooking(booking.id)}
-                  className="ml-auto px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
-                >
-                  Eliminar
-                </button>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      )}
+                </GlassPanel>
+              </motion.div>
+            ))}
+          </div>
+        )}
       </div>
-    </div>
+    </AppLayout>
   );
 }

@@ -9,6 +9,7 @@ import ConsultorioModal from '@/components/settings/ConsultorioModal'
 import { useQuotaCheck } from '@/lib/hooks/use-quota-check'
 import { UpgradeModal } from '@/components/subscription/upgrade-modal'
 import { QuotaBadge } from '@/components/subscription/quota-badge'
+import { GlassPanel } from '@/components/ui/glass-panel'
 
 interface Consultorio {
   id: string
@@ -92,6 +93,10 @@ export default function ConsultoriosPage() {
     consultorio.ubicacion?.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
+  const totalCapacity = consultorios.reduce((sum, c) => sum + (c.capacidad || 0), 0)
+  const activeConsultorios = consultorios.filter((c) => c.activo).length
+  const hasFilters = searchQuery.trim().length > 0
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -115,79 +120,114 @@ export default function ConsultoriosPage() {
       />
 
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-3">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                <Building2 className="w-6 h-6 text-emerald-500" />
-                Consultorios
-              </h2>
-              {usage && <QuotaBadge usage={usage} type="locations" />}
-            </div>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              {consultorios.length} {consultorios.length === 1 ? 'espacio disponible' : 'espacios disponibles'}
-            </p>
+        <GlassPanel className="relative overflow-hidden border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-white/0 p-6 text-white">
+          <div className="pointer-events-none absolute inset-0 opacity-60">
+            <div className="absolute -top-24 right-0 h-64 w-64 rounded-full bg-emerald-400/25 blur-[140px]" />
+            <div className="absolute -bottom-16 left-0 h-56 w-56 rounded-full bg-teal-400/20 blur-[130px]" />
           </div>
-          
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => {
-              setEditingConsultorio(null)
-              setIsModalOpen(true)
-            }}
-            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl font-medium shadow-lg shadow-emerald-500/25 transition-all"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Nuevo Consultorio</span>
-          </motion.button>
+          <div className="relative flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+            <div className="space-y-3">
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-1 text-xs uppercase tracking-[0.35em] text-white/70">
+                <Building2 className="h-4 w-4" />
+                Espacios
+              </div>
+              <div>
+                <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Consultorios</h1>
+                <p className="mt-2 max-w-2xl text-sm text-white/70">
+                  Administra los espacios físicos por sede, define capacidad y tiempos para mantener la operación coordinada.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              {usage && <QuotaBadge usage={usage} type="locations" />}
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => {
+                  setEditingConsultorio(null)
+                  setIsModalOpen(true)
+                }}
+                className="aura-cta aura-cta--primary"
+              >
+                <Plus className="h-4 w-4" />
+                Nuevo consultorio
+              </motion.button>
+            </div>
+          </div>
+        </GlassPanel>
+
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <GlassPanel className="border-white/10 bg-white/5 p-5 text-white">
+            <p className="text-xs uppercase tracking-[0.35em] text-white/50">Espacios</p>
+            <p className="text-3xl font-semibold">{consultorios.length}</p>
+            <p className="text-sm text-white/70">totales</p>
+          </GlassPanel>
+          <GlassPanel className="border-white/10 bg-white/5 p-5 text-white">
+            <p className="text-xs uppercase tracking-[0.35em] text-white/50">Activos</p>
+            <p className="text-3xl font-semibold text-emerald-200">{activeConsultorios}</p>
+            <p className="text-sm text-white/70">en uso</p>
+          </GlassPanel>
+          <GlassPanel className="border-white/10 bg-white/5 p-5 text-white">
+            <p className="text-xs uppercase tracking-[0.35em] text-white/50">Capacidad</p>
+            <p className="text-3xl font-semibold text-sky-200">{totalCapacity}</p>
+            <p className="text-sm text-white/70">pacientes / día</p>
+          </GlassPanel>
+          <GlassPanel className="border-white/10 bg-white/5 p-5 text-white">
+            <p className="text-xs uppercase tracking-[0.35em] text-white/50">Ubicaciones</p>
+            <p className="text-3xl font-semibold text-amber-200">{new Set(consultorios.map((c) => c.ubicacion || 'Sin asignar')).size}</p>
+            <p className="text-sm text-white/70">sede(s)</p>
+          </GlassPanel>
         </div>
 
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Buscar por nombre o ubicación..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all text-gray-900 dark:text-white placeholder-gray-400"
-          />
-        </div>
+        <GlassPanel className="border-white/10 bg-white/5 p-4">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
+            <input
+              type="text"
+              placeholder="Buscar por nombre o ubicación..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-12 w-full rounded-2xl border border-white/15 bg-white/5 pl-12 pr-4 text-white placeholder:text-white/40 focus:border-white/40 focus:outline-none"
+            />
+          </div>
+        </GlassPanel>
 
         {filteredConsultorios.length === 0 ? (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="flex flex-col items-center justify-center py-16 px-4"
-          >
-            <div className="w-16 h-16 bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-2xl flex items-center justify-center mb-4">
-              <Building2 className="w-8 h-8 text-emerald-500" />
+          <GlassPanel className="flex flex-col items-center gap-4 border-white/10 bg-white/5 px-6 py-16 text-center text-white/70">
+            <div className="flex h-16 w-16 items-center justify-center rounded-3xl border border-dashed border-white/30">
+              <Building2 className="h-8 w-8 text-white/70" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              {searchQuery ? 'No se encontraron consultorios' : 'Aún no hay consultorios'}
-            </h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400 text-center max-w-sm mb-6">
-              {searchQuery 
-                ? 'Intenta con otro término de búsqueda'
-                : 'Comienza agregando tu primer espacio de atención'
-              }
-            </p>
-            {!searchQuery && (
+            <div>
+              <h3 className="text-lg font-semibold text-white">
+                {hasFilters ? 'Sin resultados' : 'Aún no hay consultorios'}
+              </h3>
+              <p className="text-sm text-white/60">
+                {hasFilters ? 'Ajusta los filtros o limpia la búsqueda.' : 'Agrega el primer espacio para habilitar agendas físicas.'}
+              </p>
+            </div>
+            {hasFilters ? (
+              <button
+                className="aura-cta aura-cta--ghost"
+                onClick={() => setSearchQuery('')}
+              >
+                Limpiar filtros
+              </button>
+            ) : (
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setIsModalOpen(true)}
-                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl font-medium shadow-lg shadow-emerald-500/25"
+                className="aura-cta aura-cta--primary"
               >
-                <Plus className="w-5 h-5" />
-                <span>Agregar Primer Consultorio</span>
+                <Plus className="h-4 w-4" />
+                Agregar primer consultorio
               </motion.button>
             )}
-          </motion.div>
+          </GlassPanel>
         ) : (
           <motion.div 
             layout
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+            className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3"
           >
             <AnimatePresence mode="popLayout">
               {filteredConsultorios.map((consultorio, index) => (

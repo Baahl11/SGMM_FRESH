@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import { Stethoscope, Activity, AlertCircle, Pill } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -42,7 +43,7 @@ export function MedicalRecordSummary({
           <Button
             onClick={onOpenFullRecord}
             size="lg"
-            className="bg-white/20 backdrop-blur-xl hover:bg-white/30 border-2 border-white/50 text-white"
+            className="rounded-full border border-white/50 bg-gradient-to-r from-indigo-500/50 via-fuchsia-500/40 to-cyan-400/50 px-8 py-3 text-base font-bold text-white shadow-[0_0_50px_rgba(99,102,241,0.7)] backdrop-blur transition-all hover:from-indigo-400/60 hover:via-fuchsia-400/60 hover:to-cyan-300/60 hover:shadow-[0_0_70px_rgba(99,102,241,0.9)]"
           >
             <Activity className="h-5 w-5 mr-2" />
             Abrir Expediente Completo
@@ -76,8 +77,7 @@ export function MedicalRecordSummary({
                   </p>
                   <Button
                     onClick={onOpenFullRecord}
-                    variant="outline"
-                    className="border-yellow-300 text-yellow-700 hover:bg-yellow-50"
+                    className="rounded-full border border-amber-300/60 bg-amber-500/20 px-5 py-2 text-sm font-semibold text-amber-50 shadow-[0_0_35px_rgba(251,191,36,0.5)] backdrop-blur transition-all hover:bg-amber-500/30 hover:shadow-[0_0_45px_rgba(251,191,36,0.7)]"
                   >
                     <Stethoscope className="h-4 w-4 mr-2" />
                     Crear Primera Consulta
@@ -93,8 +93,7 @@ export function MedicalRecordSummary({
                   </p>
                   <Button
                     onClick={onOpenFullRecord}
-                    variant="outline"
-                    className="border-blue-300 text-blue-700 hover:bg-blue-50"
+                    className="rounded-full border border-sky-300/60 bg-sky-500/20 px-5 py-2 text-sm font-semibold text-sky-50 shadow-[0_0_35px_rgba(59,130,246,0.5)] backdrop-blur transition-all hover:bg-sky-500/30 hover:shadow-[0_0_45px_rgba(59,130,246,0.7)]"
                   >
                     <Activity className="h-4 w-4 mr-2" />
                     Ver {totalConsultations} {totalConsultations === 1 ? 'Consulta' : 'Consultas'}
@@ -153,10 +152,9 @@ export function MedicalRecordSummary({
                       {note.medico_especialidad && ` • ${note.medico_especialidad}`}
                     </div>
                     <Button
-                      variant="ghost"
                       size="sm"
                       onClick={onOpenFullRecord}
-                      className="text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                      className="rounded-full border border-white/20 bg-white/5 px-4 py-1 text-xs font-semibold text-blue-100 shadow-[0_0_25px_rgba(59,130,246,0.4)] backdrop-blur transition-all hover:bg-white/10 hover:shadow-[0_0_35px_rgba(59,130,246,0.6)]"
                     >
                       Ver en expediente completo →
                     </Button>

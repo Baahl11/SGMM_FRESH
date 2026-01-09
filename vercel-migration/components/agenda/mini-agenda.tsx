@@ -87,23 +87,26 @@ export function MiniAgenda() {
   return (
     <div className="space-y-4">
       {appointments.length === 0 ? (
-        <div className="text-center py-8">
-          <div className="h-12 w-12 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-            <Calendar className="h-6 w-6 text-gray-400" />
+        <div className="text-center py-8 rounded-2xl border border-white/10 bg-white/5">
+          <div className="h-12 w-12 rounded-xl bg-white/10 flex items-center justify-center mx-auto mb-4">
+            <Calendar className="h-6 w-6 text-white/80" />
           </div>
-          <p className="text-gray-500 text-sm">No hay citas próximas</p>
+          <p className="text-white/70 text-sm">No hay citas próximas</p>
         </div>
       ) : (
         appointments.map((appointment) => (
-          <div key={appointment.id} className="flex items-center justify-between p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border border-indigo-100 hover:shadow-sm transition-shadow">
+          <div
+            key={appointment.id}
+            className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/5 p-4"
+          >
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
+              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
                 <User className="h-4 w-4 text-white" />
               </div>
               <div>
-                <p className="font-medium text-gray-900">{appointment.patient_name}</p>
-                <p className="text-sm text-gray-600">{appointment.motivo || 'Consulta médica'}</p>
-                <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                <p className="font-semibold text-white">{appointment.patient_name}</p>
+                <p className="text-sm text-white/70">{appointment.motivo || 'Consulta médica'}</p>
+                <div className="mt-1 flex items-center gap-2 text-xs text-white/60">
                   <Calendar className="h-3 w-3" />
                   <span>{formatDate(appointment.fecha)}</span>
                   <Clock className="h-3 w-3 ml-2" />
@@ -114,9 +117,9 @@ export function MiniAgenda() {
           </div>
         ))
       )}
-      
-      <div className="pt-4 border-t border-gray-200">
-        <a href="/agenda" className="text-sm text-indigo-600 hover:text-indigo-700 font-medium">
+
+      <div className="border-t border-white/10 pt-4 text-right">
+        <a href="/agenda" className="text-sm font-medium text-white hover:text-white/80">
           Ver agenda completa →
         </a>
       </div>

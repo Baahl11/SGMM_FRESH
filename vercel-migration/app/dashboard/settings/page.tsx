@@ -1,16 +1,48 @@
-'use client'
+'use client';
 
-import { motion } from 'framer-motion'
-import Link from 'next/link'
-import { Users, Building2, Calendar, Clock, CalendarX, Globe, Mail, FileText, UserPlus, MessageSquare, Settings, Plus } from 'lucide-react'
+import Link from 'next/link';
+import { motion } from 'framer-motion';
+import { GlassPanel } from '@/components/ui/glass-panel';
+import {
+  Users,
+  Building2,
+  Calendar,
+  Clock,
+  CalendarX,
+  Globe,
+  Mail,
+  FileText,
+  UserPlus,
+  MessageSquare,
+  Settings,
+  Plus,
+  ArrowRight,
+  Sparkles,
+  CreditCard,
+  Upload
+} from 'lucide-react';
 
 const sections = [
+  {
+    name: 'Importar Datos',
+    href: '/dashboard/settings/import',
+    icon: Upload,
+    description: 'Importa pacientes y citas desde Excel',
+    color: 'from-blue-500 to-cyan-500'
+  },
   {
     name: 'Add-ons',
     href: '/dashboard/settings/addons',
     icon: Plus,
     description: 'Ubicaciones y doctores extra',
     color: 'from-violet-500 to-violet-600'
+  },
+  {
+    name: 'Pagos',
+    href: '/dashboard/settings/payments',
+    icon: CreditCard,
+    description: 'Stripe Connect y comisiones',
+    color: 'from-amber-500 to-orange-500'
   },
   {
     name: 'Equipo',
@@ -82,110 +114,95 @@ const sections = [
     description: 'Formularios de admisión',
     color: 'from-yellow-500 to-yellow-600'
   }
-]
+];
+
+const quickTips = [
+  'Configura primero tus Horarios y Tipos de Cita para abrir agenda.',
+  'Activa Notificaciones para automatizar recordatorios por email y SMS.',
+  'Conecta WhatsApp Business para confirmar citas con mejores tasas.',
+  'Invita a tu staff desde Equipo y controla permisos por rol.'
+];
 
 export default function SettingsPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
-      {/* Header */}
-      <div className="border-b border-gray-200/50 dark:border-gray-800/50 bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-4 h-20">
-            <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-lg">
-              <Settings className="w-8 h-8 text-white" />
+    <div className="space-y-8">
+      <GlassPanel className="relative overflow-hidden p-6 sm:p-8 text-white">
+        <div className="pointer-events-none absolute inset-0 opacity-70">
+          <div className="absolute -top-32 right-0 h-72 w-72 rounded-full bg-indigo-400/30 blur-[160px]" />
+          <div className="absolute -bottom-32 left-0 h-72 w-72 rounded-full bg-sky-500/30 blur-[150px]" />
+        </div>
+        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-4">
+            <div className="inline-flex items-center gap-3 rounded-full border border-white/15 bg-white/10 px-5 py-1 text-xs font-semibold uppercase tracking-[0.35em] text-white/70">
+              <Settings className="h-4 w-4" />
+              Configuración
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                Configuración
-              </h1>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                Administra todas las opciones de tu clínica
-              </p>
+              <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Administra tu clínica</h1>
+              <p className="mt-2 text-sm text-white/70">Control total de ubicaciones, equipo, agendas y automatizaciones en un solo panel.</p>
+            </div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 text-white/80">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p className="text-xs uppercase tracking-[0.35em] text-white/50">Secciones disponibles</p>
+              <p className="text-3xl font-semibold text-white">{sections.length}</p>
+              <p className="text-xs text-white/60">Módulos configurables</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p className="text-xs uppercase tracking-[0.35em] text-white/50">Automatizaciones</p>
+              <p className="text-3xl font-semibold text-emerald-200">Ready</p>
+              <p className="text-xs text-white/60">Notificaciones y WhatsApp</p>
             </div>
           </div>
         </div>
-      </div>
+      </GlassPanel>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Settings Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <GlassPanel className="border-white/10 bg-white/5 p-4 sm:p-6">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {sections.map((section, index) => {
-            const Icon = section.icon
-            
+            const Icon = section.icon;
             return (
-              <Link
-                key={section.href}
-                href={section.href}
-              >
+              <Link key={section.href} href={section.href} className="group h-full">
                 <motion.div
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: index * 0.05 }}
-                  whileHover={{ y: -4, scale: 1.02 }}
-                  className="relative group"
+                  transition={{ duration: 0.3, delay: index * 0.04 }}
+                  whileHover={{ y: -4 }}
+                  className="relative flex h-full flex-col rounded-2xl border border-white/10 bg-white/5 p-5 text-white transition hover:border-white/40"
                 >
-                  <div className="relative overflow-hidden rounded-2xl bg-white dark:bg-gray-800 p-6 shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-2xl transition-all duration-300">
-                    {/* Gradient background on hover */}
-                    <div className={`absolute inset-0 bg-gradient-to-br ${section.color} opacity-0 group-hover:opacity-5 transition-opacity duration-300`} />
-                    
-                    {/* Icon */}
-                    <div className={`relative inline-flex p-4 bg-gradient-to-br ${section.color} rounded-xl shadow-md mb-4`}>
-                      <Icon className="w-6 h-6 text-white" />
-                    </div>
-
-                    {/* Content */}
-                    <div className="relative">
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                        {section.name}
-                      </h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {section.description}
-                      </p>
-                    </div>
-
-                    {/* Arrow indicator */}
-                    <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                      <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </div>
+                  <div className={`inline-flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${section.color} shadow-lg shadow-black/20`}>
+                    <Icon className="h-5 w-5 text-white" />
                   </div>
+                  <div className="mt-4">
+                    <h3 className="text-lg font-semibold">{section.name}</h3>
+                    <p className="text-sm text-white/70">{section.description}</p>
+                  </div>
+                  <div className="mt-auto flex items-center justify-between pt-6 text-xs uppercase tracking-[0.25em] text-white/50">
+                    <span>Gestionar</span>
+                    <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
+                  </div>
+                  <div className={`pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-br ${section.color} opacity-0 transition group-hover:opacity-10`} />
                 </motion.div>
               </Link>
-            )
+            );
           })}
         </div>
+      </GlassPanel>
 
-        {/* Quick Tips */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.6, delay: 0.5 }}
-          className="mt-12 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 rounded-2xl border border-blue-200 dark:border-blue-800"
-        >
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-            💡 Consejos Rápidos
-          </h3>
-          <ul className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
-            <li className="flex items-start gap-2">
-              <span className="text-blue-600 dark:text-blue-400 mt-0.5">•</span>
-              <span>Comienza configurando tus <strong>Horarios</strong> y <strong>Tipos de Cita</strong></span>
+      <GlassPanel className="space-y-4 border-white/10 bg-gradient-to-r from-sky-500/10 via-indigo-500/10 to-purple-500/10 p-6 text-white">
+        <div className="flex items-center gap-3 text-lg font-semibold">
+          <Sparkles className="h-5 w-5 text-amber-200" />
+          Consejos rápidos
+        </div>
+        <ul className="space-y-3 text-sm text-white/80">
+          {quickTips.map((tip) => (
+            <li key={tip} className="flex items-start gap-3">
+              <span className="mt-1 h-1.5 w-1.5 rounded-full bg-white/70" />
+              <span>{tip}</span>
             </li>
-            <li className="flex items-start gap-2">
-              <span className="text-blue-600 dark:text-blue-400 mt-0.5">•</span>
-              <span>Activa las <strong>Notificaciones</strong> para enviar recordatorios automáticos por email</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-blue-600 dark:text-blue-400 mt-0.5">•</span>
-              <span>Usa <strong>WhatsApp Business</strong> para recordatorios más efectivos</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-blue-600 dark:text-blue-400 mt-0.5">•</span>
-              <span>Invita a tu equipo desde la sección <strong>Equipo</strong> para colaborar</span>
-            </li>
-          </ul>
-        </motion.div>
-      </div>
+          ))}
+        </ul>
+      </GlassPanel>
     </div>
-  )
+  );
 }

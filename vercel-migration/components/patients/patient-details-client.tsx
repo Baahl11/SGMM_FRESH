@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { GlassPanel } from "@/components/ui/glass-panel";
 import { Badge } from "@/components/ui/badge";
 import { TagManager } from "@/components/patients/tag-manager";
 import { QuickAppointmentModal } from "@/components/patients/quick-appointment-modal";
@@ -328,19 +328,6 @@ export default function PatientDetailsClient({ patientId }: PatientDetailsClient
   if (error) {
     return (
       <AppLayout>
-        <div className="container mx-auto py-10">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p>Cargando datos del paciente...</p>
-          </div>
-        </div>
-      </AppLayout>
-    );
-  }
-
-  if (error) {
-    return (
-      <AppLayout>
         <div className="container mx-auto py-10 text-center">
           <div className="text-red-600 mb-4">{error}</div>
           <Button variant="outline" asChild>
@@ -397,60 +384,78 @@ export default function PatientDetailsClient({ patientId }: PatientDetailsClient
 
   return (
     <AppLayout>
-      <div className="space-y-8 p-6 bg-gradient-to-br from-blue-50/50 to-indigo-50/50 min-h-screen">
-        {/* Header */}
-        <div className="flex justify-between items-center bg-white rounded-xl p-6 shadow-sm border border-blue-100">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
-              <User className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                {patient.nombre}
-              </h1>
-              <p className="text-gray-600">Expediente del paciente</p>
-            </div>
-          </div>
-          <div className="flex gap-3">
-            <Button variant="outline" asChild>
-              <Link href="/patients">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Volver
-              </Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link href={`/patients/${patientId}/edit`}>
-                <Edit className="h-4 w-4 mr-2" />
-                Editar
-              </Link>
-            </Button>
-            <Button asChild className="bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700">
-              <Link href={`/records/new?patientId=${patientId}`}>
-                <Plus className="h-4 w-4 mr-2" />
-                Nuevo Registro
-              </Link>
-            </Button>
-          </div>
+      <div className="relative min-h-screen overflow-hidden bg-[#010511] px-4 py-8 text-white sm:px-6 lg:px-12">
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute -top-24 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-emerald-500/15 blur-[200px]" />
+          <div className="absolute bottom-0 right-0 h-96 w-96 rounded-full bg-indigo-600/20 blur-[180px]" />
+          <div className="absolute top-1/3 left-0 h-72 w-72 rounded-full bg-cyan-500/20 blur-[160px]" />
         </div>
 
-        {/* Patient Information Cards */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {/* Personal Information */}
-          <Card className="bg-white shadow-sm border border-gray-200">
-            <CardHeader className="border-b border-gray-100">
-              <div className="flex items-center gap-3">
-                <div className="h-8 w-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
-                  <User className="h-4 w-4 text-white" />
+        <div className="relative mx-auto max-w-6xl space-y-8">
+          <GlassPanel className="border-white/15 bg-white/5 p-6">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex items-start gap-4">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400/70 via-cyan-400/60 to-indigo-500/60">
+                  <User className="h-7 w-7 text-white" />
                 </div>
-                <CardTitle className="text-lg font-semibold text-gray-900">Información Personal</CardTitle>
+                <div>
+                  <p className="text-xs uppercase tracking-[0.35em] text-white/60">Paciente</p>
+                  <div className="mt-1 flex flex-wrap items-center gap-3">
+                    <h1 className="text-3xl font-semibold text-white">{patient.nombre}</h1>
+                    <Badge className={`border px-3 py-1 text-xs font-semibold tracking-wide ${patient.activo ? 'border-emerald-300/40 bg-emerald-400/10 text-emerald-100' : 'border-rose-300/40 bg-rose-500/10 text-rose-100'}`}>
+                      {patient.activo ? 'Activo' : 'Inactivo'}
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-white/70">Expediente del paciente</p>
+                </div>
               </div>
-            </CardHeader>
-            <CardContent className="p-6 space-y-4">
-              <div className="flex items-start gap-3">
-                <div className="h-6 w-6 bg-green-100 rounded-md flex items-center justify-center flex-shrink-0 mt-1">
-                  <Calendar className="h-3 w-3 text-green-600" />
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  variant="outline"
+                  asChild
+                  className="border-white/20 text-white hover:bg-white/10 hover:text-white"
+                >
+                  <Link href="/patients">
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Volver
+                  </Link>
+                </Button>
+                <Button
+                  variant="outline"
+                  asChild
+                  className="border-white/20 text-white hover:bg-white/10 hover:text-white"
+                >
+                  <Link href={`/patients/${patientId}/edit`}>
+                    <Edit className="mr-2 h-4 w-4" />
+                    Editar
+                  </Link>
+                </Button>
+                <Button
+                  asChild
+                  className="border-0 bg-gradient-to-r from-emerald-400 via-cyan-400 to-green-500 text-black shadow-lg shadow-emerald-500/40 hover:from-emerald-300 hover:via-cyan-300 hover:to-green-400"
+                >
+                  <Link href={`/records/new?patientId=${patientId}`}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Nuevo Registro
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          </GlassPanel>
+
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <GlassPanel className="border-white/10 bg-white/5 p-6">
+              <div className="flex items-center gap-3">
+                <div className="rounded-2xl bg-white/10 p-2 text-white">
+                  <User className="h-4 w-4" />
                 </div>
-                <div className="flex-1">
+                <p className="text-lg font-semibold">Información Personal</p>
+              </div>
+              <div className="mt-6 space-y-5">
+                <div className="flex items-start gap-3">
+                  <div className="rounded-xl bg-emerald-400/15 p-2 text-emerald-200">
+                    <Calendar className="h-4 w-4" />
+                  </div>
                   <InlineEditField
                     label="Fecha de Nacimiento"
                     value={patient.fecha_nacimiento}
@@ -459,13 +464,11 @@ export default function PatientDetailsClient({ patientId }: PatientDetailsClient
                     required
                   />
                 </div>
-              </div>
-              
-              <div className="flex items-start gap-3">
-                <div className="h-6 w-6 bg-blue-100 rounded-md flex items-center justify-center flex-shrink-0 mt-1">
-                  <Phone className="h-3 w-3 text-blue-600" />
-                </div>
-                <div className="flex-1">
+
+                <div className="flex items-start gap-3">
+                  <div className="rounded-xl bg-cyan-400/15 p-2 text-cyan-200">
+                    <Phone className="h-4 w-4" />
+                  </div>
                   <InlineEditField
                     label="Teléfono"
                     value={patient.telefono}
@@ -480,13 +483,11 @@ export default function PatientDetailsClient({ patientId }: PatientDetailsClient
                     }}
                   />
                 </div>
-              </div>
-              
-              <div className="flex items-start gap-3">
-                <div className="h-6 w-6 bg-purple-100 rounded-md flex items-center justify-center flex-shrink-0 mt-1">
-                  <Mail className="h-3 w-3 text-purple-600" />
-                </div>
-                <div className="flex-1">
+
+                <div className="flex items-start gap-3">
+                  <div className="rounded-xl bg-indigo-400/15 p-2 text-indigo-200">
+                    <Mail className="h-4 w-4" />
+                  </div>
                   <InlineEditField
                     label="Email"
                     value={patient.email || ''}
@@ -500,13 +501,11 @@ export default function PatientDetailsClient({ patientId }: PatientDetailsClient
                     }}
                   />
                 </div>
-              </div>
-              
-              <div className="flex items-start gap-3">
-                <div className="h-6 w-6 bg-orange-100 rounded-md flex items-center justify-center flex-shrink-0 mt-1">
-                  <MapPin className="h-3 w-3 text-orange-600" />
-                </div>
-                <div className="flex-1">
+
+                <div className="flex items-start gap-3">
+                  <div className="rounded-xl bg-amber-400/15 p-2 text-amber-200">
+                    <MapPin className="h-4 w-4" />
+                  </div>
                   <InlineEditField
                     label="Dirección"
                     value={patient.direccion || ''}
@@ -515,536 +514,419 @@ export default function PatientDetailsClient({ patientId }: PatientDetailsClient
                   />
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </GlassPanel>
 
-          {/* Tags Management */}
-          <Card className="bg-white shadow-sm border border-gray-200">
-            <CardHeader className="border-b border-gray-100">
+            <GlassPanel className="border-white/10 bg-white/5 p-6">
               <div className="flex items-center gap-3">
-                <div className="h-8 w-8 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
-                  <FileText className="h-4 w-4 text-white" />
+                <div className="rounded-2xl bg-fuchsia-400/20 p-2 text-fuchsia-100">
+                  <FileText className="h-4 w-4" />
                 </div>
-                <CardTitle className="text-lg font-semibold text-gray-900">Etiquetas</CardTitle>
+                <p className="text-lg font-semibold">Etiquetas</p>
               </div>
-            </CardHeader>
-            <CardContent className="p-6">
-              <TagManager patientId={patientId} />
-            </CardContent>
-          </Card>
+              <div className="mt-6">
+                <TagManager patientId={patientId} />
+              </div>
+            </GlassPanel>
 
-          {/* Treatment Summary */}
-          <Card className="bg-white shadow-sm border border-gray-200">
-            <CardHeader className="border-b border-gray-100">
+            <GlassPanel className="border-white/10 bg-gradient-to-br from-emerald-500/10 via-cyan-500/5 to-transparent p-6">
               <div className="flex items-center gap-3">
-                <div className="h-8 w-8 bg-gradient-to-br from-emerald-500 to-green-600 rounded-lg flex items-center justify-center">
-                  <Activity className="h-4 w-4 text-white" />
+                <div className="rounded-2xl bg-emerald-400/20 p-2 text-emerald-50">
+                  <Activity className="h-4 w-4" />
                 </div>
-                <CardTitle className="text-lg font-semibold text-gray-900">Resumen de Tratamientos</CardTitle>
+                <p className="text-lg font-semibold">Resumen de Tratamientos</p>
               </div>
-            </CardHeader>
-            <CardContent className="p-6 space-y-4">
-              <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <Stethoscope className="h-4 w-4 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-blue-600">Total Tratamientos</p>
-                    <p className="text-2xl font-bold text-blue-900">{records.length}</p>
-                  </div>
+              <div className="mt-6 space-y-4">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <p className="text-sm text-white/60">Total Tratamientos</p>
+                  <p className="text-3xl font-semibold text-white">{records.length}</p>
                 </div>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 bg-green-100 rounded-lg flex items-center justify-center">
-                    <DollarSign className="h-4 w-4 text-green-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-green-600">Total Pagado</p>
-                    <p className="text-2xl font-bold text-green-900">${totalPagado.toLocaleString()}</p>
-                  </div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <p className="text-sm text-white/60">Total Pagado</p>
+                  <p className="text-3xl font-semibold text-emerald-200">${totalPagado.toLocaleString()}</p>
                 </div>
-              </div>
-              {proximaCita && (
-                <div className="flex items-center justify-between p-3 bg-orange-50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 bg-orange-100 rounded-lg flex items-center justify-center">
-                      <Calendar className="h-4 w-4 text-orange-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-orange-600">Próxima Cita</p>
-                      <p className="font-bold text-orange-900">
-                        {new Date(proximaCita.fecha).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Quick Actions */}
-          <Card className="bg-white shadow-sm border border-gray-200">
-            <CardHeader className="border-b border-gray-100">
-              <div className="flex items-center gap-3">
-                <div className="h-8 w-8 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
-                  <Plus className="h-4 w-4 text-white" />
-                </div>
-                <CardTitle className="text-lg font-semibold text-gray-900">Acciones Rápidas</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="p-6 space-y-3">
-              <Button asChild className="w-full justify-start" variant="outline">
-                <Link href={`/records/new?patientId=${patientId}`}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Nuevo Tratamiento
-                </Link>
-              </Button>
-              <Button asChild className="w-full justify-start" variant="outline">
-                <Link href={`/agenda?patientId=${patientId}`}>
-                  <Calendar className="h-4 w-4 mr-2" />
-                  Programar Cita
-                </Link>
-              </Button>
-              <Button 
-                onClick={() => setSendFormModalOpen(true)}
-                className="w-full justify-start" 
-                variant="outline"
-              >
-                <FileText className="h-4 w-4 mr-2" />
-                Enviar Formulario
-              </Button>
-              <Button asChild className="w-full justify-start" variant="outline">
-                <Link href={`/patients/${patientId}/edit`}>
-                  <Edit className="h-4 w-4 mr-2" />
-                  Editar Información
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Tabs for all sections */}
-  <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="bg-white rounded-xl shadow-sm border border-gray-200 grid w-full grid-cols-6">
-            <TabsTrigger value="treatments" className="flex items-center gap-2">
-              <Stethoscope className="h-4 w-4" />
-              Tratamientos
-            </TabsTrigger>
-            <TabsTrigger value="medical-record" className="flex items-center gap-2">
-              <Activity className="h-4 w-4" />
-              Expediente
-            </TabsTrigger>
-            <TabsTrigger value="notes" className="flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              Notas
-            </TabsTrigger>
-            <TabsTrigger value="billing" className="flex items-center gap-2">
-              <DollarSign className="h-4 w-4" />
-              Facturación
-            </TabsTrigger>
-            <TabsTrigger value="photos" className="flex items-center gap-2">
-              <Camera className="h-4 w-4" />
-              Fotos
-            </TabsTrigger>
-            <TabsTrigger value="actions" className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              Acciones
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="treatments" className="mt-6">
-            <Card className="bg-white shadow-sm border border-gray-200">
-              <CardContent className="p-6">
-                {records.length === 0 ? (
-                  <div className="text-center py-12">
-                    <div className="h-16 w-16 bg-gray-100 rounded-xl flex items-center justify-center mx-auto mb-6">
-                      <Stethoscope className="h-8 w-8 text-gray-400" />
-                    </div>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-3">No hay tratamientos registrados</h3>
-                    <p className="text-gray-600 max-w-md mx-auto mb-6">
-                      Comienza registrando el primer tratamiento para este paciente.
+                {proximaCita && (
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <p className="text-sm text-white/60">Próxima Cita</p>
+                    <p className="text-xl font-semibold text-white">
+                      {new Date(proximaCita.fecha).toLocaleDateString()}
                     </p>
-                    <Button asChild className="bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700">
-                      <Link href={`/records/new?patientId=${patientId}`}>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Registrar Primer Tratamiento
-                      </Link>
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Fecha</TableHead>
-                          <TableHead>Tratamiento</TableHead>
-                          <TableHead>Monto Pagado</TableHead>
-                          <TableHead>Estado</TableHead>
-                          <TableHead>Notas</TableHead>
-                          <TableHead className="text-right">Acciones</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {records.map((record) => (
-                          <TableRow key={record.id}>
-                            <TableCell className="font-medium">
-                              {new Date(record.fecha).toLocaleDateString()}
-                            </TableCell>
-                            <TableCell>
-                              {record.treatment_name || record.treatment?.nombre || 'N/A'}
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <DollarSign className="h-4 w-4 text-green-600" />
-                                ${record.monto_pagado.toLocaleString()}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              {record.monto_pagado === 0 ? (
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                                  Programado
-                                </span>
-                              ) : (
-                                <div className="flex flex-col">
-                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 w-fit">
-                                    {formatPaymentMethod(record.metodo_pago, record.tipo_tarjeta, record.meses_sin_intereses)}
-                                  </span>
-                                </div>
-                              )}
-                            </TableCell>
-                            <TableCell className="max-w-48 truncate">
-                              {record.notas || 'Sin notas'}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex items-center justify-end gap-2">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleEditRecord(record)}
-                                  className="h-8 w-8 p-0 hover:bg-blue-50"
-                                  title="Editar tratamiento"
-                                >
-                                  <Pencil className="h-4 w-4 text-blue-600" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleDeleteRecord(record)}
-                                  className="h-8 w-8 p-0 hover:bg-red-50"
-                                  title="Eliminar tratamiento"
-                                >
-                                  <Trash2 className="h-4 w-4 text-red-600" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+              </div>
+            </GlassPanel>
 
-          {/* Expediente Médico Tab - NOM-004 Compliant */}
-          <TabsContent value="medical-record" className="mt-6">
-            {patient ? (
-              <MedicalRecordComplete
-                patientId={patientId}
-                patientData={{
-                  domicilio: patient.direccion,
-                  estado_civil: (patient as any).estado_civil,
-                  ocupacion: (patient as any).ocupacion,
-                  lugar_nacimiento: (patient as any).lugar_nacimiento,
-                  religion: (patient as any).religion,
-                }}
-                medicalHistory={medicalHistory}
-                allergies={allergies}
-                medications={medications}
-                medicalNotes={medicalNotes}
-                totalConsultations={totalConsultations}
-                onOpenTimeline={() => setMedicalTimelineOpen(true)}
-                onCreateConsultation={() => setConsultationWizardOpen(true)}
-              />
-            ) : (
-              <Card>
-                <CardContent className="p-6">
-                  <p className="text-center text-gray-500">Cargando expediente médico...</p>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
+            <GlassPanel className="border-white/10 bg-white/5 p-6 md:col-span-2 lg:col-span-3">
+              <div className="flex items-center gap-3">
+                <div className="rounded-2xl bg-purple-400/20 p-2 text-purple-100">
+                  <Plus className="h-4 w-4" />
+                </div>
+                <p className="text-lg font-semibold">Acciones Rápidas</p>
+              </div>
+              <div className="mt-6 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+                <Button
+                  asChild
+                  variant="outline"
+                  className="h-12 w-full justify-start border-white/15 bg-white/5 text-white hover:bg-white/10"
+                >
+                  <Link href={`/records/new?patientId=${patientId}`}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Nuevo Tratamiento
+                  </Link>
+                </Button>
+                <Button
+                  asChild
+                  variant="outline"
+                  className="h-12 w-full justify-start border-white/15 bg-white/5 text-white hover:bg-white/10"
+                >
+                  <Link href={`/agenda?patientId=${patientId}`}>
+                    <Calendar className="mr-2 h-4 w-4" />
+                    Programar Cita
+                  </Link>
+                </Button>
+                <Button
+                  onClick={() => setSendFormModalOpen(true)}
+                  variant="outline"
+                  className="h-12 w-full justify-start border-white/15 bg-white/5 text-white hover:bg-white/10"
+                >
+                  <FileText className="mr-2 h-4 w-4" />
+                  Enviar Formulario
+                </Button>
+                <Button
+                  asChild
+                  variant="outline"
+                  className="h-12 w-full justify-start border-white/15 bg-white/5 text-white hover:bg-white/10"
+                >
+                  <Link href={`/patients/${patientId}/edit`}>
+                    <Edit className="mr-2 h-4 w-4" />
+                    Editar Información
+                  </Link>
+                </Button>
+              </div>
+            </GlassPanel>
+          </div>
 
-          {/* Notas Personales Tab - NUEVO */}
-          <TabsContent value="notes" className="mt-6">
-            <PatientNotes patientId={patientId} />
-          </TabsContent>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6">
+            <TabsList className="grid w-full grid-cols-5 rounded-2xl border border-white/10 bg-white/5 p-1 text-white/70">
+              <TabsTrigger value="treatments" className="rounded-xl px-3 py-2 text-sm font-medium transition hover:bg-white/10 data-[state=active]:bg-white/15 data-[state=active]:text-white">
+                <Stethoscope className="h-4 w-4" />
+                Tratamientos
+              </TabsTrigger>
+              <TabsTrigger value="medical-record" className="rounded-xl px-3 py-2 text-sm font-medium transition hover:bg-white/10 data-[state=active]:bg-white/15 data-[state=active]:text-white">
+                <Activity className="h-4 w-4" />
+                Expediente
+              </TabsTrigger>
+              <TabsTrigger value="notes" className="rounded-xl px-3 py-2 text-sm font-medium transition hover:bg-white/10 data-[state=active]:bg-white/15 data-[state=active]:text-white">
+                <FileText className="h-4 w-4" />
+                Notas
+              </TabsTrigger>
+              <TabsTrigger value="billing" className="rounded-xl px-3 py-2 text-sm font-medium transition hover:bg-white/10 data-[state=active]:bg-white/15 data-[state=active]:text-white">
+                <DollarSign className="h-4 w-4" />
+                Facturación
+              </TabsTrigger>
+              <TabsTrigger value="photos" className="rounded-xl px-3 py-2 text-sm font-medium transition hover:bg-white/10 data-[state=active]:bg-white/15 data-[state=active]:text-white">
+                <Camera className="h-4 w-4" />
+                Fotos
+              </TabsTrigger>
+            </TabsList>
 
-          {/* Facturación Tab */}
-          <TabsContent value="billing" className="mt-6">
-            <div className="space-y-6">
-              {/* Pending Billing Section */}
-              <PendingBilling 
-                patientId={patientId} 
-                onUpdate={fetchData}
-              />
-              
-              {/* Original Billing Component (Bundles/Packages) */}
-              <PatientBilling 
-                patientId={patientId} 
-                patientName={patient.nombre} 
-              />
-            </div>
-          </TabsContent>
+            <TabsContent value="treatments">
+              <GlassPanel className="border-white/10 bg-white/5 p-0">
+                <div className="p-6">
+                  {records.length === 0 ? (
+                    <div className="py-12 text-center">
+                      <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
+                        <Stethoscope className="h-8 w-8 text-white/60" />
+                      </div>
+                      <h3 className="mb-3 text-xl font-semibold text-white">No hay tratamientos registrados</h3>
+                      <p className="mx-auto mb-6 max-w-md text-white/70">
+                        Comienza registrando el primer tratamiento para este paciente.
+                      </p>
+                      <Button asChild className="border-0 bg-gradient-to-r from-emerald-400 via-cyan-400 to-green-500 text-black hover:from-emerald-300 hover:via-cyan-300 hover:to-green-400">
+                        <Link href={`/records/new?patientId=${patientId}`}>
+                          <Plus className="mr-2 h-4 w-4" />
+                          Registrar Primer Tratamiento
+                        </Link>
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader className="bg-white/5">
+                          <TableRow className="border-white/10">
+                            <TableHead className="text-white/70">Fecha</TableHead>
+                            <TableHead className="text-white/70">Tratamiento</TableHead>
+                            <TableHead className="text-white/70">Monto Pagado</TableHead>
+                            <TableHead className="text-white/70">Estado</TableHead>
+                            <TableHead className="text-white/70">Notas</TableHead>
+                            <TableHead className="text-right text-white/70">Acciones</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {records.map((record) => (
+                            <TableRow key={record.id} className="border-white/10 hover:bg-white/5">
+                              <TableCell className="font-medium text-white">
+                                {new Date(record.fecha).toLocaleDateString()}
+                              </TableCell>
+                              <TableCell className="text-white/90">
+                                {record.treatment_name || record.treatment?.nombre || 'N/A'}
+                              </TableCell>
+                              <TableCell className="text-white">
+                                <div className="flex items-center gap-2">
+                                  <DollarSign className="h-4 w-4 text-emerald-300" />
+                                  ${record.monto_pagado.toLocaleString()}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                {record.monto_pagado === 0 ? (
+                                  <span className="inline-flex items-center rounded-full border border-amber-200/50 bg-amber-400/10 px-3 py-1 text-xs font-medium text-amber-100">
+                                    Programado
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center rounded-full border border-emerald-200/40 bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-100">
+                                    {formatPaymentMethod(record.metodo_pago, record.tipo_tarjeta, record.meses_sin_intereses)}
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell className="max-w-48 truncate text-white/70">
+                                {record.notas || 'Sin notas'}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex items-center justify-end gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleEditRecord(record)}
+                                    className="h-8 w-8 p-0 text-emerald-200 hover:bg-white/10"
+                                    title="Editar tratamiento"
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDeleteRecord(record)}
+                                    className="h-8 w-8 p-0 text-rose-200 hover:bg-white/10"
+                                    title="Eliminar tratamiento"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </div>
+              </GlassPanel>
+            </TabsContent>
 
-          {/* Fotos Tab - LIMPIA (sin notas médicas) */}
-          <TabsContent value="photos" className="mt-6">
-            <Card className="bg-white shadow-sm border border-gray-200">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 justify-between">
-                  <span className="flex items-center gap-2">
-                    <Camera className="h-5 w-5 text-purple-600" />
-                    📸 Galería de Fotos de Progreso
-                  </span>
-                  <Button onClick={() => setPhotoModalOpen(true)} size="sm">
-                    <Camera className="h-4 w-4 mr-2" />
+            <TabsContent value="medical-record">
+              <GlassPanel className="border-white/10 bg-white/5 p-0">
+                <div className="p-6">
+                  {patient ? (
+                    <MedicalRecordComplete
+                      patientId={patientId}
+                      patientData={{
+                        domicilio: patient.direccion,
+                        estado_civil: (patient as any).estado_civil,
+                        ocupacion: (patient as any).ocupacion,
+                        lugar_nacimiento: (patient as any).lugar_nacimiento,
+                        religion: (patient as any).religion,
+                      }}
+                      medicalHistory={medicalHistory}
+                      allergies={allergies}
+                      medications={medications}
+                      medicalNotes={medicalNotes}
+                      totalConsultations={totalConsultations}
+                      onOpenTimeline={() => setMedicalTimelineOpen(true)}
+                      onCreateConsultation={() => setConsultationWizardOpen(true)}
+                    />
+                  ) : (
+                    <p className="py-12 text-center text-white/60">Cargando expediente médico...</p>
+                  )}
+                </div>
+              </GlassPanel>
+            </TabsContent>
+
+            <TabsContent value="notes">
+              <PatientNotes patientId={patientId} />
+            </TabsContent>
+
+            <TabsContent value="billing">
+              <div className="space-y-6">
+                <PendingBilling patientId={patientId} onUpdate={fetchData} />
+                <PatientBilling patientId={patientId} patientName={patient.nombre} />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="photos">
+              <GlassPanel className="border-white/10 bg-white/5 p-6">
+                <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-4">
+                  <div className="flex items-center gap-2 text-lg font-semibold">
+                    <Camera className="h-5 w-5 text-purple-200" />
+                    <span>Galería de Fotos</span>
+                  </div>
+                  <Button
+                    onClick={() => setPhotoModalOpen(true)}
+                    size="sm"
+                    className="border-0 bg-white/90 text-black hover:bg-white"
+                  >
+                    <Camera className="mr-2 h-4 w-4" />
                     Subir Nueva Foto
                   </Button>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-6">
+                </div>
+
                 {photos.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Camera className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                    <h3 className="text-xl font-semibold text-gray-900 mb-3">Sin fotos de progreso</h3>
-                    <p className="text-gray-600 mb-6">
-                      Documenta la evolución del tratamiento con fotografías
+                  <div className="py-12 text-center text-white/70">
+                    <Camera className="mx-auto mb-4 h-16 w-16 text-white/40" />
+                    <h3 className="mb-3 text-xl font-semibold text-white">Sin fotos de progreso</h3>
+                    <p className="mb-6 text-white/70">
+                      Documenta la evolución del tratamiento con fotografías.
                     </p>
-                    <Button onClick={() => setPhotoModalOpen(true)} variant="outline">
-                      <Camera className="h-4 w-4 mr-2" />
+                    <Button
+                      onClick={() => setPhotoModalOpen(true)}
+                      variant="outline"
+                      className="border-white/20 text-white hover:bg-white/10"
+                    >
+                      <Camera className="mr-2 h-4 w-4" />
                       Subir Primera Foto
                     </Button>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {photos.map((photo) => (
-                      <div key={photo.id} className="group relative rounded-lg overflow-hidden border-2 border-gray-200 hover:border-purple-400 transition-all">
+                      <div key={photo.id} className="group relative overflow-hidden rounded-2xl border border-white/10">
                         <img
                           src={photo.url}
                           alt={photo.descripcion || 'Foto del paciente'}
-                          className="w-full h-64 object-cover"
+                          className="h-64 w-full object-cover"
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/70 via-transparent to-transparent p-4 opacity-0 transition-opacity group-hover:opacity-100">
+                          <div className="mb-3 flex items-center gap-2 text-xs">
+                            {photo.categoria === 'progreso' && <span className="rounded-full bg-cyan-500/30 px-2 py-0.5 text-white">📊 Progreso</span>}
+                            {photo.categoria === 'antes' && <span className="rounded-full bg-amber-500/30 px-2 py-0.5 text-white">⏪ Antes</span>}
+                            {photo.categoria === 'despues' && <span className="rounded-full bg-emerald-500/30 px-2 py-0.5 text-white">⏩ Después</span>}
+                          </div>
+                          {photo.descripcion && <p className="text-sm text-white">{photo.descripcion}</p>}
+                          <p className="text-xs text-white/70">
+                            {new Date(photo.created_at).toLocaleDateString('es-MX', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric'
+                            })}
+                          </p>
                           <button
                             onClick={() => {
                               if (confirm('¿Eliminar esta foto?')) {
                                 handleDeletePhoto(photo.id);
                               }
                             }}
-                            className="absolute top-3 right-3 p-2 bg-red-500 hover:bg-red-600 text-white rounded-full shadow-lg"
+                            className="absolute right-4 top-4 rounded-full border border-white/30 bg-white/10 p-2 text-white backdrop-blur"
                             title="Eliminar foto"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
-                          
-                          <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
-                            {photo.categoria && (
-                              <div className="flex items-center gap-2 mb-1">
-                                {photo.categoria === 'progreso' && <span className="text-xs bg-blue-500 px-2 py-1 rounded">📊 Progreso</span>}
-                                {photo.categoria === 'antes' && <span className="text-xs bg-orange-500 px-2 py-1 rounded">⏪ Antes</span>}
-                                {photo.categoria === 'despues' && <span className="text-xs bg-green-500 px-2 py-1 rounded">⏩ Después</span>}
-                              </div>
-                            )}
-                            {photo.descripcion && (
-                              <p className="text-sm">{photo.descripcion}</p>
-                            )}
-                            <p className="text-xs text-gray-300 mt-1">
-                              {new Date(photo.created_at).toLocaleDateString('es-MX', {
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric'
-                              })}
-                            </p>
-                          </div>
                         </div>
                       </div>
                     ))}
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+              </GlassPanel>
+            </TabsContent>
 
-          {/* Acciones Rápidas Tab */}
-          <TabsContent value="actions" className="mt-6">
-            <Card className="bg-white shadow-sm border border-gray-200">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Plus className="h-5 w-5 text-purple-600" />
-                  Acciones Rápidas
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  <Button className="h-20 flex-col gap-2" variant="outline" asChild>
-                    <Link href={`/records/new?patientId=${patientId}`}>
-                      <Plus className="h-6 w-6" />
-                      Nuevo Tratamiento
-                    </Link>
-                  </Button>
-                  <Button 
-                    className="h-20 flex-col gap-2" 
-                    variant="outline"
-                    onClick={() => setAppointmentModalOpen(true)}
-                  >
-                    <Calendar className="h-6 w-6" />
-                    Programar Cita
-                  </Button>
-                  <Button className="h-20 flex-col gap-2" variant="outline" asChild>
-                    <Link href={`/patients/${patientId}/edit`}>
-                      <Edit className="h-6 w-6" />
-                      Editar Información
-                    </Link>
-                  </Button>
-                  <Button 
-                    className="h-20 flex-col gap-2" 
-                    variant="outline"
-                    onClick={() => setInvoiceModalOpen(true)}
-                  >
-                    <FileText className="h-6 w-6" />
-                    Crear Factura
-                  </Button>
-                  <Button 
-                    className="h-20 flex-col gap-2" 
-                    variant="outline"
-                    onClick={() => setActiveTab('medical-record')}
-                  >
-                    <Activity className="h-6 w-6" />
-                    Ver Expediente NOM-004
-                  </Button>
-                  <Button 
-                    className="h-20 flex-col gap-2" 
-                    variant="outline"
-                    onClick={() => setPhotoModalOpen(true)}
-                  >
-                    <Camera className="h-6 w-6" />
-                    Subir Foto
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+          </Tabs>
 
-          {/* Facturación Tab */}
-          <TabsContent value="billing" className="mt-6">
-            <div className="space-y-6">
-              {/* Pending Billing Section */}
-              <PendingBilling 
-                patientId={patientId} 
-                onUpdate={fetchData}
-              />
-              
-              {/* Original Billing Component (Bundles/Packages) */}
-              <PatientBilling 
-                patientId={patientId} 
-                patientName={patient.nombre} 
-              />
-            </div>
-          </TabsContent>
-        </Tabs>
-
-        {/* Edit Record Modal */}
-        {selectedRecord && (
-          <EditRecordModal
-            open={editModalOpen}
-            onClose={() => {
-              setEditModalOpen(false);
-              setSelectedRecord(null);
-            }}
-            record={{
-              ...selectedRecord,
-              id: selectedRecord.id.toString(),
-              treatment_id: selectedRecord.treatment_id || selectedRecord.treatment?.id.toString() || '',
-              treatment: selectedRecord.treatment ? {
-                ...selectedRecord.treatment,
-                id: selectedRecord.treatment.id.toString()
-              } : undefined
-            }}
-            onSuccess={handleSuccess}
-          />
-        )}
-
-        {/* Delete Record Dialog */}
-        {selectedRecord && (
-          <DeleteRecordDialog
-            open={deleteDialogOpen}
-            onClose={() => {
-              setDeleteDialogOpen(false);
-              setSelectedRecord(null);
-            }}
-            recordId={selectedRecord.id.toString()}
-            treatmentName={selectedRecord.treatment_name || selectedRecord.treatment?.nombre || 'Tratamiento'}
-            onSuccess={handleSuccess}
-          />
-        )}
-
-        {/* Modals */}
-        {patient && (
-          <>
-            <QuickAppointmentModal
-              patientId={patientId}
-              patientName={patient.nombre}
-              open={appointmentModalOpen}
-              onClose={() => setAppointmentModalOpen(false)}
-              onSuccess={fetchData}
-            />
-            
-            <UploadPhotoModal
-              patientId={patientId}
-              patientName={patient.nombre}
-              open={photoModalOpen}
-              onClose={() => setPhotoModalOpen(false)}
-              onSuccess={fetchData}
-            />
-            
-            <QuickInvoiceModal
-              patientId={patientId}
-              patientName={patient.nombre}
-              open={invoiceModalOpen}
-              onClose={() => setInvoiceModalOpen(false)}
-              onSuccess={fetchData}
-            />
-            
-            <SendFormModal
-              isOpen={sendFormModalOpen}
-              onClose={() => setSendFormModalOpen(false)}
-              patientId={patientId}
-              patientName={patient.nombre}
-            />
-
-            <MedicalTimeline
-              patientId={patientId}
-              patientName={patient.nombre}
-              open={medicalTimelineOpen}
-              onClose={() => setMedicalTimelineOpen(false)}
-              onSuccess={fetchData}
-            />
-
-            <ConsultationWizard
-              open={consultationWizardOpen}
-              onClose={() => setConsultationWizardOpen(false)}
-              patientId={patientId}
-              patientName={patient.nombre}
-              onSuccess={() => {
-                fetchData();
-                setConsultationWizardOpen(false);
+          {selectedRecord && (
+            <EditRecordModal
+              open={editModalOpen}
+              onClose={() => {
+                setEditModalOpen(false);
+                setSelectedRecord(null);
               }}
+              record={{
+                ...selectedRecord,
+                id: selectedRecord.id.toString(),
+                treatment_id: selectedRecord.treatment_id || selectedRecord.treatment?.id.toString() || '',
+                treatment: selectedRecord.treatment
+                  ? {
+                      ...selectedRecord.treatment,
+                      id: selectedRecord.treatment.id.toString()
+                    }
+                  : undefined
+              }}
+              onSuccess={handleSuccess}
             />
-          </>
-        )}
+          )}
+
+          {selectedRecord && (
+            <DeleteRecordDialog
+              open={deleteDialogOpen}
+              onClose={() => {
+                setDeleteDialogOpen(false);
+                setSelectedRecord(null);
+              }}
+              recordId={selectedRecord.id.toString()}
+              treatmentName={selectedRecord.treatment_name || selectedRecord.treatment?.nombre || 'Tratamiento'}
+              onSuccess={handleSuccess}
+            />
+          )}
+
+          {patient && (
+            <>
+              <QuickAppointmentModal
+                patientId={patientId}
+                patientName={patient.nombre}
+                open={appointmentModalOpen}
+                onClose={() => setAppointmentModalOpen(false)}
+                onSuccess={fetchData}
+              />
+
+              <UploadPhotoModal
+                patientId={patientId}
+                patientName={patient.nombre}
+                open={photoModalOpen}
+                onClose={() => setPhotoModalOpen(false)}
+                onSuccess={fetchData}
+              />
+
+              <QuickInvoiceModal
+                patientId={patientId}
+                patientName={patient.nombre}
+                open={invoiceModalOpen}
+                onClose={() => setInvoiceModalOpen(false)}
+                onSuccess={fetchData}
+              />
+
+              <SendFormModal
+                isOpen={sendFormModalOpen}
+                onClose={() => setSendFormModalOpen(false)}
+                patientId={patientId}
+                patientName={patient.nombre}
+              />
+
+              <MedicalTimeline
+                patientId={patientId}
+                patientName={patient.nombre}
+                open={medicalTimelineOpen}
+                onClose={() => setMedicalTimelineOpen(false)}
+                onSuccess={fetchData}
+              />
+
+              <ConsultationWizard
+                open={consultationWizardOpen}
+                onClose={() => setConsultationWizardOpen(false)}
+                patientId={patientId}
+                patientName={patient.nombre}
+                onSuccess={() => {
+                  fetchData();
+                  setConsultationWizardOpen(false);
+                }}
+              />
+            </>
+          )}
+        </div>
       </div>
     </AppLayout>
   );

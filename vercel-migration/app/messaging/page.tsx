@@ -15,6 +15,8 @@ import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { GlassPanel } from '@/components/ui/glass-panel';
+import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -155,19 +157,19 @@ function MessagingContent() {
   };
 
   const getStatusBadge = (status: string) => {
-    const variants: Record<string, { variant: any; label: string; icon: any }> = {
-      pending: { variant: 'secondary', label: 'Pendiente', icon: Clock },
-      sent: { variant: 'default', label: 'Enviado', icon: Send },
-      delivered: { variant: 'default', label: 'Entregado', icon: CheckCircle2 },
-      read: { variant: 'default', label: 'Leído', icon: CheckCircle2 },
-      failed: { variant: 'destructive', label: 'Fallido', icon: AlertCircle },
+    const variants: Record<string, { className: string; label: string; icon: any }> = {
+      pending: { className: 'border-amber-400/40 bg-amber-500/15 text-amber-200', label: 'Pendiente', icon: Clock },
+      sent: { className: 'border-emerald-400/40 bg-emerald-500/15 text-emerald-200', label: 'Enviado', icon: Send },
+      delivered: { className: 'border-emerald-400/40 bg-emerald-500/15 text-emerald-200', label: 'Entregado', icon: CheckCircle2 },
+      read: { className: 'border-emerald-400/40 bg-emerald-500/15 text-emerald-200', label: 'Leído', icon: CheckCircle2 },
+      failed: { className: 'border-rose-400/40 bg-rose-500/15 text-rose-200', label: 'Fallido', icon: AlertCircle },
     };
 
     const config = variants[status] || variants.pending;
     const Icon = config.icon;
 
     return (
-      <Badge variant={config.variant} className="flex items-center gap-1 w-fit">
+      <Badge className={cn('flex items-center gap-1 w-fit', config.className)}>
         <Icon className="h-3 w-3" />
         {config.label}
       </Badge>
@@ -177,9 +179,9 @@ function MessagingContent() {
   if (isLoading) {
     return (
       <div className="flex h-96 items-center justify-center">
-        <div className="text-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-4"></div>
-          <p className="text-sm text-muted-foreground">Cargando mensajería...</p>
+        <div className="text-center text-white/70">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-300 border-t-transparent mx-auto mb-4"></div>
+          <p className="text-sm">Cargando mensajería...</p>
         </div>
       </div>
     );
@@ -236,140 +238,101 @@ function MessagingContent() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50/50">
+    <div className="min-h-screen bg-[#020617]">
       {/* Main Navigation */}
-      <div className="bg-white border-b">
+      <GlassPanel className="rounded-none border-x-0 border-t-0">
         <div className="container mx-auto px-6 py-4">
           <MainNav />
         </div>
-      </div>
+      </GlassPanel>
 
       <div className="container mx-auto px-6 py-8 space-y-6">
-        {/* Header con gradiente */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-green-500 via-emerald-500 to-teal-600 p-8 text-white shadow-xl">
-        <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10"></div>
-        <div className="relative flex items-center justify-between">
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
-                <MessageSquare className="h-8 w-8" />
+        {/* Hero Section */}
+        <GlassPanel className="relative overflow-hidden p-8 text-white">
+          <div className="pointer-events-none absolute inset-0 opacity-60">
+            <div className="absolute -top-32 right-0 h-72 w-72 rounded-full bg-green-400/30 blur-[140px]" />
+            <div className="absolute -bottom-40 left-0 h-72 w-72 rounded-full bg-teal-400/30 blur-[160px]" />
+          </div>
+          
+          <div className="relative space-y-4">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-1.5">
+              <MessageSquare className="h-4 w-4" />
+              <span className="text-sm font-medium">Comunicación</span>
+            </div>
+            
+            <div className="flex items-center gap-4">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-green-400 to-teal-500 shadow-lg">
+                <MessageSquare className="h-8 w-8 text-white" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold tracking-tight">Mensajería</h1>
-                <p className="text-green-50 mt-1">
-                  Envía recordatorios automáticos y gestiona la comunicación con tus pacientes
-                </p>
+                <h1 className="text-4xl font-bold">Mensajería</h1>
+                <p className="mt-1 text-white/80">Envía recordatorios automáticos y gestiona la comunicación</p>
               </div>
             </div>
+            
+            {/* Stats mini-cards */}
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              <div className="rounded-xl border border-white/20 bg-white/10 p-4 backdrop-blur">
+                <div className="text-2xl font-bold">{stats?.total_sent || 0}</div>
+                <div className="text-sm text-white/70">Enviados</div>
+              </div>
+              <div className="rounded-xl border border-white/20 bg-white/10 p-4 backdrop-blur">
+                <div className="text-2xl font-bold">{stats?.total_delivered || 0}</div>
+                <div className="text-sm text-white/70">Entregados</div>
+              </div>
+              <div className="rounded-xl border border-white/20 bg-white/10 p-4 backdrop-blur">
+                <div className="text-2xl font-bold">{stats?.total_read || 0}</div>
+                <div className="text-sm text-white/70">Leídos</div>
+              </div>
+              <div className="rounded-xl border border-white/20 bg-white/10 p-4 backdrop-blur">
+                <div className="text-2xl font-bold">{(stats?.today_limit || 1000) - (stats?.today_sent || 0)}</div>
+                <div className="text-sm text-white/70">Disponibles</div>
+              </div>
+            </div>
+            
+            <Button variant="ghost" className="rounded-full border-white/20 bg-white/5 text-white hover:bg-white/10" asChild>
+              <Link href="/dashboard/settings/whatsapp">
+                <Settings className="mr-2 h-5 w-5" />
+                Configurar WhatsApp
+              </Link>
+            </Button>
           </div>
-          <Button variant="secondary" size="lg" asChild className="bg-white text-green-600 hover:bg-green-50">
-            <Link href="/dashboard/settings/whatsapp">
-              <Settings className="mr-2 h-5 w-5" />
-              Configurar WhatsApp
-            </Link>
-          </Button>
-        </div>
-      </div>
+        </GlassPanel>
 
       {/* Configuration Alert */}
       {!isWhatsAppConfigured && (
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>WhatsApp no configurado</AlertTitle>
-          <AlertDescription>
-            <div className="flex items-center justify-between">
-              <span>Configura tu cuenta de WhatsApp Business para comenzar a enviar mensajes</span>
-              <Button size="sm" asChild>
-                <Link href="/dashboard/settings/whatsapp">Configurar ahora</Link>
-              </Button>
+        <GlassPanel className="border-amber-400/30 bg-amber-500/15 text-amber-50">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="font-semibold">WhatsApp no configurado</h3>
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+                <span className="text-sm">Configura tu cuenta de WhatsApp Business para comenzar a enviar mensajes</span>
+                <Button size="sm" variant="ghost" className="rounded-full border-amber-400/30 bg-amber-500/20 text-amber-50 hover:bg-amber-500/30" asChild>
+                  <Link href="/dashboard/settings/whatsapp">Configurar ahora</Link>
+                </Button>
+              </div>
             </div>
-          </AlertDescription>
-        </Alert>
+          </div>
+        </GlassPanel>
       )}
-
-      {/* Stats Cards con colores */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="border-0 shadow-lg bg-gradient-to-br from-blue-50 to-blue-100/50">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-blue-900">Total Enviados</CardTitle>
-            <div className="p-2 bg-blue-500 rounded-lg">
-              <Send className="h-4 w-4 text-white" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-blue-600">{stats?.total_sent || 0}</div>
-            <p className="text-xs text-blue-600/70 mt-1">Mensajes enviados en total</p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-0 shadow-lg bg-gradient-to-br from-green-50 to-green-100/50">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-green-900">Entregados</CardTitle>
-            <div className="p-2 bg-green-500 rounded-lg">
-              <CheckCircle2 className="h-4 w-4 text-white" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-green-600">{stats?.total_delivered || 0}</div>
-            <p className="text-xs text-green-600/70 mt-1">
-              {stats?.total_sent && stats.total_sent > 0
-                ? `${Math.round((stats.total_delivered / stats.total_sent) * 100)}% tasa de entrega`
-                : '0% tasa de entrega'}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-0 shadow-lg bg-gradient-to-br from-purple-50 to-purple-100/50">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-purple-900">Leídos</CardTitle>
-            <div className="p-2 bg-purple-500 rounded-lg">
-              <TrendingUp className="h-4 w-4 text-white" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-purple-600">{stats?.total_read || 0}</div>
-            <p className="text-xs text-purple-600/70 mt-1">
-              {stats?.total_delivered && stats.total_delivered > 0
-                ? `${Math.round((stats.total_read / stats.total_delivered) * 100)}% tasa de lectura`
-                : '0% tasa de lectura'}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-0 shadow-lg bg-gradient-to-br from-orange-50 to-orange-100/50">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-orange-900">
-              Disponibles Hoy ({stats?.today_sent || 0}/{stats?.today_limit || 1000})
-            </CardTitle>
-            <div className="p-2 bg-orange-500 rounded-lg">
-              <Clock className="h-4 w-4 text-white" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-orange-600">
-              {(stats?.today_limit || 1000) - (stats?.today_sent || 0)}
-            </div>
-            <p className="text-xs text-orange-600/70 mt-1">Mensajes restantes hoy</p>
-          </CardContent>
-        </Card>
-      </div>
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="whatsapp">
+        <TabsList className="border-white/20 bg-white/10">
+          <TabsTrigger value="whatsapp" className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60">
             <MessageSquare className="h-4 w-4 mr-2" />
             WhatsApp
           </TabsTrigger>
-          <TabsTrigger value="sms">
+          <TabsTrigger value="sms" className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60">
             <Send className="h-4 w-4 mr-2" />
             SMS
           </TabsTrigger>
-          <TabsTrigger value="email">
+          <TabsTrigger value="email" className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60">
             <Mail className="h-4 w-4 mr-2" />
             Email
           </TabsTrigger>
-          <TabsTrigger value="reminders">
+          <TabsTrigger value="reminders" className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60">
             <Clock className="h-4 w-4 mr-2" />
             Recordatorios
           </TabsTrigger>
@@ -377,18 +340,18 @@ function MessagingContent() {
 
         {/* WhatsApp Tab */}
         <TabsContent value="whatsapp">
-          <Card>
-            <CardHeader>
-              <CardTitle>Mensajes Recientes de WhatsApp</CardTitle>
-              <CardDescription>Historial de mensajes enviados por WhatsApp Business</CardDescription>
-            </CardHeader>
-            <CardContent>
+          <GlassPanel className="space-y-5 p-5 text-white">
+            <div>
+              <h3 className="text-lg font-semibold">Mensajes Recientes de WhatsApp</h3>
+              <p className="text-sm text-white/70">Historial de mensajes enviados por WhatsApp Business</p>
+            </div>
+            <div>
               {recentMessages.length === 0 ? (
-                <div className="text-center py-12">
-                  <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-sm text-muted-foreground">No hay mensajes enviados todavía</p>
+                <div className="py-16 text-center text-white/70">
+                  <MessageSquare className="mx-auto h-12 w-12 text-white/40 mb-4" />
+                  <p className="text-sm">No hay mensajes enviados todavía</p>
                   {isWhatsAppConfigured && (
-                    <p className="text-xs text-muted-foreground mt-2">
+                    <p className="text-xs text-white/50 mt-2">
                       Los mensajes aparecerán aquí cuando se envíen
                     </p>
                   )}
@@ -398,19 +361,19 @@ function MessagingContent() {
                   {recentMessages.map((message) => (
                     <div
                       key={message.id}
-                      className="flex items-start justify-between border-b pb-4 last:border-0"
+                      className="flex items-start justify-between border-b border-white/10 pb-4 last:border-0"
                     >
                       <div className="space-y-1 flex-1">
                         <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium">{message.patient_name}</p>
+                          <p className="text-sm font-medium text-white">{message.patient_name}</p>
                           {getStatusBadge(message.status)}
                         </div>
-                        <p className="text-xs text-muted-foreground">{message.to_phone}</p>
-                        <p className="text-sm text-muted-foreground line-clamp-2">{message.message_body}</p>
+                        <p className="text-xs text-white/60">{message.to_phone}</p>
+                        <p className="text-sm text-white/70 line-clamp-2">{message.message_body}</p>
                         {message.error_message && (
-                          <p className="text-xs text-destructive">Error: {message.error_message}</p>
+                          <p className="text-xs text-rose-300">Error: {message.error_message}</p>
                         )}
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs text-white/60">
                           {new Date(message.created_at).toLocaleString('es-MX', {
                             day: '2-digit',
                             month: 'short',
@@ -424,83 +387,92 @@ function MessagingContent() {
                   ))}
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </GlassPanel>
         </TabsContent>
 
         {/* SMS Tab */}
         <TabsContent value="sms">
           <div className="space-y-6">
             {/* Formulario de prueba */}
-            <Card className="border-green-200 bg-green-50/50">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Send className="h-5 w-5 text-green-600" />
-                  Enviar SMS de Prueba
-                </CardTitle>
-                <CardDescription>
-                  Envía un mensaje de prueba para validar tu configuración de Twilio
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="test-phone">Teléfono (con código de país)</Label>
-                  <Input
-                    id="test-phone"
-                    type="tel"
-                    placeholder="+521234567890"
-                    value={testPhone}
-                    onChange={(e) => setTestPhone(e.target.value)}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Ejemplo: +52 para México, +1 para USA
+            <GlassPanel className="border-emerald-400/30 bg-emerald-500/15 text-emerald-50">
+              <div className="space-y-5">
+                <div>
+                  <h3 className="flex items-center gap-2 text-lg font-semibold">
+                    <Send className="h-5 w-5" />
+                    Enviar SMS de Prueba
+                  </h3>
+                  <p className="mt-1 text-sm text-emerald-100/80">
+                    Envía un mensaje de prueba para validar tu configuración de Twilio
                   </p>
                 </div>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="test-phone" className="text-white">Teléfono (con código de país)</Label>
+                    <Input
+                      id="test-phone"
+                      type="tel"
+                      placeholder="+521234567890"
+                      value={testPhone}
+                      onChange={(e) => setTestPhone(e.target.value)}
+                      className="border-white/20 bg-white/5 text-white placeholder:text-white/40"
+                    />
+                    <p className="text-xs text-emerald-100/70">
+                      Ejemplo: +52 para México, +1 para USA
+                    </p>
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="test-message">Mensaje</Label>
-                  <Textarea
-                    id="test-message"
-                    placeholder="Escribe tu mensaje..."
-                    value={testMessage}
-                    onChange={(e) => setTestMessage(e.target.value)}
-                    rows={3}
-                  />
+                  <div className="space-y-2">
+                    <Label htmlFor="test-message" className="text-white">Mensaje</Label>
+                    <Textarea
+                      id="test-message"
+                      placeholder="Escribe tu mensaje..."
+                      value={testMessage}
+                      onChange={(e) => setTestMessage(e.target.value)}
+                      rows={3}
+                      className="border-white/20 bg-white/5 text-white placeholder:text-white/40"
+                    />
+                  </div>
+
+                  <Button
+                    onClick={sendTestMessage}
+                    disabled={isSendingTest || !testPhone || !testMessage}
+                    className="w-full rounded-full border-white/20 bg-white/5 text-white hover:bg-white/10"
+                    variant="ghost"
+                  >
+                    {isSendingTest ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2" />
+                        Enviando...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="h-4 w-4 mr-2" />
+                        Enviar Mensaje de Prueba
+                      </>
+                    )}
+                  </Button>
                 </div>
+              </div>
+            </GlassPanel>
 
-                <Button
-                  onClick={sendTestMessage}
-                  disabled={isSendingTest || !testPhone || !testMessage}
-                  className="w-full"
-                >
-                  {isSendingTest ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2" />
-                      Enviando...
-                    </>
-                  ) : (
-                    <>
-                      <Send className="h-4 w-4 mr-2" />
-                      Enviar Mensaje de Prueba
-                    </>
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
-
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Configuración de credenciales</AlertTitle>
-              <AlertDescription>
-                Para enviar SMS, configura tus credenciales de Twilio en{' '}
-                <a 
-                  href="/dashboard/settings/notifications" 
-                  className="underline font-semibold text-blue-600 hover:text-blue-800"
-                >
-                  Configuración → Notificaciones
-                </a>
-              </AlertDescription>
-            </Alert>
+            <GlassPanel className="border-amber-400/30 bg-amber-500/15 text-amber-50">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 mt-0.5" />
+                <div>
+                  <h3 className="font-semibold">Configuración de credenciales</h3>
+                  <p className="mt-1 text-sm">
+                    Para enviar SMS, configura tus credenciales de Twilio en{' '}
+                    <a 
+                      href="/dashboard/settings/notifications" 
+                      className="underline font-semibold hover:text-amber-100"
+                    >
+                      Configuración → Notificaciones
+                    </a>
+                  </p>
+                </div>
+              </div>
+            </GlassPanel>
 
             <SmsReminderSettings
               config={smsConfig}
@@ -515,72 +487,76 @@ function MessagingContent() {
 
         {/* Email Tab */}
         <TabsContent value="email">
-          <Card>
-            <CardHeader>
-              <CardTitle>Mensajes por Email</CardTitle>
-              <CardDescription>Próximamente: Envío de recordatorios por correo electrónico</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-12">
-                <Mail className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-sm text-muted-foreground">Esta funcionalidad estará disponible próximamente</p>
-              </div>
-            </CardContent>
-          </Card>
+          <GlassPanel className="space-y-5 p-5 text-white">
+            <div>
+              <h3 className="text-lg font-semibold">Mensajes por Email</h3>
+              <p className="text-sm text-white/70">Próximamente: Envío de recordatorios por correo electrónico</p>
+            </div>
+            <div className="py-16 text-center text-white/70">
+              <Mail className="mx-auto h-12 w-12 text-white/40 mb-4" />
+              <p className="text-sm">Esta funcionalidad estará disponible próximamente</p>
+            </div>
+          </GlassPanel>
         </TabsContent>
 
         {/* Reminders Tab */}
         <TabsContent value="reminders">
-          <Card>
-            <CardHeader>
-              <CardTitle>Configuración de Recordatorios</CardTitle>
-              <CardDescription>Gestiona los recordatorios automáticos para citas</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
+          <GlassPanel className="space-y-5 p-5 text-white">
+            <div>
+              <h3 className="text-lg font-semibold">Configuración de Recordatorios</h3>
+              <p className="text-sm text-white/70">Gestiona los recordatorios automáticos para citas</p>
+            </div>
+            <div className="space-y-6">
               {!hasSmsEnabled && (
-                <Alert>
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertTitle>Activa los recordatorios por SMS</AlertTitle>
-                  <AlertDescription>
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <span>Ve a la pestaña SMS para elegir horarios y guardar tus credenciales.</span>
-                      <Button size="sm" asChild>
-                        <Link href="/messaging?tab=sms">Abrir pestaña SMS</Link>
-                      </Button>
+                <GlassPanel className="border-amber-400/30 bg-amber-500/15 text-amber-50">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="h-5 w-5 mt-0.5" />
+                    <div className="flex-1">
+                      <h3 className="font-semibold">Activa los recordatorios por SMS</h3>
+                      <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+                        <span className="text-sm">Ve a la pestaña SMS para elegir horarios y guardar tus credenciales.</span>
+                        <Button size="sm" variant="ghost" className="rounded-full border-amber-400/30 bg-amber-500/20 text-amber-50 hover:bg-amber-500/30" asChild>
+                          <Link href="/messaging?tab=sms">Abrir pestaña SMS</Link>
+                        </Button>
+                      </div>
                     </div>
-                  </AlertDescription>
-                </Alert>
+                  </div>
+                </GlassPanel>
               )}
 
               {hasSmsEnabled && (
                 <div className="space-y-4">
-                  <Alert>
-                    <CheckCircle2 className="h-4 w-4" />
-                    <AlertTitle>Recordatorios SMS activos</AlertTitle>
-                    <AlertDescription>
-                      Tus pacientes recibirán mensajes en los horarios configurados. Puedes ajustar el contenido en la pestaña SMS.
-                    </AlertDescription>
-                  </Alert>
+                  <GlassPanel className="border-emerald-400/30 bg-emerald-500/15 text-emerald-50">
+                    <div className="flex items-start gap-3">
+                      <CheckCircle2 className="h-5 w-5 mt-0.5" />
+                      <div>
+                        <h3 className="font-semibold">Recordatorios SMS activos</h3>
+                        <p className="mt-1 text-sm">
+                          Tus pacientes recibirán mensajes en los horarios configurados. Puedes ajustar el contenido en la pestaña SMS.
+                        </p>
+                      </div>
+                    </div>
+                  </GlassPanel>
 
                   {smsTimingCards.length > 0 ? (
                     <div className="grid gap-4 md:grid-cols-2">
                       {smsTimingCards}
                     </div>
                   ) : (
-                    <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-muted-foreground">
+                    <div className="rounded-lg border border-dashed border-white/30 bg-white/5 p-6 text-sm text-white/70">
                       Activa al menos un horario en la pestaña SMS para comenzar a enviar recordatorios.
                     </div>
                   )}
 
-                  <div className="rounded-lg border border-slate-200 bg-white p-4">
-                    <p className="mb-3 text-sm font-medium text-slate-900">Opciones habilitadas</p>
-                    <ul className="space-y-2 text-sm text-muted-foreground">
+                  <div className="rounded-lg border border-white/20 bg-white/5 p-4">
+                    <p className="mb-3 text-sm font-medium text-white">Opciones habilitadas</p>
+                    <ul className="space-y-2 text-sm text-white/70">
                       {smsOptionsSummary.map((option) => (
                         <li key={option.id} className="flex items-start gap-2">
                           {option.enabled ? (
-                            <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-500" />
+                            <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-400" />
                           ) : (
-                            <Clock className="mt-0.5 h-4 w-4 text-slate-400" />
+                            <Clock className="mt-0.5 h-4 w-4 text-white/40" />
                           )}
                           <span>{option.enabled ? option.on : option.off}</span>
                         </li>
@@ -591,29 +567,35 @@ function MessagingContent() {
               )}
 
               {isWhatsAppConfigured ? (
-                <Alert>
-                  <CheckCircle2 className="h-4 w-4" />
-                  <AlertTitle>WhatsApp conectado</AlertTitle>
-                  <AlertDescription>
-                    Tus mensajes de WhatsApp se envían desde el número configurado. Consulta el historial en la pestaña WhatsApp.
-                  </AlertDescription>
-                </Alert>
-              ) : (
-                <Alert>
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertTitle>Conecta WhatsApp Business</AlertTitle>
-                  <AlertDescription>
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <span>Completa tus credenciales en Configuración → Mensajería para habilitar WhatsApp.</span>
-                      <Button size="sm" asChild>
-                        <Link href="/dashboard/settings/whatsapp">Configurar WhatsApp</Link>
-                      </Button>
+                <GlassPanel className="border-emerald-400/30 bg-emerald-500/15 text-emerald-50">
+                  <div className="flex items-start gap-3">
+                    <CheckCircle2 className="h-5 w-5 mt-0.5" />
+                    <div>
+                      <h3 className="font-semibold">WhatsApp conectado</h3>
+                      <p className="mt-1 text-sm">
+                        Tus mensajes de WhatsApp se envían desde el número configurado. Consulta el historial en la pestaña WhatsApp.
+                      </p>
                     </div>
-                  </AlertDescription>
-                </Alert>
+                  </div>
+                </GlassPanel>
+              ) : (
+                <GlassPanel className="border-amber-400/30 bg-amber-500/15 text-amber-50">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="h-5 w-5 mt-0.5" />
+                    <div className="flex-1">
+                      <h3 className="font-semibold">Conecta WhatsApp Business</h3>
+                      <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+                        <span className="text-sm">Completa tus credenciales en Configuración → Mensajería para habilitar WhatsApp.</span>
+                        <Button size="sm" variant="ghost" className="rounded-full border-amber-400/30 bg-amber-500/20 text-amber-50 hover:bg-amber-500/30" asChild>
+                          <Link href="/dashboard/settings/whatsapp">Configurar WhatsApp</Link>
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </GlassPanel>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </GlassPanel>
         </TabsContent>
       </Tabs>
       </div>
@@ -625,9 +607,9 @@ export default function MessagingPage() {
   return (
     <Suspense fallback={
       <div className="flex h-96 items-center justify-center">
-        <div className="text-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-4"></div>
-          <p className="text-sm text-muted-foreground">Cargando mensajería...</p>
+        <div className="text-center text-white/70">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-300 border-t-transparent mx-auto mb-4"></div>
+          <p className="text-sm">Cargando mensajería...</p>
         </div>
       </div>
     }>

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, X, DollarSign, Clock, Edit2, Trash2, Download } from 'lucide-react'
+import { Plus, DollarSign, Clock, Edit2, Trash2, Download } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 interface Service {
@@ -11,6 +11,15 @@ interface Service {
   duration: number
   price: number
   description?: string
+}
+
+interface TreatmentApi {
+  id: string
+  nombre: string
+  duracion_minutos?: number | null
+  precio_base?: number | null
+  descripcion?: string | null
+  activo?: boolean | null
 }
 
 interface ServicesManagerProps {
@@ -87,7 +96,7 @@ export default function ServicesManager({ services, onChange }: ServicesManagerP
       const response = await fetch('/api/treatments')
       if (!response.ok) throw new Error('Error al cargar tratamientos')
       
-      const treatments = await response.json()
+      const treatments: TreatmentApi[] = await response.json()
       
       if (!treatments || treatments.length === 0) {
         toast.error('No tienes tratamientos registrados')
@@ -99,8 +108,8 @@ export default function ServicesManager({ services, onChange }: ServicesManagerP
       let addedCount = 0
 
       const newServices = treatments
-        .filter((t: any) => t.activo !== false) // Solo tratamientos activos
-        .map((t: any) => ({
+        .filter((t) => t.activo !== false)
+        .map((t) => ({
           id: `treatment-${t.id}`,
           name: t.nombre,
           duration: t.duracion_minutos || 30,
@@ -129,36 +138,34 @@ export default function ServicesManager({ services, onChange }: ServicesManagerP
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 text-white">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Servicios Ofrecidos
-          </h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
+          <h3 className="text-xl font-semibold">Servicios ofrecidos</h3>
+          <p className="text-sm text-white/60">
             Define los servicios que los pacientes pueden agendar
           </p>
         </div>
         {!isAdding && (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={handleImportTreatments}
               disabled={loadingTreatments}
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-lg font-medium shadow-lg shadow-green-500/25 transition-all disabled:opacity-50"
+              className="aura-cta aura-cta--ghost"
             >
-              <Download className="w-4 h-4" />
-              <span>{loadingTreatments ? 'Cargando...' : 'Importar Tratamientos'}</span>
+              <Download className="h-4 w-4" />
+              <span>{loadingTreatments ? 'Cargando...' : 'Importar tratamientos'}</span>
             </motion.button>
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => setIsAdding(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg font-medium shadow-lg shadow-blue-500/25 transition-all"
+              className="aura-cta aura-cta--primary"
             >
-              <Plus className="w-4 h-4" />
-              <span>Agregar Servicio</span>
+              <Plus className="h-4 w-4" />
+              <span>Agregar servicio</span>
             </motion.button>
           </div>
         )}
@@ -170,27 +177,26 @@ export default function ServicesManager({ services, onChange }: ServicesManagerP
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 rounded-xl p-4 border border-blue-200 dark:border-blue-800"
+            className="rounded-3xl border border-white/10 bg-white/5 p-5"
           >
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Nombre del servicio *
+                <label className="block text-xs uppercase tracking-[0.35em] text-white/60">
+                  Nombre del servicio
                 </label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="Ej: Consulta general"
-                  className="w-full px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-gray-900 dark:text-white"
+                  className="mt-2 w-full rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-white placeholder:text-white/40 focus:border-emerald-300/60 focus:outline-none focus:ring-emerald-300/20"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    <Clock className="w-4 h-4 inline mr-1" />
-                    Duración (minutos) *
+                  <label className="block text-xs uppercase tracking-[0.35em] text-white/60">
+                    <Clock className="mr-1 inline h-3.5 w-3.5" /> Duración (minutos)
                   </label>
                   <input
                     type="number"
@@ -198,14 +204,13 @@ export default function ServicesManager({ services, onChange }: ServicesManagerP
                     onChange={(e) => setFormData({ ...formData, duration: parseInt(e.target.value) || 0 })}
                     min="5"
                     step="5"
-                    className="w-full px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-gray-900 dark:text-white"
+                    className="mt-2 w-full rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-white focus:border-emerald-300/60 focus:outline-none focus:ring-emerald-300/20"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    <DollarSign className="w-4 h-4 inline mr-1" />
-                    Precio *
+                  <label className="block text-xs uppercase tracking-[0.35em] text-white/60">
+                    <DollarSign className="mr-1 inline h-3.5 w-3.5" /> Precio
                   </label>
                   <input
                     type="number"
@@ -213,13 +218,13 @@ export default function ServicesManager({ services, onChange }: ServicesManagerP
                     onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
                     min="0"
                     step="50"
-                    className="w-full px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-gray-900 dark:text-white"
+                    className="mt-2 w-full rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-white focus:border-emerald-300/60 focus:outline-none focus:ring-emerald-300/20"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-xs uppercase tracking-[0.35em] text-white/60">
                   Descripción (opcional)
                 </label>
                 <textarea
@@ -227,14 +232,14 @@ export default function ServicesManager({ services, onChange }: ServicesManagerP
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   placeholder="Descripción breve del servicio..."
                   rows={2}
-                  className="w-full px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-gray-900 dark:text-white resize-none"
+                  className="mt-2 w-full rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-white placeholder:text-white/40 focus:border-emerald-300/60 focus:outline-none focus:ring-emerald-300/20"
                 />
               </div>
 
               <div className="flex gap-2 justify-end pt-2">
                 <button
                   onClick={handleCancel}
-                  className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all"
+                  className="aura-cta aura-cta--ghost"
                 >
                   Cancelar
                 </button>
@@ -243,7 +248,7 @@ export default function ServicesManager({ services, onChange }: ServicesManagerP
                   whileTap={{ scale: 0.98 }}
                   onClick={editingId ? handleUpdate : handleAdd}
                   disabled={!formData.name || !formData.duration || formData.price === undefined}
-                  className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  className="aura-cta aura-cta--primary disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {editingId ? 'Actualizar' : 'Agregar'}
                 </motion.button>
@@ -253,11 +258,19 @@ export default function ServicesManager({ services, onChange }: ServicesManagerP
         )}
       </AnimatePresence>
 
-      <div className="space-y-2">
+      <div className="space-y-3">
         {services.length === 0 ? (
-          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-            <p>No hay servicios configurados</p>
-            <p className="text-sm mt-1">Agrega al menos un servicio para activar el sistema de reservas</p>
+          <div className="flex flex-col items-center gap-3 rounded-3xl border border-dashed border-white/20 px-6 py-10 text-center text-white/70">
+            <p className="text-lg font-semibold text-white">Sin servicios</p>
+            <p className="text-sm">
+              Agrega al menos un servicio para activar el sistema de reservas
+            </p>
+            <button
+              onClick={() => setIsAdding(true)}
+              className="aura-cta aura-cta--primary"
+            >
+              Crear servicio
+            </button>
           </div>
         ) : (
           <AnimatePresence mode="popLayout">
@@ -268,25 +281,25 @@ export default function ServicesManager({ services, onChange }: ServicesManagerP
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-shadow"
+                className="rounded-3xl border border-white/10 bg-white/5 p-4 text-white transition hover:border-white/40"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <h4 className="font-medium text-gray-900 dark:text-white">
+                    <h4 className="font-medium">
                       {service.name}
                     </h4>
                     {service.description && (
-                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                      <p className="mt-1 text-sm text-white/70">
                         {service.description}
                       </p>
                     )}
                     <div className="flex items-center gap-4 mt-2">
-                      <span className="text-sm text-gray-600 dark:text-gray-300 flex items-center gap-1">
-                        <Clock className="w-4 h-4" />
+                      <span className="flex items-center gap-1 text-sm text-white/70">
+                        <Clock className="h-4 w-4" />
                         {service.duration} min
                       </span>
-                      <span className="text-sm font-medium text-blue-600 dark:text-blue-400 flex items-center gap-1">
-                        <DollarSign className="w-4 h-4" />
+                      <span className="flex items-center gap-1 text-sm font-semibold text-emerald-200">
+                        <DollarSign className="h-4 w-4" />
                         ${service.price.toLocaleString()}
                       </span>
                     </div>
@@ -294,15 +307,15 @@ export default function ServicesManager({ services, onChange }: ServicesManagerP
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => handleEdit(service)}
-                      className="p-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/20 rounded-lg transition-all"
+                      className="rounded-2xl border border-white/10 p-2 text-white/70 transition hover:border-white/40 hover:text-white"
                     >
-                      <Edit2 className="w-4 h-4" />
+                      <Edit2 className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => handleDelete(service.id)}
-                      className="p-2 text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-all"
+                      className="rounded-2xl border border-white/10 p-2 text-white/70 transition hover:border-rose-400/50 hover:text-rose-200"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
                 </div>

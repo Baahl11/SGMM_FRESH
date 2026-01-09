@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { GlassPanel } from "@/components/ui/glass-panel"
 import { Button } from "@/components/ui/button"
 import {
   Table,
@@ -147,86 +147,84 @@ export default function PendingBilling({ patientId, onUpdate }: PendingBillingPr
 
   if (loading) {
     return (
-      <Card className="bg-white shadow-sm border border-gray-200">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-          </div>
-        </CardContent>
-      </Card>
+      <GlassPanel className="border-white/10 bg-white/5 p-8 text-center">
+        <Loader2 className="mx-auto h-8 w-8 animate-spin text-white" />
+      </GlassPanel>
     )
   }
 
+  const checkboxClasses = "border-white/30 text-white data-[state=checked]:bg-emerald-400 data-[state=checked]:border-emerald-300"
+
   return (
-    <Card className="bg-white shadow-sm border border-gray-200">
-      <CardHeader className="border-b border-gray-100">
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-blue-600" />
-              Tratamientos Pendientes de Facturación
-            </CardTitle>
-            <CardDescription>
-              Tratamientos pagados con tarjeta o transferencia que requieren factura
-            </CardDescription>
-          </div>
-          {records.length > 0 && (
-            <div className="text-right space-y-2">
-              <div>
-                <div className="text-sm text-gray-600">Total Pendiente</div>
-                <div className="text-2xl font-bold text-green-600">
-                  ${totalPendiente.toLocaleString()}
-                </div>
-              </div>
-              {selectedRecords.size > 0 && (
-                <div className="pt-2 border-t">
-                  <div className="text-sm text-gray-600">Seleccionados ({selectedRecords.size})</div>
-                  <div className="text-xl font-bold text-blue-600">
-                    ${totalSelected.toLocaleString()}
-                  </div>
-                  <Button
-                    onClick={handleGenerateInvoice}
-                    className="mt-2 bg-blue-600 hover:bg-blue-700"
-                    size="sm"
-                  >
-                    <Receipt className="h-4 w-4 mr-2" />
-                    Generar Factura
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
+    <GlassPanel className="border-white/10 bg-white/5 p-0">
+      <div className="flex flex-col gap-4 border-b border-white/10 p-6 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p className="flex items-center gap-2 text-lg font-semibold text-white">
+            <FileText className="h-5 w-5 text-emerald-200" />
+            Tratamientos Pendientes de Facturación
+          </p>
+          <p className="text-sm text-white/70">
+            Pagos con tarjeta o transferencia que requieren CFDI.
+          </p>
         </div>
-      </CardHeader>
-      <CardContent className="p-6">
-        {records.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="h-16 w-16 bg-green-100 rounded-xl flex items-center justify-center mx-auto mb-6">
-              <Check className="h-8 w-8 text-green-600" />
+        {records.length > 0 && (
+          <div className="flex flex-col gap-3 text-right text-white">
+            <div>
+              <div className="text-xs uppercase tracking-widest text-white/60">Total pendiente</div>
+              <div className="text-2xl font-semibold text-emerald-200">
+                ${totalPendiente.toLocaleString()}
+              </div>
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-3">
-              ¡Todo facturado!
-            </h3>
-            <p className="text-gray-600 max-w-md mx-auto">
+            {selectedRecords.size > 0 && (
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-left">
+                <div className="text-xs uppercase tracking-widest text-white/60">
+                  Seleccionados ({selectedRecords.size})
+                </div>
+                <div className="text-xl font-semibold text-cyan-200">
+                  ${totalSelected.toLocaleString()}
+                </div>
+                <Button
+                  onClick={handleGenerateInvoice}
+                  className="mt-3 w-full border-0 bg-gradient-to-r from-emerald-400 via-cyan-400 to-blue-500 text-black hover:from-emerald-300 hover:via-cyan-300 hover:to-blue-400"
+                  size="sm"
+                >
+                  <Receipt className="mr-2 h-4 w-4" />
+                  Generar Factura
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="p-6">
+        {records.length === 0 ? (
+          <div className="py-12 text-center">
+            <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl border border-white/20 bg-white/5">
+              <Check className="h-8 w-8 text-emerald-200" />
+            </div>
+            <h3 className="mb-3 text-xl font-semibold text-white">¡Todo facturado!</h3>
+            <p className="mx-auto max-w-md text-white/70">
               No hay tratamientos pendientes de facturación para este paciente.
             </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12">
+              <TableHeader className="bg-white/5">
+                <TableRow className="border-white/10">
+                  <TableHead className="w-12 text-white/70">
                     <Checkbox
                       checked={selectedRecords.size === records.length && records.length > 0}
                       onCheckedChange={toggleSelectAll}
+                      className={checkboxClasses}
                     />
                   </TableHead>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead>Tratamiento</TableHead>
-                  <TableHead>Método de Pago</TableHead>
-                  <TableHead className="text-right">Monto</TableHead>
-                  <TableHead className="text-right">Monto Neto</TableHead>
+                  <TableHead className="text-white/70">Fecha</TableHead>
+                  <TableHead className="text-white/70">Tratamiento</TableHead>
+                  <TableHead className="text-white/70">Método de Pago</TableHead>
+                  <TableHead className="text-right text-white/70">Monto</TableHead>
+                  <TableHead className="text-right text-white/70">Monto Neto</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -234,33 +232,34 @@ export default function PendingBilling({ patientId, onUpdate }: PendingBillingPr
                   const patientName = record.patients 
                     ? `${record.patients.nombre} ${record.patients.apellido || ''}`.trim()
                     : record.patient_name || 'N/A'
-                  
+
                   const treatmentName = record.treatments?.nombre || record.treatment_name || 'N/A'
                   const isSelected = selectedRecords.has(record.id)
 
                   return (
-                    <TableRow 
+                    <TableRow
                       key={record.id}
-                      className={isSelected ? 'bg-blue-50' : ''}
+                      className={`border-white/10 ${isSelected ? 'bg-white/5' : ''}`}
                     >
                       <TableCell>
                         <Checkbox
                           checked={isSelected}
                           onCheckedChange={() => toggleSelectRecord(record.id)}
+                          className={checkboxClasses}
                         />
                       </TableCell>
-                      <TableCell className="font-medium">
+                      <TableCell className="font-medium text-white">
                         {new Date(record.fecha).toLocaleDateString()}
                       </TableCell>
                       <TableCell>
                         <div>
-                          <div className="font-medium text-gray-900">{treatmentName}</div>
-                          <div className="text-sm text-gray-500">{patientName}</div>
+                          <div className="font-semibold text-white">{treatmentName}</div>
+                          <div className="text-sm text-white/60">{patientName}</div>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <CreditCard className="h-4 w-4 text-blue-600" />
+                        <div className="flex items-center gap-2 text-white">
+                          <CreditCard className="h-4 w-4 text-cyan-200" />
                           <span>
                             {formatPaymentMethod(
                               record.metodo_pago,
@@ -270,18 +269,16 @@ export default function PendingBilling({ patientId, onUpdate }: PendingBillingPr
                           </span>
                         </div>
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right text-white">
                         <div className="flex items-center justify-end gap-1">
-                          <DollarSign className="h-4 w-4 text-green-600" />
+                          <DollarSign className="h-4 w-4 text-emerald-200" />
                           <span className="font-semibold">
                             ${record.monto_pagado.toLocaleString()}
                           </span>
                         </div>
                       </TableCell>
-                      <TableCell className="text-right">
-                        <div className="text-sm text-gray-600">
-                          ${record.monto_neto.toLocaleString()}
-                        </div>
+                      <TableCell className="text-right text-white/80">
+                        ${record.monto_neto.toLocaleString()}
                       </TableCell>
                     </TableRow>
                   )
@@ -290,9 +287,8 @@ export default function PendingBilling({ patientId, onUpdate }: PendingBillingPr
             </Table>
           </div>
         )}
-      </CardContent>
+      </div>
 
-      {/* Invoice Generation Modal */}
       <GenerateInvoiceModal
         open={showInvoiceModal}
         onOpenChange={setShowInvoiceModal}
@@ -302,6 +298,6 @@ export default function PendingBilling({ patientId, onUpdate }: PendingBillingPr
         records={getSelectedRecordsData()}
         onSuccess={handleInvoiceSuccess}
       />
-    </Card>
+    </GlassPanel>
   )
 }

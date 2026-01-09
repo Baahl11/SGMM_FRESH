@@ -6,10 +6,10 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import AppLayout from '@/components/layout/app-layout';
+import { GlassPanel } from '@/components/ui/glass-panel';
 import {
   UserPlus,
   User,
@@ -265,6 +265,9 @@ export default function NewPatientPage() {
     patient.telefono.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const glassInputClass = "rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-sm text-white placeholder-white/60 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:border-transparent";
+  const glassSelectClass = "rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-sm text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:border-transparent";
+
   if (loadingAuth) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -279,157 +282,176 @@ export default function NewPatientPage() {
 
   return (
     <AppLayout>
-      <div className="space-y-8 p-6 bg-gradient-to-br from-blue-50/50 to-indigo-50/50 min-h-screen">
-        {/* Header */}
-        <div className="flex justify-between items-center bg-white rounded-xl p-6 shadow-sm border border-blue-100">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl flex items-center justify-center">
-              <UserPlus className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent">
-                Nuevo Paciente
-              </h1>
-              <p className="text-gray-600">Agrega un nuevo paciente o tratamientos para pacientes existentes</p>
-            </div>
-          </div>
-          <Button 
-            variant="outline" 
-            onClick={() => router.push('/patients')}
-            className="hover:bg-gray-50"
-          >
-            Volver a Pacientes
-          </Button>
+      <div className="relative min-h-screen overflow-hidden bg-[#010511] px-4 py-8 text-white sm:px-6 lg:px-12">
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute -top-24 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-emerald-500/15 blur-[200px]" />
+          <div className="absolute bottom-0 right-0 h-96 w-96 rounded-full bg-indigo-600/20 blur-[180px]" />
+          <div className="absolute top-1/3 left-0 h-72 w-72 rounded-full bg-cyan-500/20 blur-[160px]" />
         </div>
 
-        {/* Tabs */}
-        <Tabs defaultValue="single" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 bg-white rounded-xl shadow-sm border border-gray-200">
-            <TabsTrigger value="single" className="flex items-center gap-2">
-              <User className="h-4 w-4" />
-              Paciente Individual
-            </TabsTrigger>
-            <TabsTrigger value="multi" className="flex items-center gap-2" onClick={loadPatients}>
-              <Stethoscope className="h-4 w-4" />
-              Múltiples Tratamientos
-            </TabsTrigger>
-          </TabsList>
-
-          {/* Tab: Paciente Individual */}
-          <TabsContent value="single" className="space-y-6">
-            <Card className="bg-white shadow-sm border border-gray-200">
-              <CardHeader className="border-b border-gray-100">
-                <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
-                    <User className="h-4 w-4 text-white" />
-                  </div>
-                  <CardTitle className="text-xl font-semibold text-gray-900">Información del Paciente</CardTitle>
+        <div className="relative mx-auto max-w-6xl space-y-8">
+          <GlassPanel className="relative overflow-hidden border-white/10 bg-white/5 p-6 sm:p-8">
+            <div className="pointer-events-none absolute inset-0 opacity-80">
+              <div className="absolute -top-20 right-6 h-60 w-60 rounded-full bg-emerald-400/40 blur-[140px]" />
+              <div className="absolute bottom-0 left-0 h-56 w-56 rounded-full bg-cyan-500/30 blur-[140px]" />
+            </div>
+            <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex items-center gap-4">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 shadow-lg shadow-emerald-900/40">
+                  <UserPlus className="h-7 w-7 text-white" />
                 </div>
-              </CardHeader>
-              <CardContent className="p-6">
-                <form onSubmit={handleNewPatientSubmit} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.35em] text-white/60">Registro rápido</p>
+                  <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">Nuevo Paciente</h1>
+                  <p className="mt-2 text-sm text-white/70">Agrega pacientes o registra múltiples tratamientos en un flujo Aura Glass.</p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => router.push('/patients')}
+                className="border-white/20 bg-white/10 text-white hover:bg-white/20"
+              >
+                Volver a Pacientes
+              </Button>
+            </div>
+          </GlassPanel>
+
+          <Tabs defaultValue="single" className="space-y-6">
+            <GlassPanel className="border-white/10 bg-white/5 p-2">
+              <TabsList className="grid w-full grid-cols-2 gap-2 rounded-2xl bg-transparent">
+                <TabsTrigger
+                  value="single"
+                  className="flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold text-white/70 transition data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-lg"
+                >
+                  <User className="h-4 w-4" />
+                  Paciente Individual
+                </TabsTrigger>
+                <TabsTrigger
+                  value="multi"
+                  className="flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold text-white/70 transition data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-lg"
+                  onClick={loadPatients}
+                >
+                  <Stethoscope className="h-4 w-4" />
+                  Múltiples Tratamientos
+                </TabsTrigger>
+              </TabsList>
+            </GlassPanel>
+
+            <TabsContent value="single" className="space-y-6">
+              <GlassPanel className="border-white/10 bg-white/5 p-6">
+                <div className="flex items-center gap-3 border-b border-white/10 pb-4">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600">
+                    <User className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.35em] text-white/50">Paso 1</p>
+                    <h2 className="text-lg font-semibold text-white">Información del Paciente</h2>
+                  </div>
+                </div>
+
+                <form onSubmit={handleNewPatientSubmit} className="mt-6 space-y-6">
+                  <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                     <div className="space-y-2">
-                      <Label htmlFor="nombre" className="text-gray-700 font-medium flex items-center gap-2">
-                        <Users className="h-4 w-4 text-blue-600" />
+                      <Label htmlFor="nombre" className="flex items-center gap-2 text-sm font-semibold text-white">
+                        <Users className="h-4 w-4 text-emerald-300" />
                         Nombre completo *
                       </Label>
                       <Input
                         id="nombre"
                         type="text"
                         value={newPatientForm.nombre}
-                        onChange={(e) => setNewPatientForm({...newPatientForm, nombre: e.target.value})}
+                        onChange={(e) => setNewPatientForm({ ...newPatientForm, nombre: e.target.value })}
                         placeholder="Ingresa el nombre completo"
                         required
-                        className="border-gray-300 focus:border-blue-500"
+                        className={glassInputClass}
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="fecha_nacimiento" className="text-gray-700 font-medium flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-green-600" />
+                      <Label htmlFor="fecha_nacimiento" className="flex items-center gap-2 text-sm font-semibold text-white">
+                        <Calendar className="h-4 w-4 text-cyan-300" />
                         Fecha de nacimiento *
                       </Label>
                       <Input
                         id="fecha_nacimiento"
                         type="date"
                         value={newPatientForm.fecha_nacimiento}
-                        onChange={(e) => setNewPatientForm({...newPatientForm, fecha_nacimiento: e.target.value})}
+                        onChange={(e) => setNewPatientForm({ ...newPatientForm, fecha_nacimiento: e.target.value })}
                         required
-                        className="border-gray-300 focus:border-blue-500"
+                        className={glassInputClass}
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="telefono" className="text-gray-700 font-medium flex items-center gap-2">
-                        <Phone className="h-4 w-4 text-emerald-600" />
+                      <Label htmlFor="telefono" className="flex items-center gap-2 text-sm font-semibold text-white">
+                        <Phone className="h-4 w-4 text-emerald-300" />
                         Teléfono *
                       </Label>
                       <Input
                         id="telefono"
                         type="tel"
                         value={newPatientForm.telefono}
-                        onChange={(e) => setNewPatientForm({...newPatientForm, telefono: e.target.value})}
+                        onChange={(e) => setNewPatientForm({ ...newPatientForm, telefono: e.target.value })}
                         placeholder="Número de teléfono"
                         required
-                        className="border-gray-300 focus:border-blue-500"
+                        className={glassInputClass}
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="email" className="text-gray-700 font-medium flex items-center gap-2">
-                        <Mail className="h-4 w-4 text-indigo-600" />
+                      <Label htmlFor="email" className="flex items-center gap-2 text-sm font-semibold text-white">
+                        <Mail className="h-4 w-4 text-sky-300" />
                         Email
                       </Label>
                       <Input
                         id="email"
                         type="email"
                         value={newPatientForm.email}
-                        onChange={(e) => setNewPatientForm({...newPatientForm, email: e.target.value})}
+                        onChange={(e) => setNewPatientForm({ ...newPatientForm, email: e.target.value })}
                         placeholder="Correo electrónico"
-                        className="border-gray-300 focus:border-blue-500"
+                        className={glassInputClass}
                       />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="direccion" className="text-gray-700 font-medium flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-red-600" />
+                    <Label htmlFor="direccion" className="flex items-center gap-2 text-sm font-semibold text-white">
+                      <MapPin className="h-4 w-4 text-rose-300" />
                       Dirección
                     </Label>
                     <Input
                       id="direccion"
                       type="text"
                       value={newPatientForm.direccion}
-                      onChange={(e) => setNewPatientForm({...newPatientForm, direccion: e.target.value})}
+                      onChange={(e) => setNewPatientForm({ ...newPatientForm, direccion: e.target.value })}
                       placeholder="Dirección completa"
-                      className="border-gray-300 focus:border-blue-500"
+                      className={glassInputClass}
                     />
                   </div>
 
-                  <div className="flex items-center space-x-3 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                  <div className="flex items-center gap-3 rounded-2xl border border-amber-300/40 bg-amber-500/10 p-4 text-sm text-amber-50">
                     <Checkbox
                       id="requiere_factura"
                       checked={newPatientForm.requiere_factura}
-                      onCheckedChange={(checked) => setNewPatientForm({...newPatientForm, requiere_factura: checked as boolean})}
+                      onCheckedChange={(checked) => setNewPatientForm({ ...newPatientForm, requiere_factura: checked as boolean })}
                     />
                     <div className="flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-yellow-600" />
-                      <Label htmlFor="requiere_factura" className="text-yellow-800 font-medium cursor-pointer">
+                      <FileText className="h-4 w-4 text-amber-200" />
+                      <Label htmlFor="requiere_factura" className="cursor-pointer text-sm font-semibold text-amber-50">
                         Requiere factura
                       </Label>
                     </div>
                   </div>
 
                   <div className="flex justify-end pt-4">
-                    <Button 
-                      type="submit" 
+                    <Button
+                      type="submit"
                       disabled={loading}
-                      className="bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 shadow-sm px-8"
+                      className="bg-gradient-to-r from-emerald-500 to-green-600 px-8 text-white shadow-lg shadow-emerald-900/30 hover:from-emerald-600 hover:to-green-700"
                     >
                       {loading ? (
                         <div className="flex items-center gap-2">
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-white" />
                           Creando...
                         </div>
                       ) : (
@@ -441,134 +463,141 @@ export default function NewPatientPage() {
                     </Button>
                   </div>
                 </form>
-              </CardContent>
-            </Card>
-          </TabsContent>
+              </GlassPanel>
+            </TabsContent>
 
-          {/* Tab: Múltiples Tratamientos */}
-          <TabsContent value="multi" className="space-y-6">
-            {/* Selector de paciente */}
-            <Card className="bg-white shadow-sm border border-gray-200">
-              <CardHeader className="border-b border-gray-100">
-                <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
-                    <Search className="h-4 w-4 text-white" />
+            <TabsContent value="multi" className="space-y-6">
+              <GlassPanel className="border-white/10 bg-white/5 p-6">
+                <div className="flex items-center gap-3 border-b border-white/10 pb-4">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-500 to-pink-600">
+                    <Search className="h-5 w-5 text-white" />
                   </div>
-                  <CardTitle className="text-xl font-semibold text-gray-900">Seleccionar Paciente</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="p-6 space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="patient-search" className="text-gray-700 font-medium">Buscar paciente</Label>
-                  <Input
-                    id="patient-search"
-                    type="text"
-                    placeholder="Buscar por nombre o teléfono..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="border-gray-300 focus:border-blue-500"
-                  />
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.35em] text-white/50">Paso 1</p>
+                    <h2 className="text-lg font-semibold text-white">Seleccionar Paciente</h2>
+                  </div>
                 </div>
 
-                {loadingPatients ? (
-                  <div className="text-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                    <p className="mt-2 text-gray-600">Cargando pacientes...</p>
+                <div className="mt-6 space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="patient-search" className="text-sm font-semibold text-white">Buscar paciente</Label>
+                    <Input
+                      id="patient-search"
+                      type="text"
+                      placeholder="Buscar por nombre o teléfono..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className={glassInputClass}
+                    />
                   </div>
-                ) : (
-                  <div className="grid gap-3 max-h-64 overflow-y-auto">
-                    {filteredPatients.length === 0 ? (
-                      <p className="text-gray-500 text-center py-4">No se encontraron pacientes</p>
-                    ) : (
-                      filteredPatients.map((patient) => (
-                        <div
-                          key={patient.id}
-                          className={`p-4 rounded-lg border cursor-pointer transition-all ${
-                            selectedPatient?.id === patient.id
-                              ? 'border-blue-500 bg-blue-50'
-                              : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                          }`}
-                          onClick={() => setSelectedPatient(patient)}
-                        >
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <h3 className="font-semibold text-gray-900">{patient.nombre}</h3>
-                              <p className="text-sm text-gray-600">{patient.telefono}</p>
-                            </div>
-                            {selectedPatient?.id === patient.id && (
-                              <div className="h-6 w-6 bg-blue-500 rounded-full flex items-center justify-center">
-                                <div className="h-3 w-3 bg-white rounded-full"></div>
+
+                  {loadingPatients ? (
+                    <div className="flex flex-col items-center justify-center rounded-2xl border border-white/10 bg-white/5 py-10 text-white/70">
+                      <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-white" />
+                      <p className="mt-3 text-sm">Cargando pacientes...</p>
+                    </div>
+                  ) : (
+                    <div className="max-h-64 space-y-3 overflow-y-auto pr-1">
+                      {filteredPatients.length === 0 ? (
+                        <p className="rounded-2xl border border-dashed border-white/20 bg-white/5 py-6 text-center text-sm text-white/60">
+                          No se encontraron pacientes
+                        </p>
+                      ) : (
+                        filteredPatients.map((patient) => (
+                          <div
+                            key={patient.id}
+                            className={`cursor-pointer rounded-2xl border p-4 transition-all ${
+                              selectedPatient?.id === patient.id
+                                ? 'border-emerald-400/60 bg-emerald-500/10 shadow-lg shadow-emerald-900/40'
+                                : 'border-white/10 bg-white/5 hover:border-white/30'
+                            }`}
+                            onClick={() => setSelectedPatient(patient)}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h3 className="font-semibold text-white">{patient.nombre}</h3>
+                                <p className="text-sm text-white/70">{patient.telefono}</p>
                               </div>
-                            )}
+                              {selectedPatient?.id === patient.id && (
+                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-400/80">
+                                  <div className="h-3 w-3 rounded-full bg-white" />
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              </GlassPanel>
 
-            {/* Formularios de tratamiento */}
-            {selectedPatient && (
-              <Card className="bg-white shadow-sm border border-gray-200">
-                <CardHeader className="border-b border-gray-100">
-                  <div className="flex justify-between items-center">
+              {selectedPatient && (
+                <GlassPanel className="border-white/10 bg-white/5 p-6">
+                  <div className="flex flex-col gap-4 border-b border-white/10 pb-4 md:flex-row md:items-center md:justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
-                        <ClipboardList className="h-4 w-4 text-white" />
+                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600">
+                        <ClipboardList className="h-5 w-5 text-white" />
                       </div>
                       <div>
-                        <CardTitle className="text-xl font-semibold text-gray-900">Tratamientos</CardTitle>
-                        <p className="text-sm text-gray-600">Paciente: {selectedPatient.nombre}</p>
+                        <p className="text-xs uppercase tracking-[0.35em] text-white/50">Paso 2</p>
+                        <h2 className="text-lg font-semibold text-white">Tratamientos · {selectedPatient.nombre}</h2>
                       </div>
                     </div>
-                    <Button onClick={addTreatmentForm} variant="outline" size="sm">
-                      <Plus className="h-4 w-4 mr-2" />
+                    <Button
+                      onClick={addTreatmentForm}
+                      variant="outline"
+                      size="sm"
+                      className="border-white/20 bg-white/10 text-white hover:bg-white/20"
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
                       Agregar Tratamiento
                     </Button>
                   </div>
-                </CardHeader>
-                <CardContent className="p-6">
-                  <form onSubmit={handleMultiTreatmentSubmit} className="space-y-6">
+
+                  <form onSubmit={handleMultiTreatmentSubmit} className="mt-6 space-y-6">
                     {treatmentForms.length === 0 ? (
-                      <div className="text-center py-8 bg-gray-50 rounded-lg">
-                        <ClipboardList className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                        <p className="text-gray-600">No hay tratamientos agregados</p>
-                        <Button onClick={addTreatmentForm} className="mt-4" variant="outline">
-                          <Plus className="h-4 w-4 mr-2" />
+                      <div className="rounded-2xl border border-dashed border-white/20 bg-white/5 py-10 text-center text-white/70">
+                        <ClipboardList className="mx-auto mb-4 h-12 w-12 text-white/40" />
+                        <p>Sin tratamientos agregados aún</p>
+                        <Button
+                          type="button"
+                          onClick={addTreatmentForm}
+                          className="mt-4 bg-white/10 text-white hover:bg-white/20"
+                        >
+                          <Plus className="mr-2 h-4 w-4" />
                           Agregar Primer Tratamiento
                         </Button>
                       </div>
                     ) : (
                       <div className="space-y-4">
                         {treatmentForms.map((form, index) => (
-                          <div key={index} className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                            <div className="flex justify-between items-center mb-4">
-                              <h4 className="font-semibold text-gray-900">Tratamiento {index + 1}</h4>
+                          <div key={index} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                            <div className="flex items-center justify-between pb-4">
+                              <h4 className="text-base font-semibold text-white">Tratamiento {index + 1}</h4>
                               <Button
                                 type="button"
                                 variant="outline"
                                 size="sm"
                                 onClick={() => removeTreatmentForm(index)}
-                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                className="border-white/20 text-white/80 hover:bg-white/10"
                               >
                                 <X className="h-4 w-4" />
                               </Button>
                             </div>
-                            
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                               <div className="space-y-2">
-                                <Label className="text-gray-700 font-medium">Tratamiento</Label>
+                                <Label className="text-sm font-semibold text-white">Tratamiento</Label>
                                 <select
                                   value={form.treatment_id}
                                   onChange={(e) => updateTreatmentForm(index, 'treatment_id', parseInt(e.target.value))}
-                                  className="w-full p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+                                  className={`${glassSelectClass} appearance-none`}
                                   required
                                 >
                                   <option value={0}>Seleccionar tratamiento</option>
                                   {treatments.map((treatment) => (
-                                    <option key={treatment.id} value={treatment.id}>
+                                    <option key={treatment.id} value={treatment.id} className="text-slate-900">
                                       {treatment.nombre} - ${treatment.precio}
                                     </option>
                                   ))}
@@ -576,19 +605,19 @@ export default function NewPatientPage() {
                               </div>
 
                               <div className="space-y-2">
-                                <Label className="text-gray-700 font-medium">Fecha</Label>
+                                <Label className="text-sm font-semibold text-white">Fecha</Label>
                                 <Input
                                   type="date"
                                   value={form.fecha}
                                   onChange={(e) => updateTreatmentForm(index, 'fecha', e.target.value)}
                                   required
-                                  className="border-gray-300 focus:border-blue-500"
+                                  className={glassInputClass}
                                 />
                               </div>
 
                               <div className="space-y-2">
-                                <Label className="text-gray-700 font-medium flex items-center gap-2">
-                                  <DollarSign className="h-4 w-4 text-green-600" />
+                                <Label className="flex items-center gap-2 text-sm font-semibold text-white">
+                                  <DollarSign className="h-4 w-4 text-emerald-300" />
                                   Monto pagado
                                 </Label>
                                 <Input
@@ -598,33 +627,33 @@ export default function NewPatientPage() {
                                   value={form.monto_pagado}
                                   onChange={(e) => updateTreatmentForm(index, 'monto_pagado', parseFloat(e.target.value) || 0)}
                                   placeholder="0.00"
-                                  className="border-gray-300 focus:border-blue-500"
+                                  className={glassInputClass}
                                 />
                               </div>
 
                               <div className="space-y-2">
-                                <Label className="text-gray-700 font-medium">Notas</Label>
+                                <Label className="text-sm font-semibold text-white">Notas</Label>
                                 <Input
                                   type="text"
                                   value={form.notas}
                                   onChange={(e) => updateTreatmentForm(index, 'notas', e.target.value)}
                                   placeholder="Notas opcionales"
-                                  className="border-gray-300 focus:border-blue-500"
+                                  className={glassInputClass}
                                 />
                               </div>
                             </div>
                           </div>
                         ))}
-                        
+
                         <div className="flex justify-end pt-4">
-                          <Button 
-                            type="submit" 
+                          <Button
+                            type="submit"
                             disabled={loading}
-                            className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-sm px-8"
+                            className="bg-gradient-to-r from-green-500 to-emerald-600 px-8 text-white shadow-lg shadow-emerald-900/30 hover:from-green-600 hover:to-emerald-700"
                           >
                             {loading ? (
                               <div className="flex items-center gap-2">
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-white" />
                                 Guardando...
                               </div>
                             ) : (
@@ -638,11 +667,11 @@ export default function NewPatientPage() {
                       </div>
                     )}
                   </form>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-        </Tabs>
+                </GlassPanel>
+              )}
+            </TabsContent>
+          </Tabs>
+        </div>
       </div>
     </AppLayout>
   );

@@ -1,23 +1,19 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import {
   Mail,
-  Lock,
-  Server,
   Send,
   CheckCircle,
-  AlertCircle,
   Eye,
   EyeOff,
   Loader2,
   Info,
-  HelpCircle,
-  MessageSquare
+  HelpCircle
 } from 'lucide-react';
 import { TwilioCredentialsSection } from '@/components/settings/twilio-credentials-section';
+import { GlassPanel } from '@/components/ui/glass-panel';
 
 interface EmailConfig {
   smtp_host: string;
@@ -175,424 +171,348 @@ export default function EmailConfigPage() {
     }
   };
 
+  const inputClass = 'w-full rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-white placeholder:text-white/40 focus:border-white/40 focus:outline-none';
+
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
-      </div>
+      <GlassPanel className="flex min-h-[320px] items-center justify-center border-white/10 bg-white/5 text-white">
+        <Loader2 className="h-10 w-10 animate-spin text-emerald-300" />
+      </GlassPanel>
     );
   }
 
-  return (
-    <div className="p-8 max-w-4xl mx-auto">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Configuración de Notificaciones</h1>
-        <p className="text-gray-600">
-          Configura cómo enviar notificaciones automáticas por email y SMS a tus pacientes
-        </p>
-      </div>
+  const primaryProviderLabel = config.primary_provider === 'twilio' ? 'Twilio / SendGrid' : 'SMTP Tradicional';
+  const fallbackProviderLabel = config.fallback_provider === 'twilio' ? 'Twilio / SendGrid' : 'SMTP Tradicional';
 
-      {/* Enable Toggle */}
-      <div className="bg-white rounded-lg border-2 border-gray-200 p-6 mb-6">
-        <div className="flex items-center justify-between">
+  return (
+    <div className="space-y-6 text-white">
+      <GlassPanel className="relative overflow-hidden border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-transparent p-6 sm:p-8">
+        <div className="pointer-events-none absolute inset-0 opacity-70">
+          <div className="absolute -top-32 right-0 h-72 w-72 rounded-full bg-emerald-400/25 blur-[150px]" />
+          <div className="absolute -bottom-32 left-0 h-72 w-72 rounded-full bg-sky-500/20 blur-[140px]" />
+        </div>
+        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-4">
+            <div className="inline-flex items-center gap-3 rounded-full border border-white/15 bg-white/10 px-5 py-1 text-xs font-semibold uppercase tracking-[0.35em] text-white/70">
+              <Mail className="h-4 w-4" />
+              Notificaciones
+            </div>
+            <div>
+              <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Email + SMS automatizados</h1>
+              <p className="mt-2 text-sm text-white/70">
+                Define tu proveedor y mantén la agenda informada con confirmaciones, recordatorios y avisos en segundos.
+              </p>
+            </div>
+          </div>
+          <div className="grid gap-3 text-white/80 sm:grid-cols-2">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p className="text-xs uppercase tracking-[0.35em] text-white/50">Estado</p>
+              <p className="text-lg font-semibold text-white">{config.email_enabled ? 'Activo' : 'Pausado'}</p>
+              <p className="text-xs text-white/60">{primaryProviderLabel}</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p className="text-xs uppercase tracking-[0.35em] text-white/50">Uso diario</p>
+              <p className="text-lg font-semibold text-white">
+                {config.current_daily_usage || 0} / {config.daily_email_limit || 500}
+              </p>
+              <p className="text-xs text-white/60">Emails enviados hoy</p>
+            </div>
+          </div>
+        </div>
+      </GlassPanel>
+
+      <GlassPanel className="space-y-6 border-white/10 bg-white/5 p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">Habilitar Notificaciones por Email</h3>
-            <p className="text-sm text-gray-600 mt-1">
-              Envía emails automáticos cuando se crean, confirman o cancelan reservas
-            </p>
+            <p className="text-xs uppercase tracking-[0.35em] text-white/50">Canal principal</p>
+            <h2 className="text-xl font-semibold text-white">Notificaciones por email</h2>
+            <p className="text-sm text-white/70">Activa el envío automático al crear, confirmar o cancelar una cita.</p>
           </div>
           <button
-            onClick={() => setConfig(prev => ({ ...prev, email_enabled: !prev.email_enabled }))}
-            className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${
-              config.email_enabled ? 'bg-teal-600' : 'bg-gray-300'
+            onClick={() => setConfig((prev) => ({ ...prev, email_enabled: !prev.email_enabled }))}
+            className={`relative h-11 w-24 rounded-full border border-white/20 transition ${
+              config.email_enabled ? 'bg-emerald-500/40' : 'bg-white/10'
             }`}
           >
             <span
-              className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
-                config.email_enabled ? 'translate-x-7' : 'translate-x-1'
+              className={`absolute top-1.5 h-8 w-8 rounded-full bg-white transition ${
+                config.email_enabled ? 'left-14 translate-x-[-100%]' : 'left-1'
               }`}
             />
           </button>
         </div>
-      </div>
 
-      {/* Provider Selection */}
-      <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg border-2 border-teal-200 p-6 mb-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Proveedor Principal de Email</h3>
-        <p className="text-sm text-gray-600 mb-4">
-          Selecciona qué servicio usarás para enviar emails a tus pacientes
-        </p>
-        
-        <div className="grid grid-cols-2 gap-4">
-          {/* Twilio/SendGrid Option */}
-          <button
-            onClick={() => setConfig(prev => ({ ...prev, primary_provider: 'twilio' }))}
-            className={`p-4 rounded-lg border-2 transition-all ${
-              config.primary_provider === 'twilio'
-                ? 'border-teal-600 bg-teal-50 shadow-md'
-                : 'border-gray-300 bg-white hover:border-teal-300'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                config.primary_provider === 'twilio' ? 'border-teal-600' : 'border-gray-400'
-              }`}>
-                {config.primary_provider === 'twilio' && (
-                  <div className="w-2 h-2 rounded-full bg-teal-600" />
-                )}
+        <div className="grid gap-4 md:grid-cols-2">
+          {['twilio', 'smtp'].map((provider) => (
+            <button
+              key={provider}
+              onClick={() => setConfig((prev) => ({ ...prev, primary_provider: provider as 'twilio' | 'smtp' }))}
+              className={`rounded-3xl border p-5 text-left transition ${
+                config.primary_provider === provider
+                  ? 'border-white/50 bg-white/10'
+                  : 'border-white/10 bg-white/5 hover:border-white/30'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <span className={`h-3 w-3 rounded-full ${config.primary_provider === provider ? 'bg-emerald-300' : 'bg-white/30'}`} />
+                <p className="text-lg font-semibold text-white">
+                  {provider === 'twilio' ? 'Twilio (SendGrid)' : 'SMTP Tradicional'}
+                </p>
               </div>
-              <div className="text-left flex-1">
-                <p className="font-semibold text-gray-900">Twilio (SendGrid)</p>
-                <p className="text-xs text-gray-600">Email vía API + SMS integrado</p>
-              </div>
-            </div>
-          </button>
-
-          {/* SMTP Option */}
-          <button
-            onClick={() => setConfig(prev => ({ ...prev, primary_provider: 'smtp' }))}
-            className={`p-4 rounded-lg border-2 transition-all ${
-              config.primary_provider === 'smtp'
-                ? 'border-teal-600 bg-teal-50 shadow-md'
-                : 'border-gray-300 bg-white hover:border-teal-300'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                config.primary_provider === 'smtp' ? 'border-teal-600' : 'border-gray-400'
-              }`}>
-                {config.primary_provider === 'smtp' && (
-                  <div className="w-2 h-2 rounded-full bg-teal-600" />
-                )}
-              </div>
-              <div className="text-left flex-1">
-                <p className="font-semibold text-gray-900">SMTP Tradicional</p>
-                <p className="text-xs text-gray-600">Gmail, Outlook, u otro servidor</p>
-              </div>
-            </div>
-          </button>
+              <p className="mt-2 text-sm text-white/70">
+                {provider === 'twilio'
+                  ? 'API segura + SMS integrado desde tu cuenta Twilio.'
+                  : 'Usa Gmail, Outlook o tu servidor para disparar correos.'}
+              </p>
+            </button>
+          ))}
         </div>
-      </div>
+      </GlassPanel>
 
-      {/* Twilio/SendGrid Configuration */}
       {config.primary_provider === 'twilio' && (
-        <div className="bg-white rounded-lg border-2 border-teal-200 p-6 mb-6">
-          <div className="flex items-center gap-2 mb-4">
-            <MessageSquare className="h-5 w-5 text-teal-600" />
-            <h3 className="text-lg font-semibold text-gray-900">Configuración de Twilio/SendGrid</h3>
+        <GlassPanel className="space-y-5 border-white/10 bg-white/5 p-6">
+          <div className="flex items-center gap-3">
+            <div className="rounded-2xl border border-violet-400/40 bg-violet-500/15 p-3">
+              <Send className="h-5 w-5 text-violet-100" />
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-[0.35em] text-white/50">Twilio / SendGrid</p>
+              <h3 className="text-lg font-semibold text-white">Credenciales de correo</h3>
+            </div>
           </div>
-          
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 flex items-start gap-3">
-            <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
-            <div className="text-sm text-blue-900">
-              <p className="font-medium mb-1">SendGrid es ahora parte de Twilio</p>
-              <p className="text-blue-800">
-                Con una cuenta de Twilio puedes enviar tanto emails (vía SendGrid) como SMS. 
-                Crea tu cuenta en{' '}
-                <a href="https://www.twilio.com/try-twilio" target="_blank" rel="noopener noreferrer" className="underline font-medium">
-                  twilio.com
-                </a>
+
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/80">
+            <div className="flex items-start gap-3">
+              <Info className="h-5 w-5 text-sky-200" />
+              <p>
+                Con una sola cuenta de Twilio puedes enviar emails (SendGrid) y SMS. Obtén tu API key en{' '}
+                <a href="https://app.sendgrid.com/settings/api_keys" target="_blank" rel="noopener noreferrer" className="underline">
+                  SendGrid → Settings → API Keys
+                </a>.
               </p>
             </div>
           </div>
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                SendGrid API Key *
-              </label>
+              <label className="text-xs uppercase tracking-[0.35em] text-white/60">SendGrid API Key *</label>
               <input
                 type="password"
                 value={config.sendgrid_api_key || ''}
-                onChange={(e) => setConfig(prev => ({ ...prev, sendgrid_api_key: e.target.value }))}
-                placeholder="SG.••••••••••••••••••••••••••••••••"
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-500"
+                onChange={(e) => setConfig((prev) => ({ ...prev, sendgrid_api_key: e.target.value }))}
+                placeholder="SG.••••••••••••••••••••••"
+                className={`${inputClass} mt-2`}
               />
-              <p className="text-xs text-gray-600 mt-1">
-                Obtén tu API key en{' '}
-                <a href="https://app.sendgrid.com/settings/api_keys" target="_blank" rel="noopener noreferrer" className="text-teal-600 hover:underline">
-                  SendGrid → Settings → API Keys
-                </a>
-              </p>
             </div>
-
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Email remitente *
-              </label>
+              <label className="text-xs uppercase tracking-[0.35em] text-white/60">Email remitente *</label>
               <input
                 type="email"
                 value={config.sendgrid_from_email || ''}
-                onChange={(e) => setConfig(prev => ({ ...prev, sendgrid_from_email: e.target.value }))}
+                onChange={(e) => setConfig((prev) => ({ ...prev, sendgrid_from_email: e.target.value }))}
                 placeholder="doctor@clinica.com"
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-500"
+                className={`${inputClass} mt-2`}
               />
             </div>
-
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Nombre del remitente *
-              </label>
+              <label className="text-xs uppercase tracking-[0.35em] text-white/60">Nombre remitente *</label>
               <input
                 type="text"
                 value={config.sendgrid_from_name || ''}
-                onChange={(e) => setConfig(prev => ({ ...prev, sendgrid_from_name: e.target.value }))}
-                placeholder="Dr. Juan Pérez - Clínica XYZ"
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-500"
+                onChange={(e) => setConfig((prev) => ({ ...prev, sendgrid_from_name: e.target.value }))}
+                placeholder="Dr. Juan Pérez - Clínica"
+                className={`${inputClass} mt-2`}
               />
             </div>
           </div>
-        </div>
+        </GlassPanel>
       )}
 
-      {/* SMTP Configuration */}
       {config.primary_provider === 'smtp' && (
-        <div className="bg-white rounded-lg border-2 border-gray-200 p-6 mb-6">
-          <div className="flex items-center gap-2 mb-4 relative">
-            <Server className="h-5 w-5 text-teal-600" />
-            <h3 className="text-lg font-semibold text-gray-900">Configuración SMTP</h3>
-            <div
-              className="ml-1 relative"
-              onMouseEnter={() => setShowSmtpHelp(true)}
-              onMouseLeave={() => setShowSmtpHelp(false)}
-            >
-              <button
-                type="button"
-                aria-describedby="smtp-help-popover"
-                onFocus={() => setShowSmtpHelp(true)}
-                onBlur={() => setShowSmtpHelp(false)}
-                className="flex h-6 w-6 items-center justify-center rounded-full border border-teal-300 text-teal-600 transition-colors hover:bg-teal-50 focus:outline-none focus:ring-2 focus:ring-teal-500"
-              >
-                <HelpCircle className="h-4 w-4" />
-              </button>
-              {showSmtpHelp && (
-                <div
-                  id="smtp-help-popover"
-                  role="tooltip"
-                  className="absolute left-0 top-full mt-2 w-max max-w-xl rounded-lg border border-teal-200 bg-white p-4 shadow-xl z-10"
-                >
-                  <p className="mb-2 text-sm font-semibold text-teal-700">Cómo llenar estos datos</p>
-                  <ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
-                    <li><strong>Email remitente:</strong> el correo desde el cual saldrán los mensajes que reciben tus pacientes.</li>
-                    <li><strong>Nombre del remitente:</strong> lo que verán tus pacientes como &quot;De:&quot; (por ejemplo, &quot;Clínica Santa María&quot;).</li>
-                    <li><strong>Servidor SMTP y puerto:</strong> usa los datos que te da tu proveedor. Ejemplos: Gmail &quot;smtp.gmail.com&quot; con puerto 587, Outlook &quot;smtp-mail.outlook.com&quot;.</li>
-                    <li><strong>Usuario SMTP:</strong> normalmente es el mismo correo remitente completo.</li>
-                    <li><strong>Contraseña de aplicación:</strong> es una clave especial que generas en la sección de seguridad de tu correo cuando activas verificación en dos pasos. No uses tu contraseña normal.</li>
-                  </ul>
-                  <p className="mt-2 text-xs text-gray-500">Si tienes dudas, escribe a soporte y te guiamos paso a paso.</p>
-                </div>
-              )}
+        <GlassPanel className="space-y-5 border-white/10 bg-white/5 p-6">
+          <div className="flex items-center gap-3">
+            <div className="rounded-2xl border border-cyan-400/40 bg-cyan-500/15 p-3">
+              <Send className="h-5 w-5 text-cyan-100" />
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-[0.35em] text-white/50">SMTP</p>
+              <h3 className="text-lg font-semibold text-white">Servidor personalizado</h3>
             </div>
           </div>
 
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 flex items-start gap-3">
-            <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
-            <div className="text-sm text-blue-900">
-              <p className="font-medium mb-1">¿Cómo conseguir una contraseña de aplicación?</p>
-              <ul className="list-disc list-inside space-y-1 text-blue-800">
-                <li><strong>Gmail:</strong> Ve a tu cuenta Google → Seguridad → Verificación en 2 pasos → Contraseñas de aplicaciones</li>
-                <li><strong>Outlook:</strong> Ve a Configuración → Seguridad → Contraseñas de aplicaciones</li>
-              </ul>
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/80">
+            <div className="flex items-start gap-3">
+              <HelpCircle className="h-5 w-5 text-amber-200" />
+              <div>
+                <p className="font-semibold text-white">Tips rápidos</p>
+                <ul className="mt-2 space-y-1 text-white/70">
+                  <li>Email y usuario SMTP suelen ser iguales.</li>
+                  <li>Usa contraseñas de aplicación (Gmail/Outlook).</li>
+                  <li>Puertos comunes: 587 (TLS) o 465 (SSL).</li>
+                </ul>
+              </div>
             </div>
           </div>
 
           <div className="space-y-4">
-            {/* From Email */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Email remitente *
-              </label>
+              <label className="text-xs uppercase tracking-[0.35em] text-white/60">Email remitente *</label>
               <input
                 type="email"
                 value={config.from_email || ''}
                 onChange={(e) => {
-                  setConfig(prev => ({ ...prev, from_email: e.target.value }));
+                  setConfig((prev) => ({ ...prev, from_email: e.target.value }));
                   detectProvider(e.target.value);
                 }}
                 placeholder="doctor@clinica.com"
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-500"
+                className={`${inputClass} mt-2`}
               />
             </div>
-
-            {/* From Name */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Nombre del remitente *
-              </label>
+              <label className="text-xs uppercase tracking-[0.35em] text-white/60">Nombre remitente *</label>
               <input
                 type="text"
                 value={config.from_name || ''}
-                onChange={(e) => setConfig(prev => ({ ...prev, from_name: e.target.value }))}
-                placeholder="Dr. Juan Pérez - Clínica XYZ"
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-500"
+                onChange={(e) => setConfig((prev) => ({ ...prev, from_name: e.target.value }))}
+                placeholder="Clínica SGMM"
+                className={`${inputClass} mt-2`}
               />
             </div>
-
-            {/* Provider Detection */}
-            {config.email_provider && (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                <div className="flex items-center gap-2 text-green-800">
-                  <CheckCircle className="h-4 w-4" />
-                  <span className="text-sm font-medium">
-                    Proveedor detectado: {config.email_provider.toUpperCase()}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-4">
-              {/* SMTP Host */}
+            <div className="grid gap-4 md:grid-cols-2">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Servidor SMTP *
-                </label>
+                <label className="text-xs uppercase tracking-[0.35em] text-white/60">Servidor SMTP *</label>
                 <input
                   type="text"
                   value={config.smtp_host || ''}
-                  onChange={(e) => setConfig(prev => ({ ...prev, smtp_host: e.target.value }))}
+                  onChange={(e) => setConfig((prev) => ({ ...prev, smtp_host: e.target.value }))}
                   placeholder="smtp.gmail.com"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-500"
+                  className={`${inputClass} mt-2`}
                 />
               </div>
-
-              {/* SMTP Port */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Puerto
-                </label>
+                <label className="text-xs uppercase tracking-[0.35em] text-white/60">Puerto *</label>
                 <input
                   type="number"
                   value={config.smtp_port || 587}
-                  onChange={(e) => setConfig(prev => ({ ...prev, smtp_port: parseInt(e.target.value) }))}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-500"
+                  onChange={(e) => setConfig((prev) => ({ ...prev, smtp_port: parseInt(e.target.value) }))}
+                  className={`${inputClass} mt-2`}
                 />
               </div>
             </div>
-
-            {/* SMTP User */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Usuario SMTP *
-              </label>
+              <label className="text-xs uppercase tracking-[0.35em] text-white/60">Usuario SMTP *</label>
               <input
                 type="text"
                 value={config.smtp_user || ''}
-                onChange={(e) => setConfig(prev => ({ ...prev, smtp_user: e.target.value }))}
-                placeholder="tu-email@gmail.com"
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-500"
+                onChange={(e) => setConfig((prev) => ({ ...prev, smtp_user: e.target.value }))}
+                placeholder="tu-correo@dominio.com"
+                className={`${inputClass} mt-2`}
               />
             </div>
-
-            {/* SMTP Password */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Contraseña de aplicación *
-              </label>
-              <div className="relative">
+              <label className="text-xs uppercase tracking-[0.35em] text-white/60">Contraseña de aplicación *</label>
+              <div className="relative mt-2">
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={config.smtp_password || ''}
-                  onChange={(e) => setConfig(prev => ({ ...prev, smtp_password: e.target.value }))}
-                  placeholder="••••••••••••••••"
-                  className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-500"
+                  onChange={(e) => setConfig((prev) => ({ ...prev, smtp_password: e.target.value }))}
+                  placeholder="••••••••••"
+                  className={`${inputClass} pr-12`}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/60"
                 >
                   {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
               </div>
             </div>
-
-            {/* Daily Limit */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Límite diario de emails
-              </label>
+              <label className="text-xs uppercase tracking-[0.35em] text-white/60">Límite diario</label>
               <input
                 type="number"
                 value={config.daily_email_limit || 500}
-                onChange={(e) => setConfig(prev => ({ ...prev, daily_email_limit: parseInt(e.target.value) }))}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-500"
+                onChange={(e) => setConfig((prev) => ({ ...prev, daily_email_limit: parseInt(e.target.value) }))}
+                className={`${inputClass} mt-2`}
               />
-              <p className="text-xs text-gray-600 mt-1">
-                Gmail: 500/día, Outlook: 300/día
-              </p>
+              <p className="mt-1 text-xs text-white/60">Gmail 500/día · Outlook 300/día</p>
             </div>
+            {config.email_provider && (
+              <div className="rounded-2xl border border-emerald-400/40 bg-emerald-500/10 p-3 text-sm text-emerald-100">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4" />
+                  Proveedor detectado: {config.email_provider.toUpperCase()}
+                </div>
+              </div>
+            )}
           </div>
-        </div>
+        </GlassPanel>
       )}
 
-      {/* Fallback Configuration */}
-      <div className="bg-white rounded-lg border-2 border-orange-200 p-6 mb-6">
-        <div className="flex items-center justify-between mb-4">
+      <GlassPanel className="space-y-4 border-white/10 bg-white/5 p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">Proveedor de Respaldo (Fallback)</h3>
-            <p className="text-sm text-gray-600 mt-1">
-              Si el proveedor principal falla o alcanza su límite, usar otro proveedor automáticamente
-            </p>
+            <p className="text-xs uppercase tracking-[0.35em] text-white/50">Fallback</p>
+            <h3 className="text-lg font-semibold text-white">Proveedor de respaldo</h3>
+            <p className="text-sm text-white/70">Si alcanzas el límite diario, cambia automáticamente al otro proveedor.</p>
           </div>
           <button
-            onClick={() => setConfig(prev => ({ 
-              ...prev, 
+            onClick={() => setConfig((prev) => ({
+              ...prev,
               enable_fallback: !prev.enable_fallback,
-              fallback_provider: !prev.enable_fallback 
-                ? (prev.primary_provider === 'smtp' ? 'twilio' : 'smtp')
+              fallback_provider: !prev.enable_fallback
+                ? prev.primary_provider === 'smtp'
+                  ? 'twilio'
+                  : 'smtp'
                 : prev.fallback_provider
             }))}
-            className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${
-              config.enable_fallback ? 'bg-orange-600' : 'bg-gray-300'
+            className={`relative h-11 w-24 rounded-full border border-white/20 transition ${
+              config.enable_fallback ? 'bg-amber-500/40' : 'bg-white/10'
             }`}
           >
             <span
-              className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
-                config.enable_fallback ? 'translate-x-7' : 'translate-x-1'
+              className={`absolute top-1.5 h-8 w-8 rounded-full bg-white transition ${
+                config.enable_fallback ? 'left-14 translate-x-[-100%]' : 'left-1'
               }`}
             />
           </button>
         </div>
 
         {config.enable_fallback && (
-          <div className="mt-4 p-4 bg-orange-50 rounded-lg border border-orange-200">
-            <p className="text-sm text-gray-700 mb-3">
-              <strong>Proveedor de respaldo:</strong>{' '}
-              {config.fallback_provider === 'twilio' ? 'Twilio/SendGrid' : 'SMTP Tradicional'}
-            </p>
-            <p className="text-xs text-gray-600">
-              El sistema intentará primero con <strong>{config.primary_provider === 'twilio' ? 'Twilio/SendGrid' : 'SMTP'}</strong>.
-              Si falla, automáticamente usará <strong>{config.fallback_provider === 'twilio' ? 'Twilio/SendGrid' : 'SMTP'}</strong>.
+          <div className="rounded-2xl border border-amber-400/40 bg-amber-500/10 p-4 text-sm text-amber-50">
+            <p className="font-semibold text-white">Secuencia de envío</p>
+            <p className="text-white/80">
+              Primero intentamos con <strong>{primaryProviderLabel}</strong>. Si falla o llegas al tope, usamos <strong>{fallbackProviderLabel}</strong> sin intervención manual.
             </p>
           </div>
         )}
-      </div>
+      </GlassPanel>
 
-      {/* Twilio SMS Configuration */}
       <TwilioCredentialsSection />
 
-      {/* Test Email */}
-      <div className="bg-gradient-to-br from-blue-50 to-teal-50 rounded-lg border-2 border-blue-200 p-6 mb-6">
-        <div className="flex items-center gap-2 mb-4">
-          <Send className="h-5 w-5 text-teal-600" />
-          <h3 className="text-lg font-semibold text-gray-900">Enviar Email de Prueba</h3>
+      <GlassPanel className="space-y-4 border-white/10 bg-white/5 p-6">
+        <div className="flex items-center gap-3">
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+            <Send className="h-5 w-5 text-emerald-200" />
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-[0.35em] text-white/50">Prueba rápida</p>
+            <h3 className="text-lg font-semibold text-white">Enviar email de prueba</h3>
+          </div>
         </div>
-        <p className="text-sm text-gray-600 mb-4">
-          Verifica que tu configuración funciona correctamente
-        </p>
-        <div className="flex gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row">
           <input
             type="email"
             value={testEmail}
             onChange={(e) => setTestEmail(e.target.value)}
-            placeholder="email@ejemplo.com"
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-teal-500"
+            placeholder="paciente@ejemplo.com"
+            className={`${inputClass} flex-1`}
           />
           <button
             onClick={handleTest}
             disabled={testing || !testEmail}
-            className="px-6 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="aura-cta aura-cta--primary justify-center disabled:opacity-40"
           >
             {testing ? (
               <>
@@ -602,29 +522,28 @@ export default function EmailConfigPage() {
             ) : (
               <>
                 <Send className="h-4 w-4" />
-                Enviar Prueba
+                Enviar prueba
               </>
             )}
           </button>
         </div>
-      </div>
+      </GlassPanel>
 
-      {/* Save Button */}
       <div className="flex justify-end">
         <button
           onClick={handleSave}
           disabled={saving}
-          className="px-8 py-3 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-md hover:from-teal-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-lg font-semibold"
+          className="aura-cta aura-cta--primary px-8 text-base disabled:opacity-40"
         >
           {saving ? (
             <>
-              <Loader2 className="h-5 w-5 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" />
               Guardando...
             </>
           ) : (
             <>
-              <CheckCircle className="h-5 w-5" />
-              Guardar Configuración
+              <CheckCircle className="h-4 w-4" />
+              Guardar configuración
             </>
           )}
         </button>

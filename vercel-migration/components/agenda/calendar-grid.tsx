@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { 
@@ -294,8 +293,8 @@ export default function CalendarGrid({
   const renderDayView = () => {
     return (
       <div className="space-y-2">
-        <div className="text-center mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">
+        <div className="text-center mb-6">
+          <h3 className="text-lg font-semibold text-white">
             {currentDate.toLocaleDateString('es-ES', { 
               weekday: 'long', 
               year: 'numeric', 
@@ -323,12 +322,12 @@ export default function CalendarGrid({
             const dropZoneClass = getDropZoneClass(isCurrentDropTarget, isValidDrop, dropConflicts.length > 0);
             
             return (
-              <Card 
+              <div
                 key={slot.id}
                 className={`
-                  p-4 transition-all cursor-pointer
-                  ${isAvailable ? 'hover:bg-blue-50' : 'bg-gray-50'}
-                  ${isBlocked ? 'bg-orange-50 cursor-not-allowed' : ''}
+                  rounded-2xl border p-4 text-white transition-all shadow-[0_20px_55px_rgba(3,7,18,0.45)]
+                  ${isAvailable ? 'hover:border-white/30 hover:bg-white/10' : 'opacity-70'}
+                  ${isBlocked ? 'border-amber-300/40 bg-amber-500/10 cursor-not-allowed text-amber-100' : 'bg-gradient-to-br from-white/5 via-slate-900/40 to-slate-900/60 border-white/10'}
                   ${dropZoneClass}
                 `}
                 onClick={() => {
@@ -343,36 +342,36 @@ export default function CalendarGrid({
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <Clock className="h-5 w-5 text-gray-500" />
-                    <span className="font-medium">{slot.time}</span>
+                    <Clock className="h-5 w-5 text-white/60" />
+                    <span className="font-medium text-white">{slot.time}</span>
                     
                     {slot.blocked && (
-                      <Badge variant="destructive" className="text-xs">
+                      <Badge className="text-xs rounded-full border border-amber-200/40 bg-amber-500/10 text-amber-50">
                         Bloqueado
                       </Badge>
                     )}
 
                     {bufferCheck.blocked && (
-                      <Badge variant="outline" className="text-xs bg-orange-100 text-orange-800 border-orange-300">
+                      <Badge className="text-xs rounded-full border border-amber-200/30 bg-amber-500/5 text-amber-100">
                         ⏱️ Buffer
                       </Badge>
                     )}
                     
                     {slotAppointments.length > 0 && (
-                      <Badge variant="default" className="text-xs bg-blue-600">
+                      <Badge className="text-xs rounded-full border border-emerald-300/40 bg-emerald-500/15 text-emerald-50">
                         {slotAppointments.length} citas
                       </Badge>
                     )}
 
                     {/* Drop zone indicator */}
                     {isCurrentDropTarget && isValidDrop && (
-                      <Badge variant="outline" className="text-xs bg-green-100 text-green-800 border-green-400">
+                      <Badge className="text-xs rounded-full border border-emerald-300/50 bg-emerald-500/15 text-emerald-50">
                         ✓ Soltar aquí
                       </Badge>
                     )}
 
                     {isCurrentDropTarget && dropConflicts.length > 0 && (
-                      <Badge variant="outline" className="text-xs bg-red-100 text-red-800 border-red-400">
+                      <Badge className="text-xs rounded-full border border-rose-300/40 bg-rose-500/10 text-rose-100">
                         <AlertCircle className="h-3 w-3 mr-1" />
                         Conflicto
                       </Badge>
@@ -381,7 +380,7 @@ export default function CalendarGrid({
                   
                   <div className="flex items-center gap-2">
                     {isAvailable && !slot.blocked && (
-                      <Button variant="ghost" size="sm">
+                      <Button variant="ghost" size="sm" className="text-white hover:bg-white/10">
                         <Plus className="h-4 w-4" />
                       </Button>
                     )}
@@ -395,7 +394,7 @@ export default function CalendarGrid({
                       <Button
                         variant="outline"
                         size="sm"
-                        className="w-full border-dashed border-2 hover:bg-blue-50 hover:border-blue-400"
+                        className="w-full border-2 border-dashed border-white/30 text-white hover:border-white hover:bg-white/10"
                         onClick={(e) => {
                           e.stopPropagation();
                           const year = currentDate.getFullYear();
@@ -504,7 +503,7 @@ export default function CalendarGrid({
                     })}
                   </div>
                 )}
-              </Card>
+              </div>
             );
           })}
         </div>
@@ -515,6 +514,8 @@ export default function CalendarGrid({
   const renderWeekView = () => {
     const weekStart = new Date(currentDate);
     weekStart.setDate(currentDate.getDate() - currentDate.getDay());
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     
     const weekDays = Array.from({ length: 7 }, (_, i) => {
       const day = new Date(weekStart);
@@ -526,21 +527,31 @@ export default function CalendarGrid({
 
     return (
       <div className="grid grid-cols-8 gap-2">
-        <div className="text-sm font-medium text-gray-500 p-2">Hora</div>
-        {weekDays.map((day, index) => (
-          <div key={index} className="text-center p-2">
-            <div className="text-sm font-medium text-gray-700">
-              {dayNames[index]}
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-2 text-sm font-semibold text-white/70">Hora</div>
+        {weekDays.map((day, index) => {
+          const isToday = day.toDateString() === today.toDateString();
+          return (
+            <div
+              key={index}
+              className={`rounded-2xl border p-2 text-center transition-all ${
+                isToday
+                  ? 'border-emerald-300/40 bg-gradient-to-br from-emerald-400/20 via-cyan-400/15 to-transparent shadow-[0_10px_35px_rgba(45,212,191,0.25)]'
+                  : 'border-white/10 bg-white/5'
+              }`}
+            >
+              <div className={`text-sm font-medium ${isToday ? 'text-emerald-50' : 'text-white/70'}`}>
+                {dayNames[index]}
+              </div>
+              <div className={`text-2xl font-semibold ${isToday ? 'text-white' : 'text-white'}`}>
+                {day.getDate()}
+              </div>
             </div>
-            <div className="text-lg font-semibold text-gray-900">
-              {day.getDate()}
-            </div>
-          </div>
-        ))}
+          );
+        })}
 
         {timeSlots.map((slot) => (
           <div key={slot.id} className="contents">
-            <div className="flex items-center justify-center p-2 text-sm text-gray-600 bg-gray-50 rounded">
+            <div className="flex items-center justify-center rounded-2xl border border-white/10 bg-slate-900/40 p-2 text-sm text-white/70">
               {slot.time}
             </div>
             
@@ -560,13 +571,15 @@ export default function CalendarGrid({
               const dropConflicts = getDropTargetConflicts(localDateString, slot.time);
               const dropZoneClass = getDropZoneClass(isCurrentDropTarget, isValidDrop, dropConflicts.length > 0);
               
+              const isToday = day.toDateString() === today.toDateString();
               return (
                 <div 
                   key={`${dayIndex}-${slot.id}`}
                   className={`
-                    relative min-h-[60px] border border-gray-200 rounded-lg p-1 transition-all group
-                    ${isAvailable ? 'hover:bg-blue-50 cursor-pointer' : 'bg-gray-50'}
-                    ${isBlocked ? 'bg-orange-50 cursor-not-allowed' : ''}
+                    group relative min-h-[70px] rounded-2xl border p-1 transition-all
+                    ${isAvailable ? 'hover:border-white/40 hover:bg-white/10 cursor-pointer' : 'opacity-60'}
+                    ${isBlocked ? 'border-amber-200/40 bg-amber-500/10 cursor-not-allowed text-amber-100' : ''}
+                    ${isToday ? 'border-white/25 bg-gradient-to-b from-white/10 via-slate-900/30 to-slate-900/60' : 'border-white/5 bg-slate-900/30'}
                     ${dropZoneClass}
                   `}
                   onClick={() => {
@@ -587,13 +600,13 @@ export default function CalendarGrid({
 
                   {bufferCheck.blocked && (
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-xs text-orange-700">⏱️ Buffer</span>
+                      <span className="text-xs text-amber-200">⏱️ Buffer</span>
                     </div>
                   )}
                   
                   {dayAppointments.length === 0 && isAvailable && (
                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Plus className="h-4 w-4 text-blue-600" />
+                      <Plus className="h-4 w-4 text-white" />
                     </div>
                   )}
                   
@@ -608,10 +621,10 @@ export default function CalendarGrid({
                         const localDateString = `${year}-${month}-${dayOfMonth}`;
                         onSlotClick(localDateString, slot.time);
                       }}
-                      className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white rounded-full p-1 shadow-sm border border-blue-300 hover:bg-blue-50 z-10"
+                      className="absolute right-1 top-1 z-10 rounded-full border border-white/30 bg-white/10 p-1 opacity-0 transition-opacity group-hover:opacity-100"
                       title="Agregar otra cita"
                     >
-                      <Plus className="h-3 w-3 text-blue-600" />
+                      <Plus className="h-3 w-3 text-white" />
                     </button>
                   )}
                   
@@ -669,6 +682,8 @@ export default function CalendarGrid({
     const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
     const calendarStart = new Date(monthStart);
     calendarStart.setDate(calendarStart.getDate() - calendarStart.getDay());
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     
     const weeks = [];
     let currentWeek = [];
@@ -689,7 +704,7 @@ export default function CalendarGrid({
     return (
       <div className="grid grid-cols-7 gap-2">
         {dayNames.map((dayName) => (
-          <div key={dayName} className="text-center p-2 font-medium text-gray-700 bg-gray-50 rounded">
+          <div key={dayName} className="rounded-2xl border border-white/10 bg-white/5 p-2 text-center text-sm font-semibold text-white/70">
             {dayName}
           </div>
         ))}
@@ -702,15 +717,15 @@ export default function CalendarGrid({
             });
             
             const isCurrentMonth = day.getMonth() === currentDate.getMonth();
-            const isToday = day.toDateString() === new Date().toDateString();
+            const isToday = day.toDateString() === today.toDateString();
             
             return (
-              <Card
+              <div
                 key={`${weekIndex}-${dayIndex}`}
                 className={`
-                  min-h-[100px] p-2 cursor-pointer transition-colors relative group
-                  ${isCurrentMonth ? 'hover:bg-blue-50' : 'bg-gray-50 opacity-60'}
-                  ${isToday ? 'ring-2 ring-blue-500' : ''}
+                  group relative min-h-[110px] cursor-pointer rounded-2xl border p-2 transition-all
+                  ${isCurrentMonth ? 'border-white/10 bg-gradient-to-br from-white/5 via-slate-900/30 to-slate-900/60 hover:border-white/30 hover:bg-white/10' : 'border-white/5 bg-slate-900/10 opacity-60'}
+                  ${isToday ? 'ring-2 ring-emerald-300/60 shadow-[0_12px_35px_rgba(16,185,129,0.25)]' : ''}
                 `}
                 onClick={() => {
                   if (dayAppointments.length === 0) {
@@ -722,11 +737,11 @@ export default function CalendarGrid({
                   }
                 }}
               >
-                <div className="flex items-start justify-between mb-1">
+                <div className="mb-1 flex items-start justify-between">
                   <div className={`
                     text-sm font-medium
-                    ${isCurrentMonth ? 'text-gray-900' : 'text-gray-400'}
-                    ${isToday ? 'text-blue-600 font-bold' : ''}
+                    ${isCurrentMonth ? 'text-white' : 'text-white/50'}
+                    ${isToday ? 'text-emerald-200 font-bold' : ''}
                   `}>
                     {day.getDate()}
                     {isToday && <span className="ml-1 text-xs">●</span>}
@@ -736,8 +751,7 @@ export default function CalendarGrid({
                   {dayAppointments.length > 0 && (
                     <div className="flex items-center gap-1">
                       <Badge 
-                        variant="secondary" 
-                        className="text-xs px-1.5 py-0 h-4 bg-indigo-100 text-indigo-700"
+                        className="h-5 rounded-full border border-cyan-300/40 bg-cyan-500/10 px-1.5 py-0 text-xs text-cyan-50"
                       >
                         {dayAppointments.length}
                       </Badge>
@@ -755,10 +769,10 @@ export default function CalendarGrid({
                         const localDateString = `${year}-${month}-${dayOfMonth}`;
                         onSlotClick(localDateString, '09:00');
                       }}
-                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-white rounded-full p-1 shadow-sm border border-indigo-300 hover:bg-indigo-50"
+                      className="absolute right-2 top-2 rounded-full border border-white/20 bg-white/10 p-1 opacity-0 transition-opacity group-hover:opacity-100"
                       title="Agregar cita"
                     >
-                      <Plus className="h-3 w-3 text-indigo-600" />
+                      <Plus className="h-3 w-3 text-white" />
                     </button>
                   )}
                 </div>
@@ -773,7 +787,7 @@ export default function CalendarGrid({
                           e.stopPropagation();
                           onAppointmentClick(appointment);
                         }}
-                        className="rounded px-1.5 py-1 text-xs truncate cursor-pointer transition-all border"
+                        className="truncate rounded border px-1.5 py-1 text-xs transition-all"
                         style={{
                           backgroundColor: colors.background,
                           borderColor: colors.border,
@@ -794,12 +808,12 @@ export default function CalendarGrid({
                   })}
                   
                   {dayAppointments.length > 3 && (
-                    <div className="text-xs text-gray-500 font-medium px-1">
+                    <div className="px-1 text-xs font-medium text-white/60">
                       +{dayAppointments.length - 3} más
                     </div>
                   )}
                 </div>
-              </Card>
+              </div>
             );
           })
         )}

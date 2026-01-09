@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { GlassPanel } from "@/components/ui/glass-panel";
+import { MetricCard } from "@/components/dashboard/metric-card";
 import Link from "next/link";
-import { Users, Stethoscope, Package, TrendingUp, Calendar, DollarSign, CreditCard, Banknote, ArrowUpRight, ArrowDownRight, Clock, AlertTriangle, TrendingDown, Activity, BarChart3, PieChart, Target, CheckCircle, Minus, Settings, UserX, FileText, Receipt } from "lucide-react";
+import { Users, Stethoscope, Package, TrendingUp, Calendar, DollarSign, CreditCard, Banknote, ArrowUpRight, ArrowDownRight, Clock, AlertTriangle, TrendingDown, Activity, BarChart3, PieChart, Target, CheckCircle, Settings, UserX, FileText, Receipt } from "lucide-react";
 import AppLayout from "@/components/layout/app-layout";
 import { MiniAgenda } from "@/components/agenda/mini-agenda";
 import BookingsWidget from "@/components/dashboard/BookingsWidget";
@@ -104,6 +105,13 @@ interface InventoryItem {
   costo_unitario: number;
 }
 
+const formatCurrency = (value: number = 0) =>
+  new Intl.NumberFormat('es-MX', {
+    style: 'currency',
+    currency: 'MXN',
+    maximumFractionDigits: 0,
+  }).format(value || 0);
+
 export default function DashboardPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
@@ -158,6 +166,91 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedLocationId, setSelectedLocationId] = useState<string>('all');
 
+  const inventoryBadge = inventoryHealth.total_items === 0
+    ? { label: 'Sin datos', tone: 'neutral' as const }
+    : inventoryHealth.overall_status === 'good'
+    ? { label: 'Estado óptimo', tone: 'positive' as const }
+    : inventoryHealth.overall_status === 'warning'
+    ? { label: 'Requiere atención', tone: 'warning' as const }
+    : { label: 'Estado crítico', tone: 'negative' as const };
+
+  const metricCards = [
+    {
+      id: 'patients',
+      title: 'Total Pacientes',
+      hint: `${stats.totalPatients === 1 ? 'Paciente' : 'Pacientes'} activos`,
+      value: stats.totalPatients.toLocaleString('es-MX'),
+      icon: Users,
+      variant: 'indigo' as const,
+      trendLabel: 'Activos',
+      trendTone: 'positive' as const,
+    },
+    {
+      id: 'treatments',
+      title: 'Tratamientos',
+      hint: 'Disponibles para agenda',
+      value: stats.totalTreatments.toLocaleString('es-MX'),
+      icon: Stethoscope,
+      variant: 'emerald' as const,
+      trendLabel: 'Catálogo listo',
+      trendTone: 'neutral' as const,
+    },
+    {
+      id: 'inventory',
+      title: 'Inventario',
+      hint: `${inventoryHealth.low_stock + inventoryHealth.critical_items.length} alertas activas`,
+      value: inventoryHealth.total_items.toLocaleString('es-MX'),
+      icon: Package,
+      variant: 'violet' as const,
+      trendLabel: inventoryBadge.label,
+      trendTone: inventoryBadge.tone,
+      footer:
+        inventoryHealth.total_items > 0 ? (
+          <Link href="/inventory" className="text-xs text-sky-200 hover:text-white">
+            Ver detalles →
+          </Link>
+        ) : undefined,
+    },
+    {
+      id: 'revenue',
+      title: 'Ingresos Totales',
+      hint: 'MXN acumulado',
+      value: formatCurrency(stats.totalRevenue),
+      icon: DollarSign,
+      variant: 'amber' as const,
+      trendLabel: 'Acumulado',
+      trendTone: 'positive' as const,
+    },
+    {
+      id: 'appointments',
+      title: 'Citas Hoy',
+      hint: 'Calendario en vivo',
+      value: stats.todayAppointments.toLocaleString('es-MX'),
+      icon: Calendar,
+      variant: 'teal' as const,
+      trendLabel:
+        stats.weekAppointments > 0
+          ? `${stats.weekAppointments} esta semana`
+          : 'Sin citas programadas',
+      trendTone: stats.weekAppointments > 0 ? 'neutral' as const : 'warning' as const,
+    },
+    {
+      id: 'risk',
+      title: 'Pacientes en Riesgo',
+      hint: 'Sin cita 90+ días',
+      value: stats.patientsAtRisk.toLocaleString('es-MX'),
+      icon: UserX,
+      variant: 'orange' as const,
+      trendLabel: 'Enviar recordatorios',
+      trendTone: 'warning' as const,
+      footer: (
+        <Link href="/patients" className="text-xs text-orange-200 hover:text-white">
+          Gestionar pacientes →
+        </Link>
+      ),
+    },
+  ];
+
   // Chart data for payment methods pie chart
   const paymentChartData = useMemo<ChartData<'doughnut'>>(() => ({
     labels: ['Efectivo', 'Tarjeta', 'Transferencia'],
@@ -199,6 +292,62 @@ export default function DashboardPage() {
       }
     }
   }), [stats.totalRevenue]);
+
+  const netPositive = stats.monthlyNetProfit >= 0;
+  const financialHighlights = [
+    {
+      id: 'monthlyRevenue',
+      title: 'Ingresos del mes',
+      value: stats.monthlyRevenue,
+      icon: TrendingUp,
+      accent: 'from-emerald-400/30 via-emerald-500/10 to-transparent',
+      chip: `${stats.revenueChangePercent >= 0 ? '+' : ''}${stats.revenueChangePercent.toFixed(1)}% vs mes anterior`,
+      chipTone: stats.revenueChangePercent >= 0 ? 'text-emerald-200' : 'text-rose-200',
+      subtitle: 'Entrada total'
+    },
+    {
+      id: 'grossProfit',
+      title: 'Ganancia bruta',
+      value: stats.monthlyGrossProfit,
+      icon: BarChart3,
+      accent: 'from-sky-400/30 via-sky-500/10 to-transparent',
+      chip: 'Antes de gastos',
+      chipTone: 'text-white/70',
+      subtitle: 'Sin gastos'
+    },
+    {
+      id: 'fixedCosts',
+      title: 'Gastos fijos',
+      value: stats.monthlyFixedCosts,
+      icon: Receipt,
+      accent: 'from-rose-400/40 via-rose-500/10 to-transparent',
+      chip: 'Comprometido',
+      chipTone: 'text-rose-200',
+      subtitle: 'Recurrentes'
+    },
+    {
+      id: 'variableCosts',
+      title: 'Gastos variables',
+      value: stats.monthlyVariableCosts,
+      icon: FileText,
+      accent: 'from-amber-400/40 via-amber-500/10 to-transparent',
+      chip: 'Operativos',
+      chipTone: 'text-amber-200',
+      subtitle: 'Este mes'
+    },
+    {
+      id: 'netProfit',
+      title: 'Ganancia neta',
+      value: stats.monthlyNetProfit,
+      icon: netPositive ? TrendingUp : TrendingDown,
+      accent: netPositive
+        ? 'from-emerald-400/30 via-emerald-500/10 to-transparent'
+        : 'from-rose-400/30 via-rose-500/10 to-transparent',
+      chip: `Margen ${stats.monthlyMarginPercentage.toFixed(1)}%`,
+      chipTone: netPositive ? 'text-emerald-200' : 'text-rose-200',
+      subtitle: netPositive ? 'Rentable' : 'Revisar costos'
+    },
+  ];
 
   // Verificar autenticación con Supabase
   useEffect(() => {
@@ -627,347 +776,232 @@ export default function DashboardPage() {
   return (
     <AppLayout>
       <TrialBadge />
-      <div className="space-y-8 p-4 md:p-6 bg-gradient-to-br from-blue-50/50 to-indigo-50/50 min-h-screen w-full overflow-x-hidden">
+      <div className="dashboard-surface space-y-10 text-white">
         {/* Header Section */}
-        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 bg-white rounded-xl p-4 md:p-6 shadow-sm border border-blue-100">
-        <div className="flex items-center gap-4">
-          <div className="h-12 w-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center flex-shrink-0">
-            <Activity className="h-6 w-6 text-white" />
+        <GlassPanel className="p-6 space-y-6">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center">
+                <Activity className="h-7 w-7 text-white" />
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-[0.35em] text-white/60">Resumen</p>
+                <h1 className="text-3xl font-semibold text-white">Dashboard</h1>
+                <p className="text-white/70">Resumen de tu consultorio médico</p>
+              </div>
+            </div>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center lg:justify-end">
+              <LocationSelector
+                selectedLocationId={selectedLocationId}
+                onLocationChange={setSelectedLocationId}
+                allowAll={true}
+                className="pill-select w-full sm:w-auto"
+              />
+              <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
+                <Button
+                  variant="outline"
+                  onClick={loadDashboardData}
+                  disabled={loading}
+                  className="rounded-full border-white/20 bg-white/5 text-white hover:bg-white/15"
+                >
+                  <Activity className="h-4 w-4" />
+                  <span>{loading ? 'Cargando…' : 'Actualizar'}</span>
+                </Button>
+                <Button
+                  asChild
+                  variant="outline"
+                  className="rounded-full border-white/20 bg-white/5 text-white hover:bg-white/15"
+                >
+                  <Link href="/dashboard/settings/doctors" className="flex items-center gap-2">
+                    <Settings className="h-4 w-4" />
+                    Configuración
+                  </Link>
+                </Button>
+                <Button
+                  asChild
+                  className="rounded-full bg-gradient-to-r from-emerald-300 via-sky-300 to-purple-300 text-slate-900 shadow-[0_20px_60px_rgba(56,189,248,0.35)] hover:-translate-y-0.5"
+                >
+                  <Link href="/patients/new" className="flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    Nuevo Paciente
+                  </Link>
+                </Button>
+              </div>
+            </div>
           </div>
-          <div className="min-w-0 flex-1">
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              Dashboard
-            </h1>
-            <p className="text-sm md:text-base text-gray-600 truncate">Resumen de tu consulorio médico</p>
-          </div>
-          {/* Location Selector */}
-          <div className="hidden md:block">
-            <LocationSelector
-              selectedLocationId={selectedLocationId}
-              onLocationChange={setSelectedLocationId}
-              allowAll={true}
-            />
-          </div>
-        </div>
-        {/* Mobile Location Selector */}
-        <div className="md:hidden w-full">
-          <LocationSelector
-            selectedLocationId={selectedLocationId}
-            onLocationChange={setSelectedLocationId}
-            allowAll={true}
-            className="w-full"
-          />
-        </div>
-        <div className="flex flex-wrap gap-2 md:gap-3 w-full md:w-auto">
-          <Button 
-            variant="outline" 
-            onClick={loadDashboardData}
-            disabled={loading}
-            className="flex items-center space-x-2 flex-1 md:flex-initial"
-          >
-            <Activity className="h-4 w-4" />
-            <span className="hidden sm:inline">{loading ? 'Cargando...' : 'Actualizar'}</span>
-            <span className="sm:hidden">{loading ? '...' : '↻'}</span>
-          </Button>
-          <Button asChild variant="outline" className="flex items-center space-x-2 flex-1 md:flex-initial">
-            <Link href="/dashboard/settings/doctors">
-              <Settings className="h-4 w-4" />
-              <span className="hidden sm:inline">Configuración</span>
-            </Link>
-          </Button>
-          <Button asChild className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-sm w-full md:w-auto">
-            <Link href="/patients/new" className="flex items-center justify-center">
-              <Users className="h-4 w-4 mr-2" />
-              <span className="hidden sm:inline">Nuevo Paciente</span>
-              <span className="sm:hidden">Nuevo</span>
-            </Link>
-          </Button>
-        </div>
-      </div>
+        </GlassPanel>
 
       {error && (
-        <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-xl p-4 shadow-sm">
-          <div className="flex items-center">
-            <AlertTriangle className="h-5 w-5 text-yellow-600 mr-3" />
-            <span className="text-yellow-800 font-medium">{error}</span>
+        <GlassPanel className="border border-amber-400/40 bg-amber-500/10 p-4 text-amber-100">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="h-5 w-5" />
+            <span className="font-medium">{error}</span>
           </div>
-        </div>
+        </GlassPanel>
       )}
 
       {/* Estadísticas principales */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 shadow-sm hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-            <CardTitle className="text-sm font-medium text-blue-700">Total Pacientes</CardTitle>
-            <div className="h-8 w-8 bg-blue-500 rounded-lg flex items-center justify-center">
-              <Users className="h-4 w-4 text-white" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-blue-900">{stats.totalPatients}</div>
-            <div className="flex items-center mt-2">
-              <ArrowUpRight className="h-3 w-3 text-green-500 mr-1" />
-              <span className="text-xs text-green-600 font-medium">Activos</span>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+        {metricCards.map((card) => (
+          <MetricCard
+            key={card.id}
+            title={card.title}
+            hint={card.hint}
+            value={card.value}
+            icon={card.icon}
+            variant={card.variant}
+            trendLabel={card.trendLabel}
+            trendTone={card.trendTone}
+            footer={card.footer}
+          />
+        ))}
+      </div>
 
-        <Card className="bg-gradient-to-br from-emerald-50 to-emerald-100 border-emerald-200 shadow-sm hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-            <CardTitle className="text-sm font-medium text-emerald-700">Tratamientos</CardTitle>
-            <div className="h-8 w-8 bg-emerald-500 rounded-lg flex items-center justify-center">
-              <Stethoscope className="h-4 w-4 text-white" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-emerald-900">{stats.totalTreatments}</div>
-            <div className="flex items-center mt-2">
-              <Target className="h-3 w-3 text-emerald-500 mr-1" />
-              <span className="text-xs text-emerald-600 font-medium">Disponibles</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-indigo-50 to-indigo-100 border-indigo-200 shadow-sm hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-            <CardTitle className="text-sm font-medium text-indigo-700">Inventario</CardTitle>
-            <div className="h-8 w-8 bg-indigo-500 rounded-lg flex items-center justify-center">
-              <Package className="h-4 w-4 text-white" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-indigo-900">
-              {inventoryHealth.total_items || 0}
-            </div>
-            <div className="flex items-center mt-2">
-              {inventoryHealth.total_items === 0 && (
-                <>
-                  <AlertTriangle className="h-3 w-3 text-gray-500 mr-1" />
-                  <span className="text-xs text-gray-500 font-medium">Sin datos</span>
-                </>
-              )}
-              {inventoryHealth.total_items > 0 && inventoryHealth.overall_status === 'good' && (
-                <>
-                  <CheckCircle className="h-3 w-3 text-green-500 mr-1" />
-                  <span className="text-xs text-green-600 font-medium">Estado Bueno</span>
-                </>
-              )}
-              {inventoryHealth.total_items > 0 && inventoryHealth.overall_status === 'warning' && (
-                <>
-                  <AlertTriangle className="h-3 w-3 text-yellow-500 mr-1" />
-                  <span className="text-xs text-yellow-600 font-medium">Requiere Atención</span>
-                </>
-              )}
-              {inventoryHealth.total_items > 0 && inventoryHealth.overall_status === 'critical' && (
-                <>
-                  <Minus className="h-3 w-3 text-red-500 mr-1" />
-                  <span className="text-xs text-red-600 font-medium">Estado Crítico</span>
-                </>
-              )}
-            </div>
-            <Link href="/inventory">
-              <Button variant="link" className="p-0 h-auto text-xs mt-2 text-indigo-600">
-                Ver detalles →
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-amber-50 to-amber-100 border-amber-200 shadow-sm hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-            <CardTitle className="text-sm font-medium text-amber-700">Ingresos Total</CardTitle>
-            <div className="h-8 w-8 bg-amber-500 rounded-lg flex items-center justify-center">
-              <DollarSign className="h-4 w-4 text-white" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-amber-900">${(stats?.totalRevenue || 0).toLocaleString()}</div>
-            <div className="flex items-center mt-2">
-              <TrendingUp className="h-3 w-3 text-green-500 mr-1" />
-              <span className="text-xs text-green-600 font-medium">Acumulado</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* === QUICK WIN 1: Citas Hoy/Semana === */}
-        <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200 shadow-sm hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-            <CardTitle className="text-sm font-medium text-purple-700">Citas Hoy</CardTitle>
-            <div className="h-8 w-8 bg-purple-500 rounded-lg flex items-center justify-center">
-              <Calendar className="h-4 w-4 text-white" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-purple-900">{stats.todayAppointments}</div>
-            <div className="flex items-center mt-2">
-              <Clock className="h-3 w-3 text-purple-500 mr-1" />
-              <span className="text-xs text-purple-600 font-medium">{stats.weekAppointments} esta semana</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* === QUICK WIN 2: Pacientes en Riesgo === */}
-        <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200 shadow-sm hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-            <CardTitle className="text-sm font-medium text-orange-700">Pacientes en Riesgo</CardTitle>
-            <div className="h-8 w-8 bg-orange-500 rounded-lg flex items-center justify-center">
-              <UserX className="h-4 w-4 text-white" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-orange-900">{stats.patientsAtRisk}</div>
-            <div className="flex items-center mt-2">
-              <AlertTriangle className="h-3 w-3 text-orange-500 mr-1" />
-              <span className="text-xs text-orange-600 font-medium">Sin cita 90+ días</span>
-            </div>
-            <Link href="/patients">
-              <Button variant="link" className="p-0 h-auto text-xs mt-2 text-orange-600">
-                Enviar recordatorio →
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-
-        {/* === QUICK WIN 3 & 4: Ingresos del Mes con Trend + % Change === */}
-        <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200 shadow-sm hover:shadow-md transition-shadow col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-            <CardTitle className="text-sm font-medium text-green-700">Ingresos del Mes</CardTitle>
-            <div className="h-8 w-8 bg-green-500 rounded-lg flex items-center justify-center">
-              <TrendingUp className="h-4 w-4 text-white" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-baseline gap-3">
-              <div className="text-3xl font-bold text-green-900">
-                ${(stats?.monthlyRevenue || 0).toLocaleString()}
-              </div>
-              {stats.revenueChangePercent !== 0 && (
-                <div className={`flex items-center gap-1 px-2 py-1 rounded-full ${
-                  stats.revenueChangePercent > 0 
-                    ? 'bg-green-200 text-green-700' 
-                    : 'bg-red-200 text-red-700'
-                }`}>
-                  {stats.revenueChangePercent > 0 ? (
-                    <ArrowUpRight className="h-3 w-3" />
-                  ) : (
-                    <ArrowDownRight className="h-3 w-3" />
-                  )}
-                  <span className="text-xs font-semibold">
+      <div className="grid gap-5 xl:grid-cols-3">
+        <GlassPanel className="p-6 space-y-4 xl:col-span-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.35em] text-white/60">Ingresos del mes</p>
+              <div className="mt-2 flex items-baseline gap-3">
+                <p className="text-4xl font-semibold text-white">
+                  {formatCurrency(stats.monthlyRevenue)}
+                </p>
+                {stats.revenueChangePercent !== 0 && (
+                  <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${
+                    stats.revenueChangePercent > 0
+                      ? 'bg-emerald-400/20 text-emerald-200'
+                      : 'bg-rose-400/20 text-rose-200'
+                  }`}>
+                    {stats.revenueChangePercent > 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
                     {Math.abs(stats.revenueChangePercent).toFixed(1)}%
                   </span>
-                </div>
-              )}
+                )}
+              </div>
+              <p className="text-sm text-white/70">Comparado con el mes anterior</p>
             </div>
-            
-            {/* Mini trend chart - last 30 days */}
-            <div className="mt-4 h-16">
-              <ChartLine 
-                data={{
-                  labels: stats.last30DaysRevenue.map(d => d.date),
-                  datasets: [{
-                    data: stats.last30DaysRevenue.map(d => d.revenue),
-                    borderColor: '#10b981',
+            <div className="h-12 w-12 rounded-2xl bg-white/10 flex items-center justify-center">
+              <TrendingUp className="h-5 w-5 text-white" />
+            </div>
+          </div>
+          <div className="mt-4 h-24">
+            <ChartLine
+              data={{
+                labels: stats.last30DaysRevenue.map((d) => d.date),
+                datasets: [
+                  {
+                    data: stats.last30DaysRevenue.map((d) => d.revenue),
+                    borderColor: '#34d399',
                     borderWidth: 2,
                     pointRadius: 0,
                     tension: 0.4,
-                    fill: false
-                  }]
-                }}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                      backgroundColor: 'white',
-                      borderColor: '#e5e7eb',
-                      borderWidth: 1,
-                      titleColor: '#374151',
-                      bodyColor: '#6b7280',
-                      padding: 8,
-                      displayColors: false,
-                      callbacks: {
-                        label: (context: any) => `$${context.parsed.y.toLocaleString()}`
-                      }
-                    }
+                    fill: {
+                      target: 'origin',
+                      above: 'rgba(52,211,153,0.08)',
+                    },
                   },
-                  scales: {
-                    x: { display: false },
-                    y: { display: false }
+                ],
+              }}
+              options={{
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: { display: false },
+                  tooltip: {
+                    backgroundColor: 'rgba(15,23,42,0.92)',
+                    titleColor: '#f8fafc',
+                    bodyColor: '#cbd5f5',
+                    padding: 10,
+                    displayColors: false,
+                    callbacks: {
+                      label: (context: any) => formatCurrency(context.parsed.y),
+                    },
                   },
-                  interaction: {
-                    intersect: false,
-                    mode: 'index'
-                  }
-                }}
-              />
+                },
+                scales: {
+                  x: { display: false },
+                  y: { display: false },
+                },
+                interaction: { intersect: false, mode: 'index' },
+              }}
+            />
+          </div>
+          <p className="text-xs text-white/60">Últimos 30 días</p>
+        </GlassPanel>
+
+        <GlassPanel className="p-6 space-y-4">
+          <p className="text-xs uppercase tracking-[0.35em] text-white/60">Facturación</p>
+          <div className="flex items-end justify-between">
+            <div>
+              <p className="text-sm text-white/70">Facturado</p>
+              <p className="text-3xl font-semibold text-white">{formatCurrency(stats.billingStats.billedRevenue)}</p>
             </div>
-            
-            <div className="flex items-center mt-2">
-              <TrendingUp className="h-3 w-3 text-green-500 mr-1" />
-              <span className="text-xs text-green-600 font-medium">Últimos 30 días</span>
+            <div className="text-right">
+              <p className="text-sm text-white/60">No facturado</p>
+              <p className="text-xl font-semibold text-white/90">
+                {formatCurrency(stats.billingStats.nonBilledRevenue)}
+              </p>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+          <div className="h-2 w-full rounded-full bg-white/10">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-emerald-300 to-sky-300"
+              style={{ width: `${Math.min(100, stats.billingStats.billedPercentage || 0)}%` }}
+            />
+          </div>
+          <p className="text-xs text-white/60">
+            {stats.billingStats.billedPercentage.toFixed(1)}% del ingreso ya tiene factura emitida.
+          </p>
+        </GlassPanel>
       </div>
 
       {/* === QUICK WIN 5: Widget Próximas 2 Horas === */}
       {stats.upcomingAppointmentsNext2Hours.length > 0 && (
-        <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl p-6 shadow-sm border-2 border-indigo-200">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="h-12 w-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center animate-pulse">
+        <GlassPanel className="p-6 space-y-5">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center animate-pulse">
                 <Clock className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-indigo-900">Próximas 2 Horas</h2>
-                <p className="text-indigo-600 text-sm font-medium">
-                  {stats.upcomingAppointmentsNext2Hours.length} {stats.upcomingAppointmentsNext2Hours.length === 1 ? 'cita llegando' : 'citas llegando'}
+                <h2 className="text-2xl font-semibold text-white">Próximas 2 horas</h2>
+                <p className="text-white/70 text-sm">
+                  {stats.upcomingAppointmentsNext2Hours.length} {stats.upcomingAppointmentsNext2Hours.length === 1 ? 'cita' : 'citas'} en camino
                 </p>
               </div>
             </div>
-            <Link href="/appointments">
-              <Button className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 shadow-md">
-                <Calendar className="h-4 w-4 mr-2" />
-                Ver Agenda Completa
-              </Button>
-            </Link>
+            <Button asChild className="rounded-full bg-white/15 text-white hover:bg-white/25">
+              <Link href="/appointments" className="flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                Ver agenda completa
+              </Link>
+            </Button>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {stats.upcomingAppointmentsNext2Hours.map((apt) => (
-              <div 
-                key={apt.id} 
-                className="bg-white rounded-lg p-4 border-2 border-indigo-200 shadow-sm hover:shadow-md transition-all hover:border-indigo-400"
-              >
+              <div key={apt.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
                 <div className="flex items-start gap-3">
-                  <div className="h-10 w-10 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Users className="h-5 w-5 text-indigo-600" />
+                  <div className="h-10 w-10 rounded-xl bg-white/10 flex items-center justify-center">
+                    <Users className="h-5 w-5 text-white" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-bold text-gray-900 truncate">{apt.patient_name}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Clock className="h-3 w-3 text-indigo-500" />
-                      <p className="text-sm font-semibold text-indigo-600">
-                        {apt.scheduled_time.substring(0, 5)}
-                      </p>
+                    <p className="font-semibold text-white truncate">{apt.patient_name}</p>
+                    <div className="mt-1 flex items-center gap-2 text-sm text-white/70">
+                      <Clock className="h-4 w-4 text-emerald-300" />
+                      <span>{apt.scheduled_time.substring(0, 5)} h</span>
                     </div>
                     {apt.appointment_type_name && (
-                      <p className="text-xs text-gray-600 mt-1 truncate">
-                        {apt.appointment_type_name}
-                      </p>
+                      <p className="text-xs text-white/60 mt-1 truncate">{apt.appointment_type_name}</p>
                     )}
                     {apt.notes && (
-                      <p className="text-xs text-gray-500 mt-1 truncate">
-                        {apt.notes}
-                      </p>
+                      <p className="text-xs text-white/50 mt-1 truncate">{apt.notes}</p>
                     )}
                   </div>
                 </div>
               </div>
             ))}
           </div>
-        </div>
+        </GlassPanel>
       )}
 
       {/* Widget de Reservas Online */}
@@ -1079,134 +1113,109 @@ export default function DashboardPage() {
 
       {/* === QUICK WIN 6: Gráfico Métodos de Pago === */}
       {(stats.paymentMethods.efectivo > 0 || stats.paymentMethods.tarjeta > 0 || stats.paymentMethods.transferencia > 0) && (
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-lg flex items-center justify-center">
-                <PieChart className="h-5 w-5 text-white" />
+        <GlassPanel className="p-6 space-y-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-emerald-400 to-sky-500 flex items-center justify-center">
+                <PieChart className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">Métodos de Pago</h2>
-                <p className="text-gray-600 text-sm">Distribución de ingresos por método</p>
+                <h2 className="text-2xl font-semibold text-white">Métodos de pago</h2>
+                <p className="text-sm text-white/70">Distribución de ingresos por canal</p>
               </div>
+            </div>
+            <div className="flex items-center gap-2 text-xs uppercase tracking-[0.35em] text-white/60">
+              <span>Realtime</span>
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-300 animate-pulse"></span>
             </div>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* Pie Chart */}
-            <div className="flex items-center justify-center min-h-[250px]">
-              <div className="w-full h-[250px]">
+          <div className="grid gap-6 lg:grid-cols-2">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="h-[260px]">
                 <Doughnut data={paymentChartData} options={paymentChartOptions} />
               </div>
             </div>
-
-            {/* Stats Cards */}
             <div className="grid gap-4">
-              <div className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-lg p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-green-700 font-medium flex items-center gap-2">
-                      <Banknote className="h-4 w-4" />
-                      Efectivo
-                    </p>
-                    <p className="text-2xl font-bold text-green-900 mt-1">
-                      ${stats.paymentMethods.efectivo.toLocaleString()}
-                    </p>
-                    <p className="text-xs text-green-600 mt-1">
-                      {stats.totalRevenue > 0 
-                        ? ((stats.paymentMethods.efectivo / stats.totalRevenue) * 100).toFixed(1) 
-                        : 0}% del total
-                    </p>
-                  </div>
-                  <div className="h-12 w-12 bg-green-500 rounded-lg flex items-center justify-center">
-                    <Banknote className="h-6 w-6 text-white" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-blue-700 font-medium flex items-center gap-2">
-                      <CreditCard className="h-4 w-4" />
-                      Tarjeta
-                    </p>
-                    <p className="text-2xl font-bold text-blue-900 mt-1">
-                      ${stats.paymentMethods.tarjeta.toLocaleString()}
-                    </p>
-                    <p className="text-xs text-blue-600 mt-1">
-                      {stats.totalRevenue > 0 
-                        ? ((stats.paymentMethods.tarjeta / stats.totalRevenue) * 100).toFixed(1) 
-                        : 0}% del total
-                    </p>
-                  </div>
-                  <div className="h-12 w-12 bg-blue-500 rounded-lg flex items-center justify-center">
-                    <CreditCard className="h-6 w-6 text-white" />
+              {[{
+                label: 'Efectivo',
+                value: stats.paymentMethods.efectivo,
+                icon: Banknote,
+                gradient: 'from-emerald-400/30 via-emerald-500/20 to-transparent'
+              }, {
+                label: 'Tarjeta',
+                value: stats.paymentMethods.tarjeta,
+                icon: CreditCard,
+                gradient: 'from-sky-400/30 via-sky-500/20 to-transparent'
+              }, {
+                label: 'Transferencia',
+                value: stats.paymentMethods.transferencia,
+                icon: ArrowUpRight,
+                gradient: 'from-purple-400/30 via-purple-500/20 to-transparent'
+              }].map(({ label, value, icon: Icon, gradient }) => (
+                <div
+                  key={label}
+                  className={`rounded-2xl border border-white/10 bg-gradient-to-br ${gradient} p-4`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-white/70 flex items-center gap-2">
+                        <Icon className="h-4 w-4 text-white" />
+                        {label}
+                      </p>
+                      <p className="mt-1 text-2xl font-semibold text-white">{formatCurrency(value)}</p>
+                      <p className="text-xs text-white/60 mt-1">
+                        {stats.totalRevenue > 0
+                          ? ((value / stats.totalRevenue) * 100).toFixed(1)
+                          : 0}% del total
+                      </p>
+                    </div>
+                    <div className="h-12 w-12 rounded-xl bg-white/10 flex items-center justify-center">
+                      <Icon className="h-6 w-6 text-white" />
+                    </div>
                   </div>
                 </div>
-              </div>
-
-              <div className="bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 rounded-lg p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-purple-700 font-medium flex items-center gap-2">
-                      <ArrowUpRight className="h-4 w-4" />
-                      Transferencia
-                    </p>
-                    <p className="text-2xl font-bold text-purple-900 mt-1">
-                      ${stats.paymentMethods.transferencia.toLocaleString()}
-                    </p>
-                    <p className="text-xs text-purple-600 mt-1">
-                      {stats.totalRevenue > 0 
-                        ? ((stats.paymentMethods.transferencia / stats.totalRevenue) * 100).toFixed(1) 
-                        : 0}% del total
-                    </p>
-                  </div>
-                  <div className="h-12 w-12 bg-purple-500 rounded-lg flex items-center justify-center">
-                    <ArrowUpRight className="h-6 w-6 text-white" />
-                  </div>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
-        </div>
+        </GlassPanel>
       )}
 
       {/* Estado del Inventario - Solo Alertas Críticas */}
       {(inventoryHealth.low_items.length > 0 || inventoryHealth.critical_items.length > 0) && (
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-red-200">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 bg-gradient-to-br from-red-500 to-red-600 rounded-lg flex items-center justify-center">
-                <AlertTriangle className="h-5 w-5 text-white" />
+        <GlassPanel className="border border-rose-400/40 p-6 shadow-[0_20px_60px_rgba(244,63,94,0.15)]">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-rose-500 to-red-500 flex items-center justify-center animate-pulse">
+                <AlertTriangle className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">⚠️ Alertas de Inventario</h2>
-                <p className="text-red-600 text-sm font-medium">
+                <p className="text-xs uppercase tracking-[0.35em] text-white/60">Inventario</p>
+                <h2 className="text-2xl font-semibold text-white">Alertas activas</h2>
+                <p className="text-sm text-white/70">
                   {inventoryHealth.critical_items.length} agotados • {inventoryHealth.low_items.length} bajos
                 </p>
               </div>
             </div>
-            <Link href="/inventory">
-              <Button className="bg-red-600 hover:bg-red-700">
-                <Package className="h-4 w-4 mr-2" />
-                Gestionar
-              </Button>
-            </Link>
+            <Button asChild className="rounded-full bg-white/15 text-white hover:bg-white/25">
+              <Link href="/inventory" className="flex items-center gap-2">
+                <Package className="h-4 w-4" />
+                Gestionar inventario
+              </Link>
+            </Button>
           </div>
 
-          {/* Solo mostrar items críticos (agotados) */}
           {inventoryHealth.critical_items.length > 0 && (
-            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-6 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
               {inventoryHealth.critical_items.slice(0, 6).map((item) => (
-                <div key={item.id} className="bg-red-50 border border-red-300 rounded-lg p-3">
-                  <p className="font-medium text-red-900">{item.nombre}</p>
-                  <p className="text-sm text-red-600">Agotado (Min: {item.stock_minimo})</p>
+                <div key={item.id} className="rounded-2xl border border-white/10 bg-gradient-to-br from-rose-500/20 via-rose-500/5 to-transparent p-4">
+                  <p className="font-semibold text-white">{item.nombre}</p>
+                  <p className="text-sm text-white/70">Agotado · Min {item.stock_minimo}</p>
                 </div>
               ))}
               {inventoryHealth.critical_items.length > 6 && (
-                <div className="bg-red-50 border border-red-300 rounded-lg p-3 flex items-center justify-center">
-                  <p className="text-sm text-red-700 font-medium">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4 flex items-center justify-center">
+                  <p className="text-sm text-white/70 font-medium">
                     +{inventoryHealth.critical_items.length - 6} más
                   </p>
                 </div>
@@ -1214,185 +1223,128 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Si no hay críticos, mostrar solo los low items */}
           {inventoryHealth.critical_items.length === 0 && inventoryHealth.low_items.length > 0 && (
-            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-6 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
               {inventoryHealth.low_items.slice(0, 6).map((item) => (
-                <div key={item.id} className="bg-orange-50 border border-orange-300 rounded-lg p-3">
-                  <p className="font-medium text-orange-900">{item.nombre}</p>
-                  <p className="text-sm text-orange-600">Stock: {item.stock_actual} (Min: {item.stock_minimo})</p>
+                <div key={item.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <p className="font-semibold text-white">{item.nombre}</p>
+                  <p className="text-sm text-white/70">Stock {item.stock_actual} · Min {item.stock_minimo}</p>
                 </div>
               ))}
               {inventoryHealth.low_items.length > 6 && (
-                <div className="bg-orange-50 border border-orange-300 rounded-lg p-3 flex items-center justify-center">
-                  <p className="text-sm text-orange-700 font-medium">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4 flex items-center justify-center">
+                  <p className="text-sm text-white/70 font-medium">
                     +{inventoryHealth.low_items.length - 6} más
                   </p>
                 </div>
               )}
             </div>
           )}
-        </div>
+        </GlassPanel>
       )}
 
       {/* Estadísticas financieras mensuales */}
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="h-10 w-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
-            <PieChart className="h-5 w-5 text-white" />
+      <GlassPanel className="p-6 space-y-6">
+        <div className="flex items-center gap-4">
+          <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-emerald-400 to-sky-400 flex items-center justify-center">
+            <PieChart className="h-6 w-6 text-white" />
           </div>
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">Resumen Financiero Mensual</h2>
-            <p className="text-gray-600 text-sm">Análisis de ingresos y gastos del mes actual</p>
+            <p className="text-xs uppercase tracking-[0.35em] text-white/60">Finanzas</p>
+            <h2 className="text-2xl font-semibold text-white">Resumen mensual</h2>
+            <p className="text-sm text-white/70">Ingresos, gastos y margen del periodo actual</p>
           </div>
         </div>
-        
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
-          <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200 shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-              <CardTitle className="text-sm font-medium text-green-700">Ingresos Mes</CardTitle>
-              <div className="h-8 w-8 bg-green-500 rounded-lg flex items-center justify-center">
-                <TrendingUp className="h-4 w-4 text-white" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-900">${(stats?.monthlyRevenue || 0).toLocaleString()}</div>
-              <div className="flex items-center mt-2">
-                <ArrowUpRight className="h-3 w-3 text-green-500 mr-1" />
-                <span className="text-xs text-green-600 font-medium">Este mes</span>
-              </div>
-            </CardContent>
-          </Card>
 
-          <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-              <CardTitle className="text-sm font-medium text-blue-700">Ganancia Bruta</CardTitle>
-              <div className="h-8 w-8 bg-blue-500 rounded-lg flex items-center justify-center">
-                <TrendingUp className="h-4 w-4 text-white" />
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          {financialHighlights.map(({ id, title, value, icon: Icon, accent, chip, chipTone, subtitle }) => (
+            <div key={id} className={`rounded-2xl border border-white/10 bg-gradient-to-br ${accent} p-4`}>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm text-white/70">{title}</p>
+                  <p className="mt-2 text-2xl font-semibold text-white">{formatCurrency(value)}</p>
+                  <p className={`text-xs ${chipTone} mt-1`}>{chip}</p>
+                </div>
+                <div className="h-10 w-10 rounded-xl bg-white/10 flex items-center justify-center">
+                  <Icon className="h-5 w-5 text-white" />
+                </div>
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-blue-900">${(stats?.monthlyGrossProfit || 0).toLocaleString()}</div>
-              <p className="text-xs text-blue-600 mt-1 font-medium">Sin gastos</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-red-50 to-red-100 border-red-200 shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-              <CardTitle className="text-sm font-medium text-red-700">Gastos Fijos</CardTitle>
-              <div className="h-8 w-8 bg-red-500 rounded-lg flex items-center justify-center">
-                <TrendingDown className="h-4 w-4 text-white" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-red-900">${(stats?.monthlyFixedCosts || 0).toLocaleString()}</div>
-              <p className="text-xs text-red-600 mt-1 font-medium">Recurrentes</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200 shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-              <CardTitle className="text-sm font-medium text-orange-700">Gastos Variables</CardTitle>
-              <div className="h-8 w-8 bg-orange-500 rounded-lg flex items-center justify-center">
-                <Receipt className="h-4 w-4 text-white" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-orange-900">${(stats?.monthlyVariableCosts || 0).toLocaleString()}</div>
-              <p className="text-xs text-orange-600 mt-1 font-medium">Este mes</p>
-            </CardContent>
-          </Card>
-
-          <Card className={`bg-gradient-to-br ${(stats?.monthlyNetProfit || 0) >= 0 ? 'from-emerald-50 to-emerald-100 border-emerald-200' : 'from-red-50 to-red-100 border-red-200'} shadow-sm`}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-              <CardTitle className={`text-sm font-medium ${stats.monthlyNetProfit >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
-                Ganancia Neta
-              </CardTitle>
-              <div className={`h-8 w-8 ${stats.monthlyNetProfit >= 0 ? 'bg-emerald-500' : 'bg-red-500'} rounded-lg flex items-center justify-center`}>
-                {stats.monthlyNetProfit >= 0 ? (
-                  <TrendingUp className="h-4 w-4 text-white" />
-                ) : (
-                  <TrendingDown className="h-4 w-4 text-white" />
-                )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className={`text-2xl font-bold ${(stats?.monthlyNetProfit || 0) >= 0 ? 'text-emerald-900' : 'text-red-900'}`}>
-                ${(stats?.monthlyNetProfit || 0).toLocaleString()}
-              </div>
-              <p className={`text-xs mt-1 font-medium ${(stats?.monthlyNetProfit || 0) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                Margen: {(stats?.monthlyMarginPercentage || 0).toFixed(1)}%
-              </p>
-            </CardContent>
-          </Card>
+              <p className="mt-4 text-xs uppercase tracking-[0.35em] text-white/50">{subtitle}</p>
+            </div>
+          ))}
         </div>
-      </div>
+      </GlassPanel>
 
 
 
       {/* Mini Agenda */}
-      <Card className="bg-white shadow-sm border border-gray-200">
-        <CardHeader className="border-b border-gray-100">
-          <div className="flex items-center gap-3">
-            <div className="h-8 w-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
-              <Calendar className="h-4 w-4 text-white" />
-            </div>
-            <CardTitle className="text-lg font-semibold text-gray-900">Próximas Citas</CardTitle>
+      <GlassPanel className="p-0">
+        <div className="flex items-center gap-3 border-b border-white/10 px-6 py-4">
+          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+            <Calendar className="h-5 w-5 text-white" />
           </div>
-        </CardHeader>
-        <CardContent className="p-6">
+          <div>
+            <p className="text-xs uppercase tracking-[0.35em] text-white/60">Agenda</p>
+            <h3 className="text-lg font-semibold text-white">Próximas citas</h3>
+          </div>
+        </div>
+        <div className="p-6">
           <MiniAgenda />
-        </CardContent>
-      </Card>
+        </div>
+      </GlassPanel>
 
       {/* Registros recientes */}
-      <Card className="bg-white shadow-sm border border-gray-200">
-        <CardHeader className="border-b border-gray-100">
-          <div className="flex items-center gap-3">
-            <div className="h-8 w-8 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-lg flex items-center justify-center">
-              <Clock className="h-4 w-4 text-white" />
-            </div>
-            <CardTitle className="text-lg font-semibold text-gray-900">Registros Recientes</CardTitle>
+      <GlassPanel className="p-0">
+        <div className="flex items-center gap-3 border-b border-white/10 px-6 py-4">
+          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-cyan-400 to-sky-500 flex items-center justify-center">
+            <Clock className="h-5 w-5 text-white" />
           </div>
-        </CardHeader>
-        <CardContent className="p-6">
+          <div>
+            <p className="text-xs uppercase tracking-[0.35em] text-white/60">Actividad</p>
+            <h3 className="text-lg font-semibold text-white">Registros recientes</h3>
+          </div>
+        </div>
+        <div className="p-6">
           <div className="space-y-4">
             {stats.recentRecords.length > 0 ? (
               stats.recentRecords.map((record) => (
-                <div key={record.id} className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200 hover:shadow-sm transition-shadow">
+                <div
+                  key={record.id}
+                  className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/5 p-4 sm:flex-row sm:items-center sm:justify-between"
+                >
                   <div className="flex items-center gap-4">
-                    <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
-                      <Stethoscope className="h-4 w-4 text-white" />
+                    <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+                      <Stethoscope className="h-5 w-5 text-white" />
                     </div>
                     <div>
-                      <p className="font-medium text-gray-900">{record.patient_name}</p>
-                      <p className="text-sm text-gray-600">{record.treatment_name}</p>
-                      <p className="text-xs text-gray-500 flex items-center gap-2">
+                      <p className="font-semibold text-white">{record.patient_name}</p>
+                      <p className="text-sm text-white/70">{record.treatment_name}</p>
+                      <p className="text-xs text-white/60 flex items-center gap-2">
                         <span>{new Date(record.fecha).toLocaleDateString()}</span>
                         <span>•</span>
                         <span className="capitalize">{record.metodo_pago}</span>
                       </p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-bold text-lg text-gray-900">${(record.monto_pagado || 0).toLocaleString()}</p>
-                    <p className="text-sm text-green-600 font-medium">
-                      +${(record.ganancia || 0).toLocaleString()}
+                  <div className="text-left sm:text-right">
+                    <p className="text-lg font-semibold text-white">{formatCurrency(record.monto_pagado || 0)}</p>
+                    <p className="text-sm text-emerald-200 font-medium">
+                      +{formatCurrency(record.ganancia || 0)}
                     </p>
                   </div>
                 </div>
               ))
             ) : (
-              <div className="text-center py-8">
-                <div className="h-12 w-12 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                  <BarChart3 className="h-6 w-6 text-gray-400" />
+              <div className="rounded-2xl border border-white/10 bg-white/5 py-8 text-center">
+                <div className="h-12 w-12 rounded-xl bg-white/10 flex items-center justify-center mx-auto mb-4">
+                  <BarChart3 className="h-6 w-6 text-white/70" />
                 </div>
-                <p className="text-gray-500">No hay registros recientes</p>
+                <p className="text-white/60">No hay registros recientes</p>
               </div>
             )}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </GlassPanel>
       </div>
     </AppLayout>
   );

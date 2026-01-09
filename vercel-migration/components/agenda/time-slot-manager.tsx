@@ -291,10 +291,10 @@ export default function TimeSlotManager({
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto backdrop-blur-xl bg-gradient-to-br from-white/95 via-white/90 to-white/95 border border-white/20 shadow-2xl">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5" />
+            <DialogTitle className="flex items-center gap-2 text-gray-900">
+              <Clock className="h-5 w-5 text-purple-600" />
               Gestión de Horarios - {selectedDate.toLocaleDateString('es-ES')}
             </DialogTitle>
           </DialogHeader>
@@ -465,9 +465,9 @@ export default function TimeSlotManager({
 
       {/* Block Period Dialog */}
       <Dialog open={showBlockDialog} onOpenChange={setShowBlockDialog}>
-        <DialogContent>
+        <DialogContent className="backdrop-blur-xl bg-gradient-to-br from-white/95 via-white/90 to-white/95 border border-white/20 shadow-2xl">
           <DialogHeader>
-            <DialogTitle>Bloquear Período</DialogTitle>
+            <DialogTitle className="text-gray-900">Bloquear Período</DialogTitle>
           </DialogHeader>
           
           <div className="space-y-4">

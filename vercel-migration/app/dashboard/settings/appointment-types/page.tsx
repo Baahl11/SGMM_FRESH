@@ -6,6 +6,8 @@ import { Plus, Search, Calendar } from 'lucide-react'
 import toast, { Toaster } from 'react-hot-toast'
 import AppointmentTypeCard from '@/components/settings/AppointmentTypeCard'
 import AppointmentTypeModal from '@/components/settings/AppointmentTypeModal'
+import { GlassPanel } from '@/components/ui/glass-panel'
+import { Input } from '@/components/ui/input'
 
 interface AppointmentType {
   id: string
@@ -81,14 +83,22 @@ export default function AppointmentTypesPage() {
     type.descripcion?.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
+  const activeTypes = appointmentTypes.filter((type) => type.activo).length
+  const confirmRequired = appointmentTypes.filter((type) => type.requiere_confirmacion).length
+  const avgDuration = appointmentTypes.length
+    ? Math.round(
+        appointmentTypes.reduce((sum, type) => sum + type.duracion_minutos, 0) /
+          appointmentTypes.length
+      )
+    : 0
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-          className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full"
-        />
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <GlassPanel className="flex items-center gap-3 border-white/10 bg-white/5 px-6 py-4 text-white">
+          <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-transparent" />
+          Cargando tipos de cita...
+        </GlassPanel>
       </div>
     )
   }
@@ -104,72 +114,112 @@ export default function AppointmentTypesPage() {
       />
 
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-              <Calendar className="w-6 h-6 text-violet-500" />
-              Tipos de Cita
-            </h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              {appointmentTypes.length} {appointmentTypes.length === 1 ? 'tipo configurado' : 'tipos configurados'}
-            </p>
+        <GlassPanel className="relative overflow-hidden border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-white/0 p-6 text-white">
+          <div className="pointer-events-none absolute inset-0 opacity-70">
+            <div className="absolute -top-24 right-0 h-64 w-64 rounded-full bg-purple-500/25 blur-[140px]" />
+            <div className="absolute -bottom-16 left-0 h-56 w-56 rounded-full bg-indigo-500/20 blur-[130px]" />
           </div>
-          
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => {
-              setEditingType(null)
-              setIsModalOpen(true)
-            }}
-            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white rounded-xl font-medium shadow-lg shadow-violet-500/25 transition-all"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Nuevo Tipo</span>
-          </motion.button>
+          <div className="relative flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+            <div className="space-y-3">
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-1 text-xs uppercase tracking-[0.35em] text-white/70">
+                <Calendar className="h-4 w-4" />
+                Servicios
+              </div>
+              <div>
+                <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Tipos de cita</h1>
+                <p className="mt-2 max-w-2xl text-sm text-white/70">
+                  Define cada servicio con duración, precio sugerido y requisitos para mantener agendas impecables.
+                </p>
+              </div>
+            </div>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => {
+                setEditingType(null)
+                setIsModalOpen(true)
+              }}
+              className="aura-cta aura-cta--primary"
+            >
+              <Plus className="h-4 w-4" />
+              Nuevo tipo
+            </motion.button>
+          </div>
+        </GlassPanel>
+
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <GlassPanel className="border-white/10 bg-white/5 p-5 text-white">
+            <p className="text-xs uppercase tracking-[0.35em] text-white/50">Totales</p>
+            <p className="text-3xl font-semibold">{appointmentTypes.length}</p>
+            <p className="text-sm text-white/70">configurados</p>
+          </GlassPanel>
+          <GlassPanel className="border-white/10 bg-white/5 p-5 text-white">
+            <p className="text-xs uppercase tracking-[0.35em] text-white/50">Activos</p>
+            <p className="text-3xl font-semibold text-emerald-200">{activeTypes}</p>
+            <p className="text-sm text-white/70">publicados</p>
+          </GlassPanel>
+          <GlassPanel className="border-white/10 bg-white/5 p-5 text-white">
+            <p className="text-xs uppercase tracking-[0.35em] text-white/50">Duración promedio</p>
+            <div className="flex items-baseline gap-2">
+              <p className="text-3xl font-semibold text-sky-200">{avgDuration || '--'}</p>
+              <span className="text-sm text-white/60">min</span>
+            </div>
+            <p className="text-sm text-white/70">agenda estimada</p>
+          </GlassPanel>
+          <GlassPanel className="border-white/10 bg-white/5 p-5 text-white">
+            <p className="text-xs uppercase tracking-[0.35em] text-white/50">Requieren confirmación</p>
+            <p className="text-3xl font-semibold text-amber-200">{confirmRequired}</p>
+            <p className="text-sm text-white/70">con protocolo</p>
+          </GlassPanel>
         </div>
 
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Buscar por nombre o descripción..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none transition-all text-gray-900 dark:text-white placeholder-gray-400"
-          />
-        </div>
+        <GlassPanel className="border-white/10 bg-white/5 p-4">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
+            <Input
+              type="text"
+              placeholder="Buscar por nombre o descripción..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-12 rounded-2xl border-white/15 bg-white/5 pl-12 text-white placeholder:text-white/40"
+            />
+          </div>
+        </GlassPanel>
 
         {filteredTypes.length === 0 ? (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="flex flex-col items-center justify-center py-16 px-4"
-          >
-            <div className="w-16 h-16 bg-gradient-to-br from-violet-100 to-purple-100 dark:from-violet-900/20 dark:to-purple-900/20 rounded-2xl flex items-center justify-center mb-4">
-              <Calendar className="w-8 h-8 text-violet-500" />
+          <GlassPanel className="flex flex-col items-center gap-4 border-white/10 bg-white/5 px-6 py-16 text-center text-white/70">
+            <div className="flex h-16 w-16 items-center justify-center rounded-3xl border border-dashed border-white/30">
+              <Calendar className="h-8 w-8 text-white/70" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              {searchQuery ? 'No se encontraron tipos de cita' : 'Aún no hay tipos de cita'}
-            </h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400 text-center max-w-sm mb-6">
-              {searchQuery 
-                ? 'Intenta con otro término de búsqueda'
-                : 'Define los tipos de servicio que ofreces'
-              }
-            </p>
-            {!searchQuery && (
+            <div>
+              <h3 className="text-lg font-semibold text-white">
+                {searchQuery ? 'Sin resultados' : 'Aún no hay tipos de cita'}
+              </h3>
+              <p className="text-sm text-white/60">
+                {searchQuery
+                  ? 'Intenta con otro término o limpia los filtros.'
+                  : 'Crea tus servicios para abrir la agenda digital.'}
+              </p>
+            </div>
+            {searchQuery ? (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="aura-cta aura-cta--ghost"
+              >
+                Limpiar búsqueda
+              </button>
+            ) : (
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setIsModalOpen(true)}
-                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl font-medium shadow-lg shadow-violet-500/25"
+                className="aura-cta aura-cta--primary"
               >
-                <Plus className="w-5 h-5" />
-                <span>Agregar Primer Tipo</span>
+                <Plus className="h-4 w-4" />
+                Agregar primer tipo
               </motion.button>
             )}
-          </motion.div>
+          </GlassPanel>
         ) : (
           <motion.div 
             layout

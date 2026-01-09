@@ -24,12 +24,12 @@ export default function DoctorCard({ doctor, onEdit, onDelete }: DoctorCardProps
   return (
     <motion.div
       whileHover={{ y: -4 }}
-      className="group relative bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden transition-all hover:shadow-xl hover:shadow-blue-500/10"
+      className="group relative overflow-hidden rounded-3xl border border-white/10 bg-white/5 transition-all hover:border-white/40"
     >
       {/* Status Badge */}
       {!doctor.activo && (
         <div className="absolute top-3 right-3 z-10">
-          <span className="px-2 py-1 text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg">
+          <span className="rounded-lg border border-rose-300/40 bg-rose-500/15 px-2 py-1 text-xs font-medium text-rose-100">
             Inactivo
           </span>
         </div>
@@ -41,7 +41,7 @@ export default function DoctorCard({ doctor, onEdit, onDelete }: DoctorCardProps
         style={{ backgroundColor: doctor.color }}
       />
 
-      <div className="p-6">
+      <div className="p-6 text-white">
         {/* Avatar & Name */}
         <div className="flex items-start gap-4 mb-4">
           <motion.div
@@ -55,17 +55,17 @@ export default function DoctorCard({ doctor, onEdit, onDelete }: DoctorCardProps
               {doctor.nombre.charAt(0).toUpperCase()}
             </div>
             {doctor.activo && (
-              <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-2 border-white dark:border-gray-800 flex items-center justify-center">
+              <div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-[#05060d] bg-emerald-500">
                 <BadgeCheck className="w-3 h-3 text-white" />
               </div>
             )}
           </motion.div>
 
           <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white truncate">
+            <h3 className="text-lg font-semibold text-white truncate">
               {doctor.nombre}
             </h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
+            <p className="text-sm text-white/70 truncate">
               {doctor.especialidad || 'Sin especialidad'}
             </p>
           </div>
@@ -74,20 +74,20 @@ export default function DoctorCard({ doctor, onEdit, onDelete }: DoctorCardProps
         {/* Contact Info */}
         <div className="space-y-2 mb-4">
           {doctor.email && (
-            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-              <Mail className="w-4 h-4 text-gray-400" />
+            <div className="flex items-center gap-2 text-sm text-white/70">
+              <Mail className="w-4 h-4 text-white/40" />
               <span className="truncate">{doctor.email}</span>
             </div>
           )}
           {doctor.telefono && (
-            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-              <Phone className="w-4 h-4 text-gray-400" />
+            <div className="flex items-center gap-2 text-sm text-white/70">
+              <Phone className="w-4 h-4 text-white/40" />
               <span>{doctor.telefono}</span>
             </div>
           )}
           {doctor.cedula_profesional && (
-            <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-500">
-              <span className="font-mono bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
+            <div className="flex items-center gap-2 text-xs text-white/60">
+              <span className="rounded border border-white/20 bg-white/10 px-2 py-1 font-mono text-white/80">
                 Cédula: {doctor.cedula_profesional}
               </span>
             </div>
@@ -95,12 +95,12 @@ export default function DoctorCard({ doctor, onEdit, onDelete }: DoctorCardProps
         </div>
 
         {/* Actions */}
-        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex gap-2 opacity-0 transition-opacity group-hover:opacity-100">
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={onEdit}
-            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors text-sm font-medium"
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-sm font-medium text-white hover:border-white/40"
           >
             <Edit2 className="w-4 h-4" />
             <span>Editar</span>
@@ -110,7 +110,7 @@ export default function DoctorCard({ doctor, onEdit, onDelete }: DoctorCardProps
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={onDelete}
-            className="flex items-center justify-center px-3 py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+            className="flex items-center justify-center rounded-xl border border-rose-400/40 px-3 py-2 text-rose-100 hover:bg-rose-500/10"
           >
             <Trash2 className="w-4 h-4" />
           </motion.button>

@@ -1,59 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Stethoscope, DollarSign, TrendingUp, Edit, Trash2, Plus, Package } from "lucide-react";
+import {
+  Stethoscope,
+  TrendingUp,
+  Edit,
+  Trash2,
+  Plus,
+  Filter
+} from "lucide-react";
 import AppLayout from "@/components/layout/app-layout";
-import { CategoryFilterTabs } from "@/components/treatments/category-filter";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { GlassPanel } from "@/components/ui/glass-panel";
 import { CategoryBadgeList } from "@/components/treatments/category-badge";
 import { TagsDisplay } from "@/components/treatments/tags-input";
-import type { TreatmentCategory } from "@/lib/types/treatment";
-
-// UI Components from shadcn/ui
-const Card = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
-  <div className={`bg-white rounded-lg shadow-sm border border-gray-200 ${className}`}>{children}</div>
-)
-
-const CardHeader = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
-  <div className={`p-6 pb-2 ${className}`}>{children}</div>
-)
-
-const CardTitle = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
-  <h3 className={`text-lg font-semibold ${className}`}>{children}</h3>
-)
-
-const CardContent = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
-  <div className={`p-6 pt-2 ${className}`}>{children}</div>
-)
-
-const Button = ({ children, className = "", variant = "default", size = "default", onClick = undefined, disabled = false, asChild = false }: any) => {
-  const baseClasses = "inline-flex items-center justify-center rounded-md transition-colors font-medium"
-  const variantClasses = {
-    default: "bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed",
-    outline: "border border-gray-300 bg-white hover:bg-gray-50 text-gray-700",
-    destructive: "bg-red-600 text-white hover:bg-red-700"
-  }
-  const sizeClasses = {
-    default: "px-4 py-2",
-    sm: "px-3 py-1 text-sm"
-  }
-  
-  if (asChild) {
-    return <div className={`${baseClasses} ${variantClasses[variant as keyof typeof variantClasses]} ${sizeClasses[size as keyof typeof sizeClasses]} ${className}`}>{children}</div>
-  }
-  
-  return (
-    <button 
-      className={`${baseClasses} ${variantClasses[variant as keyof typeof variantClasses]} ${sizeClasses[size as keyof typeof sizeClasses]} ${className}`} 
-      onClick={onClick}
-      disabled={disabled}
-    >
-      {children}
-    </button>
-  )
-}
+import { cn } from "@/lib/utils";
+import { TREATMENT_CATEGORIES, type TreatmentCategory } from "@/lib/types/treatment";
 
 interface Treatment {
   id: number;
@@ -68,6 +34,17 @@ interface Treatment {
   tags?: string[] | null;
 }
 
+const currencyFormatter = new Intl.NumberFormat("es-MX", {
+  style: "currency",
+  currency: "MXN",
+  minimumFractionDigits: 2
+});
+
+const formatCurrency = (value?: number | null) => {
+  const amount = typeof value === "number" ? value : 0;
+  return currencyFormatter.format(amount);
+};
+
 export default function TreatmentsPage() {
   const supabase = createClient();
   const router = useRouter();
@@ -81,6 +58,55 @@ export default function TreatmentsPage() {
   // Filter states
   const [selectedCategory, setSelectedCategory] = useState<TreatmentCategory | 'all'>('all');
   const [searchTags, setSearchTags] = useState<string>('');
+
+  const categoryOptions = useMemo(
+    () => [
+      { value: 'all' as const, label: 'Todas', icon: '📋' },
+      ...TREATMENT_CATEGORIES
+    ],
+    []
+  );
+
+  const treatmentInsights = useMemo(() => {
+    if (!treatments.length) {
+      return {
+        activeCount: 0,
+        averagePrice: 0,
+        averageMargin: 0,
+        premiumCount: 0
+      };
+    }
+
+    let totalPrice = 0;
+    let totalMargin = 0;
+    let activeCount = 0;
+    let premiumCount = 0;
+
+    treatments.forEach((treatment) => {
+      const price = treatment.precio ?? treatment.precio_base ?? 0;
+      const cost = treatment.costo_unitario ?? 0;
+      const profit = price - cost;
+      const margin = price > 0 ? (profit / price) : 0;
+
+      totalPrice += price;
+      totalMargin += margin;
+
+      if (treatment.activo !== false) {
+        activeCount += 1;
+      }
+
+      if (price >= 5000) {
+        premiumCount += 1;
+      }
+    });
+
+    return {
+      activeCount,
+      averagePrice: totalPrice / treatments.length,
+      averageMargin: totalMargin / treatments.length,
+      premiumCount
+    };
+  }, [treatments]);
 
   useEffect(() => {
     const getUser = async () => {
@@ -152,14 +178,14 @@ export default function TreatmentsPage() {
   // Show loading spinner while checking authentication
   if (loadingAuth || loading) {
     return (
-      <div className="container mx-auto py-10">
-        <div className="flex items-center justify-center min-h-[50vh]">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Cargando...</p>
+      <AppLayout>
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <div className="text-center text-white/70">
+            <div className="mx-auto mb-6 h-12 w-12 animate-spin rounded-full border-b-2 border-emerald-300"></div>
+            Cargando tratamientos...
           </div>
         </div>
-      </div>
+      </AppLayout>
     );
   }
 
@@ -196,149 +222,239 @@ export default function TreatmentsPage() {
 
   return (
     <AppLayout>
-      <div className="space-y-8 p-6 bg-gradient-to-br from-blue-50/50 to-indigo-50/50 min-h-screen">
-        {/* Header Section */}
-        <div className="flex justify-between items-center bg-white rounded-xl p-6 shadow-sm border border-blue-100">
-        <div className="flex items-center gap-4">
-          <div className="h-12 w-12 bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl flex items-center justify-center">
-            <Stethoscope className="h-6 w-6 text-white" />
+      <div className="space-y-8">
+        <GlassPanel className="relative overflow-hidden p-6 sm:p-8">
+          <div className="pointer-events-none absolute inset-0 opacity-60">
+            <div className="absolute -top-32 right-0 h-72 w-72 rounded-full bg-emerald-500/30 blur-[140px]" />
+            <div className="absolute -bottom-40 left-0 h-72 w-72 rounded-full bg-indigo-500/30 blur-[160px]" />
           </div>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent">
-              Tratamientos
-            </h1>
-            <p className="text-gray-600">Administra los tratamientos disponibles</p>
-          </div>
-        </div>
-        <Link href="/treatments/new">
-          <Button className="bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 shadow-sm">
-            <Plus className="mr-2 h-4 w-4" />
-            Nuevo Tratamiento
-          </Button>
-        </Link>
-      </div>
-
-      {/* Category Filters */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-        <CategoryFilterTabs
-          selectedCategory={selectedCategory}
-          onCategoryChange={setSelectedCategory}
-        />
-      </div>
-
-      {loading && (
-        <div className="flex items-center justify-center py-12">
-          <div className="text-lg text-gray-600">Cargando tratamientos...</div>
-        </div>
-      )}
-      
-      {error && (
-        <div className="bg-gradient-to-r from-red-50 to-red-100 border border-red-200 rounded-xl p-4 shadow-sm">
-          <p className="text-red-800 font-medium">{error}</p>
-        </div>
-      )}
-
-      {!loading && !error && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {treatments.map((treatment) => (
-            <Card key={treatment.id} className="bg-white shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
-              <CardHeader className="pb-3 border-b border-gray-100">
-                <div className="flex items-center justify-between gap-3 mb-2">
-                  <div className="flex items-center gap-3 flex-1">
-                    <div className="h-10 w-10 bg-gradient-to-br from-emerald-500 to-green-600 rounded-lg flex items-center justify-center">
-                      <Stethoscope className="h-5 w-5 text-white" />
-                    </div>
-                    <CardTitle className="text-lg font-semibold text-gray-900">{treatment.nombre}</CardTitle>
-                  </div>
-                  {treatment.category && (
-                    <CategoryBadgeList category={treatment.category as TreatmentCategory} />
-                  )}
+          <div className="relative flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
+            <div className="space-y-5 text-white">
+              <div className="inline-flex items-center gap-3 rounded-full border border-white/15 bg-white/10 px-5 py-1 text-xs font-semibold uppercase tracking-[0.35em] text-white/70">
+                <Stethoscope className="h-4 w-4" />
+                Tratamientos
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="h-16 w-16 rounded-2xl border border-white/20 bg-gradient-to-br from-emerald-400/30 to-cyan-400/30 p-4">
+                  <Stethoscope className="h-8 w-8" />
                 </div>
-                {treatment.tags && treatment.tags.length > 0 && (
-                  <TagsDisplay tags={treatment.tags} className="mt-2" />
-                )}
-              </CardHeader>
-              <CardContent className="p-4 space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-blue-50 rounded-lg p-3">
-                    <div className="flex items-center gap-2 text-sm text-blue-700 mb-1">
-                      <DollarSign className="h-3 w-3" />
-                      Costo unitario
-                    </div>
-                    <p className="font-bold text-blue-900">
-                      ${(treatment.costo_unitario || 0).toFixed(2)}
-                    </p>
-                  </div>
-                  <div className="bg-green-50 rounded-lg p-3">
-                    <div className="flex items-center gap-2 text-sm text-green-700 mb-1">
-                      <DollarSign className="h-3 w-3" />
-                      Precio
-                    </div>
-                    <p className="font-bold text-green-900">
-                      ${(treatment.precio || treatment.precio_base || 0).toFixed(2)}
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="bg-gradient-to-r from-amber-50 to-yellow-50 rounded-lg p-3 border border-amber-200">
-                  <div className="flex items-center gap-2 text-sm text-amber-700 mb-1">
-                    <TrendingUp className="h-3 w-3" />
-                    Ganancia
-                  </div>
-                  <p className="font-bold text-amber-900">
-                    {(() => {
-                      const precio = treatment.precio || treatment.precio_base || 0;
-                      const costo = treatment.costo_unitario || 0;
-                      const ganancia = precio - costo;
-                      const porcentaje = precio > 0 ? (ganancia / precio * 100) : 0;
-                      return (
-                        <>
-                          ${ganancia.toFixed(2)} 
-                          <span className="text-sm font-normal text-amber-700 ml-2">
-                            ({porcentaje.toFixed(1)}%)
-                          </span>
-                        </>
-                      );
-                    })()}
+                <div>
+                  <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Catálogo clínico inteligente</h1>
+                  <p className="text-sm text-white/70">
+                    Controla precios, márgenes y categorías para todo el staff.
                   </p>
                 </div>
-                
-                {treatment.descripcion && (
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-sm text-gray-700">{treatment.descripcion}</p>
-                  </div>
-                )}
-                
-                <div className="flex gap-2 pt-2">
-                  <Link href={`/treatments/${treatment.id}/edit`} className="flex-1">
-                    <Button variant="outline" className="w-full hover:bg-blue-50 hover:border-blue-200">
-                      <Edit className="mr-2 h-4 w-4" />
-                      Editar
-                    </Button>
-                  </Link>
-                  {/* TODO: Implementar página de inventory por tratamiento
-                  {(treatment.costo_unitario || 0) > 0 && (
-                    <Link href={`/treatments/${treatment.id}/inventory`}>
-                      <Button variant="outline" size="sm" className="hover:bg-indigo-50 hover:border-indigo-200">
-                        <Package className="h-4 w-4" />
-                      </Button>
-                    </Link>
-                  )}
-                  */}
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => handleDeleteTreatment(treatment.id)}
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:border-red-200"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+              </div>
+              <div className="flex flex-wrap gap-8 text-white/80">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.3em] text-white/50">Activos</p>
+                  <p className="text-3xl font-semibold">{treatmentInsights.activeCount}</p>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+                <div>
+                  <p className="text-xs uppercase tracking-[0.3em] text-white/50">Ticket promedio</p>
+                  <p className="text-3xl font-semibold">{formatCurrency(treatmentInsights.averagePrice)}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-[0.3em] text-white/50">Margen</p>
+                  <p className="text-3xl font-semibold">{(treatmentInsights.averageMargin * 100).toFixed(1)}%</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-[0.3em] text-white/50">Premium</p>
+                  <p className="text-3xl font-semibold">{treatmentInsights.premiumCount}</p>
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-col gap-3 text-white md:items-end">
+              <Link
+                href="/treatments/new"
+                className="aura-cta aura-cta--primary w-full px-6 text-base md:w-auto"
+              >
+                <Plus className="h-4 w-4" />
+                Nuevo tratamiento
+              </Link>
+              <button
+                onClick={() => fetchTreatments()}
+                className="aura-cta aura-cta--ghost w-full px-6 text-base md:w-auto"
+              >
+                Recargar datos
+              </button>
+            </div>
+          </div>
+        </GlassPanel>
+
+        <GlassPanel className="p-6 space-y-6 text-white">
+          <div className="flex flex-wrap items-center gap-3 text-white/80">
+            <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-emerald-400/40 to-green-500/40 p-2">
+              <Filter className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-lg font-semibold">Curar catálogo</p>
+              <p className="text-sm text-white/60">Filtra por categoría o etiqueta y mantén la vista siempre relevante.</p>
+            </div>
+            <button
+              onClick={() => {
+                setSelectedCategory('all');
+                setSearchTags('');
+              }}
+              className="ml-auto text-sm font-semibold text-emerald-200 transition hover:text-emerald-100"
+            >
+              Limpiar filtros
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex flex-col gap-4 md:flex-row">
+              <div className="md:w-1/2">
+                <p className="text-xs uppercase tracking-[0.3em] text-white/60">Buscar por etiquetas</p>
+                <Input
+                  value={searchTags}
+                  onChange={(e) => setSearchTags(e.target.value)}
+                  placeholder="toxina, premium, sucursal..."
+                  className="mt-2 h-12 rounded-full border-white/15 bg-white/5 text-white placeholder:text-white/40 shadow-[0_20px_45px_rgba(2,6,23,0.45)]"
+                />
+              </div>
+              <div className="flex-1">
+                <p className="text-xs uppercase tracking-[0.3em] text-white/60">Categorías</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {categoryOptions.map((option) => {
+                    const isSelected = selectedCategory === option.value || (!selectedCategory && option.value === 'all');
+
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setSelectedCategory(option.value)}
+                        className={cn(
+                          "glass-chip cursor-pointer border px-4 py-1.5 text-sm font-semibold tracking-wide",
+                          isSelected
+                            ? "border-white/80 bg-white/20 text-white shadow-[0_15px_45px_rgba(15,23,42,0.35)]"
+                            : "border-white/15 text-white/70 hover:border-white/40 hover:text-white"
+                        )}
+                        aria-pressed={isSelected}
+                      >
+                        <span className="text-base">{option.icon}</span>
+                        <span>{option.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+            <div className="rounded-full border border-white/10 bg-white/5 px-5 py-2 text-sm text-white/70">
+              Mostrando {treatments.length} tratamientos con filtros activos
+            </div>
+          </div>
+        </GlassPanel>
+
+        {error && (
+          <GlassPanel className="border border-rose-400/30 bg-rose-500/10 p-5 text-rose-50">
+            <p className="text-sm font-semibold">{error}</p>
+          </GlassPanel>
+        )}
+
+        {!error && (
+          <>
+            {treatments.length === 0 ? (
+              <GlassPanel className="flex flex-col items-center gap-4 px-6 py-16 text-center text-white/70">
+                <Stethoscope className="h-12 w-12 text-white/60" />
+                <div>
+                  <p className="text-xl font-semibold text-white">No hay tratamientos con los filtros actuales</p>
+                  <p className="mt-2 text-sm text-white/70">
+                    Ajusta la categoría o las etiquetas para volver a ver el catálogo completo.
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setSelectedCategory('all');
+                    setSearchTags('');
+                  }}
+                  className="aura-cta aura-cta--primary"
+                >
+                  Limpiar filtros
+                </button>
+              </GlassPanel>
+            ) : (
+              <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-3">
+                {treatments.map((treatment) => {
+                  const price = treatment.precio ?? treatment.precio_base ?? 0;
+                  const cost = treatment.costo_unitario ?? 0;
+                  const profit = price - cost;
+                  const margin = price > 0 ? (profit / price) * 100 : 0;
+
+                  return (
+                    <GlassPanel key={treatment.id} className="space-y-5 border-white/10 p-5 text-white">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="rounded-2xl border border-white/20 bg-gradient-to-br from-emerald-400/30 to-green-500/20 p-3">
+                            <Stethoscope className="h-5 w-5" />
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-semibold leading-tight">{treatment.nombre}</h3>
+                            {treatment.descripcion && (
+                              <p className="text-sm text-white/60 line-clamp-2">{treatment.descripcion}</p>
+                            )}
+                          </div>
+                        </div>
+                        {treatment.category && (
+                          <CategoryBadgeList category={treatment.category as TreatmentCategory} className="border-white/20 bg-white/10 text-white" />
+                        )}
+                      </div>
+
+                      {treatment.tags && treatment.tags.length > 0 && (
+                        <TagsDisplay
+                          tags={treatment.tags}
+                          className="[&>span]:border-white/20 [&>span]:bg-white/10 [&>span]:text-white"
+                        />
+                      )}
+
+                      <div className="grid gap-3 md:grid-cols-3">
+                        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                          <p className="text-xs uppercase tracking-[0.3em] text-white/50">Costo</p>
+                          <p className="mt-1 text-2xl font-semibold">{formatCurrency(cost)}</p>
+                        </div>
+                        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                          <p className="text-xs uppercase tracking-[0.3em] text-white/50">Precio</p>
+                          <p className="mt-1 text-2xl font-semibold">{formatCurrency(price)}</p>
+                        </div>
+                        <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-4">
+                          <div className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-emerald-100">
+                            <TrendingUp className="h-3.5 w-3.5" />
+                            Margen
+                          </div>
+                          <p className="mt-1 text-2xl font-semibold text-emerald-100">
+                            {formatCurrency(profit)}
+                            <span className="ml-2 text-sm font-normal text-emerald-200">({margin.toFixed(1)}%)</span>
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-3 pt-2">
+                        <Button
+                          asChild
+                          variant="ghost"
+                          className="rounded-full border border-white/20 bg-white/5 text-white hover:bg-white/15"
+                        >
+                          <Link href={`/treatments/${treatment.id}/edit`}>
+                            <Edit className="h-4 w-4" />
+                            Editar
+                          </Link>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          className="rounded-full border border-rose-400/40 bg-transparent text-rose-200 hover:bg-rose-500/10"
+                          onClick={() => handleDeleteTreatment(treatment.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Eliminar
+                        </Button>
+                      </div>
+                    </GlassPanel>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
       </div>
     </AppLayout>
   );

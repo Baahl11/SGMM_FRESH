@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, Search, FileText, Users, Calendar, Eye, Trash2, Edit2, Send, Copy } from 'lucide-react'
+import { Plus, Search, FileText, Eye, Trash2, Edit2, Copy } from 'lucide-react'
 import toast, { Toaster } from 'react-hot-toast'
 import Link from 'next/link'
+import { GlassPanel } from '@/components/ui/glass-panel'
 
 interface IntakeForm {
   id: string
@@ -24,6 +25,7 @@ export default function FormsPage() {
   const [forms, setForms] = useState<IntakeForm[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const inputClass = 'h-12 w-full rounded-2xl border border-white/15 bg-white/5 px-12 text-sm text-white placeholder:text-white/50 focus-visible:border-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/30'
 
   useEffect(() => {
     loadForms()
@@ -95,20 +97,22 @@ export default function FormsPage() {
   )
 
   const categoryColors: Record<string, string> = {
-    medical_history: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-    consent: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-    questionnaire: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-    admision: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+    medical_history: 'bg-sky-500/15 text-sky-200 border border-sky-500/30',
+    consent: 'bg-emerald-500/15 text-emerald-200 border border-emerald-500/30',
+    questionnaire: 'bg-purple-500/15 text-purple-200 border border-purple-500/30',
+    admision: 'bg-amber-500/15 text-amber-200 border border-amber-500/30',
   }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-          className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full"
-        />
+      <div className="flex h-[60vh] items-center justify-center">
+        <GlassPanel className="flex h-40 w-40 items-center justify-center border-white/15 bg-white/5">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1.2, repeat: Infinity, ease: 'linear' }}
+            className="h-12 w-12 rounded-full border-2 border-white/30 border-t-transparent"
+          />
+        </GlassPanel>
       </div>
     )
   }
@@ -118,264 +122,163 @@ export default function FormsPage() {
       <Toaster 
         position="top-right"
         toastOptions={{
-          className: 'backdrop-blur-xl bg-white/90 dark:bg-gray-800/90 border border-gray-200 dark:border-gray-700',
+          className: 'backdrop-blur-2xl border border-white/10 bg-slate-900/80 text-white',
         }}
       />
 
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Formularios de Admisión
-            </h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              Crea formularios personalizados para enviar a tus pacientes
-            </p>
+      <div className="space-y-8 pb-16 text-white">
+        <GlassPanel className="relative overflow-hidden border-white/10 bg-gradient-to-br from-emerald-500/20 via-indigo-600/10 to-slate-950 p-6 md:p-8">
+          <div className="grid gap-6 lg:grid-cols-2">
+            <div>
+              <div className="mb-5 flex items-center gap-3 text-white/70">
+                <div className="rounded-2xl bg-white/10 p-3">
+                  <FileText className="h-6 w-6" />
+                </div>
+                <span className="text-xs uppercase tracking-[0.45em] text-white/60">Formularios</span>
+              </div>
+              <h1 className="text-3xl font-semibold md:text-4xl">Centraliza tus formularios de admisión</h1>
+              <p className="mt-4 text-base text-white/80">
+                Diseña flujos BYOD con firmas digitales, archivos y variables dinámicas para enviarlos antes de la cita.
+              </p>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Link href="/dashboard/settings/forms/new" className="aura-cta">
+                  <Plus className="h-4 w-4" /> Crear formulario
+                </Link>
+              </div>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              {[{
+                label: 'Total', value: forms.length, accent: 'text-emerald-200'
+              }, {
+                label: 'Activos', value: forms.filter(f => f.active).length, accent: 'text-sky-200'
+              }, {
+                label: 'Templates', value: forms.filter(f => f.is_template).length, accent: 'text-amber-200'
+              }].map((stat) => (
+                <div key={stat.label} className="rounded-3xl border border-white/10 bg-white/5 p-5">
+                  <p className="text-xs uppercase tracking-[0.35em] text-white/60">{stat.label}</p>
+                  <p className={`mt-3 text-3xl font-semibold ${stat.accent}`}>{stat.value}</p>
+                  <p className="mt-2 text-sm text-white/70">{stat.label === 'Total' ? 'Formularios registrados' : stat.label === 'Activos' ? 'Enviables ahora' : 'Plantillas reutilizables'}</p>
+                </div>
+              ))}
+            </div>
           </div>
-          
-          <Link href="/dashboard/settings/forms/new">
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-shadow flex items-center gap-2"
-            >
-              <Plus className="w-5 h-5" />
-              Crear Formulario
-            </motion.button>
-          </Link>
-        </div>
+        </GlassPanel>
 
-        {/* Search Bar */}
-        <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Buscar formularios..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 transition-all"
-          />
-        </div>
+        <GlassPanel className="border-white/10 bg-white/5 p-4">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
+            <input
+              type="text"
+              placeholder="Buscar por nombre, categoría o descripción..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className={inputClass}
+            />
+          </div>
+        </GlassPanel>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <motion.div
-            whileHover={{ scale: 1.02 }}
-            className="p-6 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/50 dark:to-indigo-950/50 border border-blue-200 dark:border-blue-800"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-blue-600 dark:text-blue-400 font-medium">
-                  Total Formularios
-                </p>
-                <p className="text-3xl font-bold text-blue-900 dark:text-blue-100 mt-1">
-                  {forms.length}
-                </p>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center">
-                <FileText className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div
-            whileHover={{ scale: 1.02 }}
-            className="p-6 rounded-xl bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/50 dark:to-emerald-950/50 border border-green-200 dark:border-green-800"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-green-600 dark:text-green-400 font-medium">
-                  Activos
-                </p>
-                <p className="text-3xl font-bold text-green-900 dark:text-green-100 mt-1">
-                  {forms.filter(f => f.active).length}
-                </p>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-green-100 dark:bg-green-900/50 flex items-center justify-center">
-                <Calendar className="w-6 h-6 text-green-600 dark:text-green-400" />
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div
-            whileHover={{ scale: 1.02 }}
-            className="p-6 rounded-xl bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/50 dark:to-pink-950/50 border border-purple-200 dark:border-purple-800"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-purple-600 dark:text-purple-400 font-medium">
-                  Templates
-                </p>
-                <p className="text-3xl font-bold text-purple-900 dark:text-purple-100 mt-1">
-                  {forms.filter(f => f.is_template).length}
-                </p>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-900/50 flex items-center justify-center">
-                <Users className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-              </div>
-            </div>
-          </motion.div>
-        </div>
-
-        {/* Forms Grid */}
         {filteredForms.length === 0 ? (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700"
-          >
-            <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              {searchQuery ? 'No se encontraron formularios' : 'No hay formularios aún'}
-            </h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
-              {searchQuery 
-                ? 'Intenta con otros términos de búsqueda' 
-                : 'Crea tu primer formulario para empezar a recopilar información de pacientes'
-              }
-            </p>
-            {!searchQuery && (
-              <Link href="/dashboard/settings/forms/new">
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-shadow inline-flex items-center gap-2"
-                >
-                  <Plus className="w-5 h-5" />
-                  Crear Primer Formulario
-                </motion.button>
+          <GlassPanel className="flex flex-col items-center gap-4 border-white/10 bg-white/5 px-6 py-16 text-center text-white/70">
+            <FileText className="h-12 w-12 text-white/50" />
+            <div>
+              <p className="text-xl font-semibold text-white">{searchQuery ? 'Sin resultados' : 'Aún no hay formularios'}</p>
+              <p className="text-sm text-white/60">
+                {searchQuery ? 'Intenta con otros términos o limpia el filtro.' : 'Crea tu primer formulario y automatiza la admisión digital.'}
+              </p>
+            </div>
+            {searchQuery ? (
+              <button onClick={() => setSearchQuery('')} className="aura-cta aura-cta--ghost">
+                Limpiar búsqueda
+              </button>
+            ) : (
+              <Link href="/dashboard/settings/forms/new" className="aura-cta">
+                <Plus className="h-4 w-4" /> Crear primer formulario
               </Link>
             )}
-          </motion.div>
+          </GlassPanel>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <motion.div layout className="grid gap-4 md:grid-cols-2">
             <AnimatePresence>
               {filteredForms.map((form, index) => (
                 <motion.div
                   key={form.id}
+                  layout
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ delay: index * 0.05 }}
-                  className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-lg transition-all"
+                  transition={{ delay: index * 0.04 }}
                 >
-                  {/* Card Header */}
-                  <div className="p-6 border-b border-gray-100 dark:border-gray-700">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                            {form.name}
-                          </h3>
-                          {!form.active && (
-                            <span className="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
-                              Inactivo
-                            </span>
-                          )}
-                          {form.is_template && (
-                            <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
-                              Template
-                            </span>
-                          )}
-                        </div>
-                        {form.description && (
-                          <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
-                            {form.description}
-                          </p>
+                  <GlassPanel className="space-y-4 p-5">
+                    <div className="flex flex-col gap-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-lg font-semibold text-white">{form.name}</h3>
+                        {!form.active && (
+                          <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs uppercase tracking-wide text-white/70">
+                            Inactivo
+                          </span>
+                        )}
+                        {form.is_template && (
+                          <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-100">
+                            Template
+                          </span>
                         )}
                       </div>
-                    </div>
-
-                    {/* Category Badge */}
-                    {form.category && (
-                      <div className="mt-3">
-                        <span className={`px-3 py-1 text-xs rounded-full font-medium ${
-                          categoryColors[form.category] || 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-400'
-                        }`}>
+                      {form.description && (
+                        <p className="text-sm text-white/70 line-clamp-2">{form.description}</p>
+                      )}
+                      {form.category && (
+                        <span
+                          className={`inline-flex w-fit items-center rounded-full px-3 py-1 text-xs uppercase tracking-wide ${
+                            categoryColors[form.category] || 'border border-white/15 bg-white/5 text-white/70'
+                          }`}
+                        >
                           {form.category.replace('_', ' ').toUpperCase()}
                         </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Card Body */}
-                  <div className="p-6 space-y-4">
-                    {/* Form Stats */}
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="text-center">
-                        <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                          {form.fields.length}
-                        </p>
-                        <p className="text-xs text-gray-600 dark:text-gray-400">
-                          Campos
-                        </p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                          {form.require_signature ? '✓' : '—'}
-                        </p>
-                        <p className="text-xs text-gray-600 dark:text-gray-400">
-                          Firma
-                        </p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                          {form.allow_file_upload ? '✓' : '—'}
-                        </p>
-                        <p className="text-xs text-gray-600 dark:text-gray-400">
-                          Archivos
-                        </p>
-                      </div>
+                      )}
                     </div>
 
-                    {/* Actions */}
-                    <div className="flex items-center gap-2 pt-4 border-t border-gray-100 dark:border-gray-700">
-                      <Link href={`/dashboard/settings/forms/${form.id}`} className="flex-1">
-                        <motion.button
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.98 }}
-                          className="w-full px-4 py-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg font-medium hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors flex items-center justify-center gap-2"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                          Editar
-                        </motion.button>
-                      </Link>
-                      
-                      <Link href={`/dashboard/settings/forms/${form.id}/submissions`}>
-                        <motion.button
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.98 }}
-                          className="px-4 py-2 bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-lg font-medium hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors flex items-center gap-2"
-                        >
-                          <Eye className="w-4 h-4" />
-                          Ver
-                        </motion.button>
-                      </Link>
+                    <div className="grid grid-cols-3 gap-3 rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900/40 to-slate-950 p-4 text-center">
+                      {[{
+                        label: 'Campos', value: form.fields.length
+                      }, {
+                        label: 'Firma', value: form.require_signature ? 'Sí' : 'No'
+                      }, {
+                        label: 'Archivos', value: form.allow_file_upload ? 'Sí' : 'No'
+                      }].map((stat) => (
+                        <div key={`${form.id}-${stat.label}`}>
+                          <p className="text-2xl font-semibold text-white">{stat.value}</p>
+                          <p className="text-xs uppercase tracking-[0.35em] text-white/50">{stat.label}</p>
+                        </div>
+                      ))}
+                    </div>
 
-                      <motion.button
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
+                    <div className="flex flex-wrap gap-2 border-t border-white/10 pt-4">
+                      <Link href={`/dashboard/settings/forms/${form.id}`} className="aura-cta aura-cta--ghost flex-1 justify-center">
+                        <Edit2 className="h-4 w-4" /> Editar
+                      </Link>
+                      <Link href={`/dashboard/settings/forms/${form.id}/submissions`} className="aura-cta aura-cta--ghost">
+                        <Eye className="h-4 w-4" /> Ver
+                      </Link>
+                      <button
                         onClick={() => handleDuplicate(form)}
-                        className="px-4 py-2 bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-lg font-medium hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-colors"
+                        className="aura-cta aura-cta--ghost"
+                        title="Duplicar"
                       >
-                        <Copy className="w-4 h-4" />
-                      </motion.button>
-
-                      <motion.button
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
+                        <Copy className="h-4 w-4" />
+                      </button>
+                      <button
                         onClick={() => handleDelete(form.id)}
-                        className="px-4 py-2 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg font-medium hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors"
+                        className="aura-cta aura-cta--ghost text-rose-200 hover:text-rose-100"
+                        title="Eliminar"
                       >
-                        <Trash2 className="w-4 h-4" />
-                      </motion.button>
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </div>
-                  </div>
+                  </GlassPanel>
                 </motion.div>
               ))}
             </AnimatePresence>
-          </div>
+          </motion.div>
         )}
       </div>
     </>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { headers } from 'next/headers'
 import { stripe, getPlanTierFromPriceId, PLAN_FEATURES } from '@/lib/stripe/server'
+import { getAddonConfig, type AddonType } from '@/lib/stripe/addons'
 import { createClient } from '@/lib/supabase/server'
 import Stripe from 'stripe'
 
@@ -44,6 +45,8 @@ export async function POST(request: NextRequest) {
         // Verificar si es un depósito o una suscripción
         if (session.metadata?.deposit_type === 'booking_deposit') {
           await handleDepositCheckoutCompleted(session)
+        } else if (session.metadata?.purchase_type === 'addon') {
+          await handleAddonCheckoutCompleted(session)
         } else {
           await handleCheckoutCompleted(session)
         }
@@ -181,6 +184,18 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   const limits = tierLimits[tier]
 
+  // 🔥 Extraer metadata de ventas (sales team y application fee)
+  const salesTeam = session.metadata?.sales_team || 'internal'
+  const referralSource = session.metadata?.referral_source || 'direct'
+  const applicationFeePercent = parseFloat(session.metadata?.your_commission_percent || '0')
+  const sellerId = session.metadata?.seller_id || null // ← Capturar seller_id
+  
+  // Calcular el monto de la comisión si aplica
+  let platformFeeAmount = 0
+  if (session.amount_total && applicationFeePercent > 0) {
+    platformFeeAmount = (session.amount_total / 100) * (applicationFeePercent / 100)
+  }
+
   // Actualizar o crear registro en la tabla subscriptions
   const subscriptionData: any = {
     user_id: userId,
@@ -199,6 +214,11 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     current_period_end: stripeSubscription 
       ? new Date((stripeSubscription as any).current_period_end * 1000).toISOString() 
       : null,
+    sales_team: salesTeam,                           // ← NUEVO
+    referral_source: referralSource,                 // ← NUEVO
+    application_fee_percent: applicationFeePercent,  // ← NUEVO
+    platform_fee_amount: platformFeeAmount,          // ← NUEVO
+    seller_id: sellerId,                             // ← NUEVO
     updated_at: new Date().toISOString(),
   }
 
@@ -360,6 +380,35 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   } else {
     console.log(`Subscription canceled for user ${userId}`)
   }
+
+  // 🎯 NUEVO: Cancelar comisiones pendientes de vendedor (si cliente cancela en mes 2)
+  const sellerId = subscription.metadata?.seller_id
+  if (sellerId) {
+    // Buscar comisiones pendientes de pago para este vendedor
+    const { data: pendingCommissions } = await supabaseAdmin
+      .from('seller_commissions')
+      .select('id, month_number, commission_amount, commission_stage')
+      .eq('user_id', userId)
+      .eq('seller_id', sellerId)
+      .eq('paid_to_seller', false)
+      .eq('cancelled', false)
+
+    if (pendingCommissions && pendingCommissions.length > 0) {
+      // Marcar comisiones como canceladas
+      const commissionIds = pendingCommissions.map(c => c.id)
+      
+      await supabaseAdmin
+        .from('seller_commissions')
+        .update({
+          cancelled: true,
+          cancelled_at: new Date().toISOString(),
+          cancellation_reason: 'Cliente canceló suscripción antes de completar mes 2',
+        })
+        .in('id', commissionIds)
+
+      console.log(`⚠️ Comisiones canceladas para vendedor ${sellerId} - Cliente canceló en mes ${pendingCommissions[0].month_number}`)
+    }
+  }
 }
 
 /**
@@ -393,7 +442,7 @@ async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
     .eq('id', userId)
 
   // 🔥 CRÍTICO: Actualizar tabla subscriptions - marcar como active después del pago
-  const { error: subError } = await supabaseAdmin
+  const { data: subscriptionData, error: subError } = await supabaseAdmin
     .from('subscriptions')
     .update({ 
       status: 'active',
@@ -401,11 +450,72 @@ async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
     })
     .eq('user_id', userId)
     .eq('stripe_subscription_id', subscription.id)
+    .select()
+    .single()
 
   if (subError) {
     console.error('❌ Error updating subscription after payment:', subError)
-  } else {
-    console.log(`✅ Payment succeeded for user ${userId} - Subscription marked as active`)
+    return
+  }
+
+  console.log(`✅ Payment succeeded for user ${userId} - Subscription marked as active`)
+
+  // 🎯 NUEVO: Rastrear comisiones de vendedores
+  const sellerId = subscription.metadata?.seller_id || subscriptionData?.seller_id
+  const salesTeam = subscription.metadata?.sales_team || subscriptionData?.sales_team || 'internal'
+
+  if (sellerId && salesTeam === 'distributor') {
+    // Calcular número de mes de la suscripción
+    const createdAt = new Date(subscription.created * 1000)
+    const now = new Date()
+    const monthsDiff = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24 * 30)) + 1
+    
+    const grossAmount = invoice.total / 100 // Convertir de centavos a pesos
+    let commissionStage: string
+    let commissionAmount = 0
+    let commissionPercent = 0
+
+    if (monthsDiff === 1) {
+      // Mes 1: Trial (no debe cobrar, pero registramos)
+      commissionStage = 'trial'
+      commissionAmount = 0
+      commissionPercent = 0
+    } else if (monthsDiff === 2) {
+      // Mes 2: 100% al vendedor
+      commissionStage = 'seller_month'
+      commissionAmount = grossAmount
+      commissionPercent = 100
+    } else {
+      // Mes 3+: División normal (vendedor ya no recibe)
+      commissionStage = 'normal'
+      commissionAmount = 0
+      commissionPercent = 0
+    }
+
+    // Crear registro de comisión
+    const { error: commissionError } = await supabaseAdmin
+      .from('seller_commissions')
+      .insert({
+        subscription_id: subscriptionData.id,
+        seller_id: sellerId,
+        user_id: userId,
+        month_number: monthsDiff,
+        billing_date: new Date().toISOString(),
+        period_start: new Date((subscription as any).current_period_start * 1000).toISOString(),
+        period_end: new Date((subscription as any).current_period_end * 1000).toISOString(),
+        commission_stage: commissionStage,
+        gross_amount: grossAmount,
+        commission_amount: commissionAmount,
+        commission_percent: commissionPercent,
+        stripe_invoice_id: invoice.id,
+        paid_to_seller: false,
+      })
+
+    if (commissionError) {
+      console.error('❌ Error creating seller commission:', commissionError)
+    } else {
+      console.log(`✅ Seller commission created: ${sellerId} - Month ${monthsDiff} - Stage: ${commissionStage} - Amount: $${commissionAmount}`)
+    }
   }
 }
 
@@ -677,6 +787,155 @@ async function handlePaymentIntentCanceled(paymentIntent: Stripe.PaymentIntent) 
       .eq('id', deposit.booking_id)
 
     console.log('🚫 Deposit marked as cancelled')
+  }
+}
+
+/**
+ * Handle checkout completions for add-on purchases
+ * Crea o actualiza los add-ons después de que el usuario paga en Stripe Checkout
+ */
+async function handleAddonCheckoutCompleted(session: Stripe.Checkout.Session) {
+  try {
+    if (session.metadata?.purchase_type !== 'addon') {
+      return
+    }
+
+    const addonType = session.metadata.addon_type as AddonType | undefined
+    const userId = session.metadata.user_id
+    const subscriptionId = session.metadata.subscription_id
+    const metadataSubscriptionId = session.metadata.stripe_subscription_id || null
+    const checkoutSubscriptionId = (session.subscription as string | null) || metadataSubscriptionId
+    const quantity = parseInt(session.metadata.quantity || '0', 10)
+
+    if (!addonType || !userId || !subscriptionId || !checkoutSubscriptionId || !quantity || quantity < 1) {
+      console.error('❌ Missing metadata for add-on checkout session', session.id)
+      return
+    }
+
+    const addonConfig = getAddonConfig(addonType)
+    if (!addonConfig) {
+      console.error('❌ Invalid add-on type in checkout session:', addonType)
+      return
+    }
+
+    const { createClient: createServiceClient } = await import('@supabase/supabase-js')
+    const supabaseAdmin = createServiceClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+
+    const { data: subscription } = await supabaseAdmin
+      .from('subscriptions')
+      .select('id, user_id, stripe_subscription_id')
+      .eq('id', subscriptionId)
+      .single()
+
+    if (!subscription) {
+      console.error('❌ Subscription not found for add-on checkout:', subscriptionId)
+      return
+    }
+
+    if (subscription.user_id !== userId) {
+      console.warn('⚠️ User mismatch on add-on checkout session, using subscription owner', {
+        session: session.id,
+        metadataUser: userId,
+        subscriptionUser: subscription.user_id,
+      })
+    }
+
+    let { data: existingAddon } = await supabaseAdmin
+      .from('subscription_addons')
+      .select('*')
+      .eq('user_id', subscription.user_id)
+      .eq('subscription_id', subscriptionId)
+      .eq('addon_type', addonType)
+      .eq('status', 'active')
+      .maybeSingle()
+
+    if (!subscription.stripe_subscription_id || subscription.stripe_subscription_id !== checkoutSubscriptionId) {
+      await supabaseAdmin
+        .from('subscriptions')
+        .update({
+          stripe_subscription_id: checkoutSubscriptionId,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', subscriptionId)
+    }
+
+    const previousQuantity = existingAddon?.quantity ?? 0
+    const newQuantity = previousQuantity + quantity
+
+    if (newQuantity > addonConfig.maxQuantity) {
+      console.warn(`⚠️ Add-on quantity limit exceeded for user ${subscription.user_id}`)
+      return
+    }
+
+    let stripeSubscriptionItemId = existingAddon?.stripe_subscription_item_id || null
+
+    if (checkoutSubscriptionId.startsWith('sub_')) {
+      if (stripeSubscriptionItemId?.startsWith('si_')) {
+        await stripe.subscriptionItems.update(stripeSubscriptionItemId, {
+          quantity: newQuantity,
+          proration_behavior: 'none',
+        })
+      } else {
+        const subscriptionItem = await stripe.subscriptionItems.create({
+          subscription: checkoutSubscriptionId,
+          price: addonConfig.priceId,
+          quantity: newQuantity,
+          proration_behavior: 'none',
+        })
+        stripeSubscriptionItemId = subscriptionItem.id
+      }
+    } else {
+      console.warn('⚠️ Invalid Stripe subscription id for add-on checkout:', checkoutSubscriptionId)
+    }
+
+    if (!existingAddon) {
+      const { data: legacyAddon } = await supabaseAdmin
+        .from('subscription_addons')
+        .select('*')
+        .eq('user_id', subscription.user_id)
+        .eq('addon_type', addonType)
+        .eq('status', 'active')
+        .is('stripe_subscription_item_id', null)
+        .maybeSingle()
+
+      if (legacyAddon) {
+        existingAddon = legacyAddon
+      }
+    }
+
+    if (existingAddon) {
+      await supabaseAdmin
+        .from('subscription_addons')
+        .update({
+          quantity: newQuantity,
+          stripe_subscription_item_id: stripeSubscriptionItemId,
+          stripe_price_id: addonConfig.priceId,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', existingAddon.id)
+    } else {
+      await supabaseAdmin
+        .from('subscription_addons')
+        .insert({
+          user_id: subscription.user_id,
+          subscription_id: subscriptionId,
+          addon_type: addonType,
+          stripe_subscription_item_id: stripeSubscriptionItemId,
+          stripe_price_id: addonConfig.priceId,
+          quantity: newQuantity,
+          unit_price: addonConfig.price,
+          status: 'active',
+        })
+    }
+
+    console.log(
+      `✅ Add-on checkout completado para usuario ${subscription.user_id}: ${addonType} (+${quantity})`
+    )
+  } catch (error) {
+    console.error('❌ Error handling add-on checkout session:', error)
   }
 }
 

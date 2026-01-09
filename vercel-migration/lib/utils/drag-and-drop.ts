@@ -188,14 +188,14 @@ export function getDropZoneClass(
   if (!isDragOver) return '';
   
   if (hasConflicts) {
-    return 'ring-2 ring-red-400 bg-red-50';
+    return 'ring-2 ring-rose-400/70 bg-rose-500/10';
   }
   
   if (isValid) {
-    return 'ring-2 ring-green-400 bg-green-50';
+    return 'ring-2 ring-emerald-300/70 bg-emerald-500/10';
   }
   
-  return 'ring-2 ring-orange-400 bg-orange-50';
+  return 'ring-2 ring-amber-300/70 bg-amber-500/10';
 }
 
 /**

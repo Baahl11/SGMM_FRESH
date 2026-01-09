@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion'
 import { Edit2, MapPin, Users, Info } from 'lucide-react'
+import { GlassPanel } from '@/components/ui/glass-panel'
 
 interface Consultorio {
   id: string
@@ -19,60 +20,53 @@ interface ConsultorioCardProps {
 
 export default function ConsultorioCard({ consultorio, onEdit }: ConsultorioCardProps) {
   return (
-    <motion.div
-      whileHover={{ y: -4 }}
-      className="group relative bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden transition-all hover:shadow-xl hover:shadow-emerald-500/10"
-    >
-      {!consultorio.activo && (
-        <div className="absolute top-3 right-3 z-10">
-          <span className="px-2 py-1 text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg">
-            Inactivo
-          </span>
+    <motion.div whileHover={{ y: -6 }} className="group">
+      <GlassPanel className="relative overflow-hidden border-white/10 bg-gradient-to-br from-slate-900/70 via-slate-900/55 to-slate-900/35 p-6 text-white">
+        <div className="pointer-events-none absolute inset-0 opacity-70">
+          <div className="absolute -top-16 right-0 h-40 w-40 rounded-full bg-emerald-400/25 blur-[140px]" />
+          <div className="absolute -bottom-20 left-6 h-32 w-32 rounded-full bg-teal-400/20 blur-[120px]" />
         </div>
-      )}
 
-      <div className="h-1.5 w-full bg-gradient-to-r from-emerald-500 to-teal-500" />
+        {!consultorio.activo && (
+          <div className="absolute top-4 right-4 z-10">
+            <span className="rounded-full border border-white/30 bg-white/10 px-3 py-1 text-xs font-semibold text-rose-200">
+              Inactivo
+            </span>
+          </div>
+        )}
 
-      <div className="p-6">
-        <div className="flex items-start gap-4 mb-4">
+        <div className="relative flex items-start gap-4">
           <motion.div
-            whileHover={{ scale: 1.1, rotate: -5 }}
-            className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-2xl flex items-center justify-center text-white shadow-lg"
+            whileHover={{ scale: 1.08, rotate: -3 }}
+            className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/15 text-white"
+            style={{ background: 'rgba(16,185,129,0.15)', boxShadow: '0 12px 30px rgba(16,185,129,0.35)' }}
           >
-            <MapPin className="w-7 h-7" />
+            <MapPin className="h-7 w-7" />
           </motion.div>
-
           <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white truncate">
-              {consultorio.nombre}
-            </h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-              {consultorio.ubicacion || 'Sin ubicación'}
-            </p>
+            <h3 className="text-lg font-semibold tracking-tight">{consultorio.nombre}</h3>
+            <p className="text-sm text-white/70 truncate">{consultorio.ubicacion || 'Sin ubicación'}</p>
           </div>
         </div>
 
         {consultorio.descripcion && (
-          <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-            <div className="flex items-start gap-2">
-              <Info className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
-                {consultorio.descripcion}
-              </p>
+          <div className="relative mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+            <div className="flex items-start gap-3 text-sm text-white/75">
+              <Info className="h-4 w-4 text-emerald-200" />
+              <p className="line-clamp-2">{consultorio.descripcion}</p>
             </div>
           </div>
         )}
 
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Users className="w-4 h-4 text-gray-400" />
-            <span className="text-sm text-gray-600 dark:text-gray-400">
-              Capacidad: <span className="font-semibold text-gray-900 dark:text-white">{consultorio.capacidad}</span>
+        <div className="relative mt-4 flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-4">
+          <div className="flex items-center gap-2 text-sm text-white/80">
+            <Users className="h-4 w-4" />
+            <span>
+              Capacidad: <span className="font-semibold text-white">{consultorio.capacidad}</span>
             </span>
           </div>
-
           {consultorio.activo && (
-            <span className="px-2 py-1 text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-lg">
+            <span className="rounded-full border border-emerald-200/40 bg-emerald-400/15 px-3 py-1 text-xs font-semibold text-emerald-100">
               Disponible
             </span>
           )}
@@ -80,14 +74,14 @@ export default function ConsultorioCard({ consultorio, onEdit }: ConsultorioCard
 
         <motion.button
           whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
+          whileTap={{ scale: 0.97 }}
           onClick={onEdit}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors text-sm font-medium opacity-0 group-hover:opacity-100"
+          className="aura-cta aura-cta--ghost relative mt-5 w-full justify-center border-white/25 text-sm"
         >
-          <Edit2 className="w-4 h-4" />
-          <span>Editar</span>
+          <Edit2 className="h-4 w-4" />
+          Editar consultorio
         </motion.button>
-      </div>
+      </GlassPanel>
     </motion.div>
   )
 }

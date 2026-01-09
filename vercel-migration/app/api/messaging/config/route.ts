@@ -8,8 +8,13 @@ import { NextResponse } from 'next/server';
  */
 export async function GET() {
   try {
+    console.log('[Messaging Config API] GET request initiated');
+    
     const user = await getAuthUser();
+    console.log('[Messaging Config API] Auth user:', { hasUser: !!user, userId: user?.id });
+    
     if (!user) {
+      console.error('[Messaging Config API] No authenticated user found');
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
@@ -18,33 +23,57 @@ export async function GET() {
     // Get current user's session
     const {
       data: { session },
+      error: sessionError
     } = await supabase.auth.getSession();
 
+    console.log('[Messaging Config API] Session check:', { 
+      hasSession: !!session, 
+      sessionUserId: session?.user?.id,
+      sessionError: sessionError 
+    });
+
     if (!session) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+      console.error('[Messaging Config API] No active session found');
+      return NextResponse.json({ error: 'No autorizado - sesión inválida' }, { status: 401 });
     }
 
     // Get user's messaging config
+    console.log('[Messaging Config API] Fetching config for user:', session.user.id);
+    
     const { data: config, error } = await supabase
       .from('messaging_config')
       .select('*')
       .eq('user_id', session.user.id)
       .single();
 
+    console.log('[Messaging Config API] Query result:', {
+      hasConfig: !!config,
+      errorCode: error?.code,
+      errorMessage: error?.message,
+    });
+
     if (error && error.code !== 'PGRST116') {
       // PGRST116 = no rows found (not an error, just no config yet)
-      console.error('Error fetching messaging config:', error);
-      return NextResponse.json({ error: 'Error al obtener configuración' }, { status: 500 });
+      console.error('[Messaging Config API] Database error:', error);
+      return NextResponse.json({ 
+        error: 'Error al obtener configuración',
+        details: error.message 
+      }, { status: 500 });
     }
 
     if (!config) {
-      return NextResponse.json({ config: null }, { status: 404 });
+      console.log('[Messaging Config API] No config found, returning null');
+      return NextResponse.json({ config: null }, { status: 200 });
     }
 
+    console.log('[Messaging Config API] Config found, returning data');
     return NextResponse.json({ config });
   } catch (error) {
-    console.error('Unexpected error in GET /api/messaging/config:', error);
-    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
+    console.error('[Messaging Config API] Unexpected error:', error);
+    return NextResponse.json({ 
+      error: 'Error interno del servidor',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 }
 

@@ -82,22 +82,19 @@ export default function ScheduleManager({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-white">
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-          Configuración de Horarios
-        </h3>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
+        <h3 className="text-xl font-semibold">Configuración de horarios</h3>
+        <p className="text-sm text-white/60">
           Define tus días y horarios de atención
         </p>
       </div>
 
       {/* Slot Configuration */}
-      <div className="grid grid-cols-2 gap-4 p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 rounded-xl border border-blue-200 dark:border-blue-800">
+      <div className="grid gap-4 rounded-3xl border border-white/10 bg-white/5 p-5 md:grid-cols-2">
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            <Clock className="w-4 h-4 inline mr-1" />
-            Duración del slot (minutos)
+          <label className="block text-xs uppercase tracking-[0.35em] text-white/60">
+            <Clock className="mr-2 inline h-3.5 w-3.5" /> Duración del slot (minutos)
           </label>
           <input
             type="number"
@@ -105,17 +102,16 @@ export default function ScheduleManager({
             onChange={(e) => onChange({ availableDays, timeRanges, slotDuration: parseInt(e.target.value) || 30, bufferTime })}
             min="5"
             step="5"
-            className="w-full px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-gray-900 dark:text-white"
+            className="mt-2 w-full rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-white focus:border-emerald-300/60 focus:outline-none focus:ring-emerald-300/20"
           />
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          <p className="mt-1 text-xs text-white/60">
             Tiempo base para cada cita
           </p>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            <Clock className="w-4 h-4 inline mr-1" />
-            Tiempo buffer (minutos)
+          <label className="block text-xs uppercase tracking-[0.35em] text-white/60">
+            <Clock className="mr-2 inline h-3.5 w-3.5" /> Tiempo buffer (minutos)
           </label>
           <input
             type="number"
@@ -123,9 +119,9 @@ export default function ScheduleManager({
             onChange={(e) => onChange({ availableDays, timeRanges, slotDuration, bufferTime: parseInt(e.target.value) || 0 })}
             min="0"
             step="5"
-            className="w-full px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-gray-900 dark:text-white"
+            className="mt-2 w-full rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-white focus:border-emerald-300/60 focus:outline-none focus:ring-emerald-300/20"
           />
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          <p className="mt-1 text-xs text-white/60">
             Descanso entre citas
           </p>
         </div>
@@ -141,32 +137,22 @@ export default function ScheduleManager({
             <motion.div
               key={day.key}
               layout
-              className={`
-                border rounded-xl transition-all
-                ${isActive
-                  ? 'border-blue-300 dark:border-blue-700 bg-white dark:bg-gray-800'
-                  : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50'
-                }
-              `}
+              className={`rounded-3xl border p-4 transition-all ${isActive ? 'border-emerald-300/50 bg-white/10' : 'border-white/10 bg-white/5'}`}
             >
-              <div className="p-4">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => handleDayToggle(day.key)}
-                      className={`
-                        relative w-12 h-6 rounded-full transition-colors
-                        ${isActive ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}
-                      `}
+                      className={`relative h-6 w-12 rounded-full border border-white/20 transition ${isActive ? 'bg-emerald-400/60' : 'bg-white/10'}`}
                     >
                       <motion.div
                         layout
-                        className="absolute top-1 w-4 h-4 bg-white rounded-full shadow-md"
+                        className="absolute top-1 h-4 w-4 rounded-full bg-white shadow"
                         animate={{ left: isActive ? '28px' : '4px' }}
                         transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                       />
                     </button>
-                    <span className={`font-medium ${isActive ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>
+                    <span className={`font-medium ${isActive ? 'text-white' : 'text-white/50'}`}>
                       {day.label}
                     </span>
                   </div>
@@ -176,9 +162,9 @@ export default function ScheduleManager({
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
                       onClick={() => handleAddTimeRange(day.key)}
-                      className="flex items-center gap-1 px-3 py-1.5 text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/20 rounded-lg transition-all"
+                      className="aura-cta aura-cta--ghost px-3 py-1.5 text-xs"
                     >
-                      <Plus className="w-4 h-4" />
+                      <Plus className="h-4 w-4" />
                       <span>Agregar horario</span>
                     </motion.button>
                   )}
@@ -192,42 +178,41 @@ export default function ScheduleManager({
                     className="space-y-2"
                   >
                     {ranges.length === 0 ? (
-                      <p className="text-sm text-gray-500 dark:text-gray-400 py-2">
+                      <p className="py-2 text-sm text-white/60">
                         No hay horarios configurados. Agrega al menos uno.
                       </p>
                     ) : (
                       ranges.map((range, index) => (
                         <div
                           key={index}
-                          className="flex items-center gap-2 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg"
+                          className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 p-3"
                         >
                           <div className="flex items-center gap-2 flex-1">
                             <input
                               type="time"
                               value={range.start}
                               onChange={(e) => handleTimeRangeChange(day.key, index, 'start', e.target.value)}
-                              className="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-gray-900 dark:text-white"
+                              className="w-full rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-white focus:border-emerald-300/60 focus:outline-none focus:ring-emerald-300/20"
                             />
-                            <span className="text-gray-500 dark:text-gray-400">a</span>
+                            <span className="text-white/60">a</span>
                             <input
                               type="time"
                               value={range.end}
                               onChange={(e) => handleTimeRangeChange(day.key, index, 'end', e.target.value)}
-                              className="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-gray-900 dark:text-white"
+                              className="w-full rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-white focus:border-emerald-300/60 focus:outline-none focus:ring-emerald-300/20"
                             />
                           </div>
                           <button
                             onClick={() => handleRemoveTimeRange(day.key, index)}
-                            className="p-2 text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-all"
+                            className="rounded-2xl border border-white/10 p-2 text-white/70 transition hover:border-rose-400/60 hover:text-rose-200"
                           >
-                            <X className="w-4 h-4" />
+                            <X className="h-4 w-4" />
                           </button>
                         </div>
                       ))
                     )}
                   </motion.div>
                 )}
-              </div>
             </motion.div>
           )
         })}

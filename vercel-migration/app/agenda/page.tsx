@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import toast, { Toaster } from 'react-hot-toast';
 import { 
@@ -17,7 +16,8 @@ import {
   Users,
   Bell,
   LayoutGrid,
-  User
+  User,
+  Sparkles
 } from "lucide-react";
 import AppLayout from "@/components/layout/app-layout";
 import CalendarGrid from "@/components/agenda/calendar-grid";
@@ -27,6 +27,7 @@ import AgendaConfigModal from "@/components/agenda/agenda-config-modal";
 import TimelineDoctorView from "@/components/agenda/timeline-doctor-view";
 import TimelineConsultorioView from "@/components/agenda/timeline-consultorio-view";
 import GridMultiDoctorView from "@/components/agenda/grid-multi-doctor-view";
+import { GlassPanel } from "@/components/ui/glass-panel";
 
 interface Appointment {
   id: number;
@@ -84,6 +85,26 @@ export default function AgendaPage() {
   
   // 🆕 Advanced view modes
   const [advancedViewMode, setAdvancedViewMode] = useState<'calendar' | 'timeline-doctor' | 'timeline-consultorio' | 'grid-multi'>('calendar');
+
+  const getNextSlotTime = () => {
+    const now = new Date();
+    const minutes = now.getMinutes();
+    const remainder = minutes % 30;
+    if (remainder !== 0) {
+      now.setMinutes(minutes + (30 - remainder));
+    }
+    now.setSeconds(0, 0);
+    return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+  };
+
+  const openQuickAppointment = () => {
+    const today = new Date();
+    const localDate = today.toISOString().split('T')[0];
+    const nextSlot = getNextSlotTime();
+    setSelectedAppointment(null);
+    setSelectedSlot({ date: localDate, time: nextSlot });
+    setShowAppointmentModal(true);
+  };
 
   // 🆕 Load filter data
   const loadFilters = async () => {
@@ -574,6 +595,25 @@ export default function AgendaPage() {
     return true;
   });
 
+  const todayBase = new Date();
+  todayBase.setHours(0, 0, 0, 0);
+  const weekAhead = new Date(todayBase);
+  weekAhead.setDate(weekAhead.getDate() + 7);
+
+  const todayAppointmentsCount = filteredAppointments.filter((apt) => {
+    const aptDate = new Date(apt.fecha);
+    return aptDate.toDateString() === todayBase.toDateString();
+  }).length;
+
+  const upcomingWeekCount = filteredAppointments.filter((apt) => {
+    const aptDate = new Date(apt.fecha);
+    return aptDate >= todayBase && aptDate <= weekAhead;
+  }).length;
+
+  const slotPool = Math.max(1, (timeSlots.length > 0 ? timeSlots : forceTimeSlots).length);
+  const spanMultiplier = viewMode === 'week' ? 7 : viewMode === 'month' ? 30 : 1;
+  const occupancyRate = Math.min(100, Math.round((filteredAppointments.length / (slotPool * spanMultiplier || 1)) * 100)) || 0;
+
   // Load working hours from localStorage on mount
   useEffect(() => {
     const saved = localStorage.getItem('working-hours');
@@ -611,49 +651,84 @@ export default function AgendaPage() {
   return (
     <AppLayout>
       <Toaster position="top-right" />
-      <div className="space-y-6 p-6 bg-gradient-to-br from-blue-50/50 to-indigo-50/50 min-h-screen">
-        <Card>
-          <CardHeader>
-            <div className="flex justify-between items-center bg-white rounded-xl p-6 shadow-sm border border-blue-100">
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center">
-                  <CalendarIcon className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                    Agenda
-                  </h1>
-                  <p className="text-gray-600">Gestión profesional de citas y horarios</p>
-                </div>
+      <div className="dashboard-surface space-y-8 text-white">
+        <GlassPanel className="p-6 border-white/15 bg-gradient-to-br from-white/10 via-white/5 to-transparent">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-center gap-4">
+              <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-emerald-400 via-cyan-400 to-violet-500 shadow-xl flex items-center justify-center">
+                <CalendarIcon className="h-8 w-8 text-white" />
               </div>
-              <div className="flex items-center gap-3">
-                <Button 
-                  variant="outline" 
-                  onClick={() => setShowTimeSlotManager(true)}
-                  className="flex items-center gap-2"
-                >
-                  <Clock className="h-4 w-4" />
-                  Horarios
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => setShowConfigModal(true)}
-                  className="flex items-center gap-2"
-                >
-                  <Settings className="h-4 w-4" />
-                  Configuración
-                </Button>
+              <div className="space-y-1">
+                <p className="text-sm uppercase tracking-[0.3em] text-white/60">AgendaMed Pro</p>
+                <h1 className="text-4xl font-semibold leading-tight">Agenda</h1>
+                <p className="text-white/70">Gestión profesional de citas, horarios y recursos en una sola vista.</p>
               </div>
             </div>
-            
-            {/* Date Navigation Section */}
-            <div className="flex justify-between items-center mt-6 bg-gray-50 rounded-lg p-4">
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Button
+                onClick={openQuickAppointment}
+                className="h-12 rounded-full bg-gradient-to-r from-emerald-400 via-cyan-400 to-violet-500 text-slate-900 font-semibold shadow-[0_20px_45px_rgba(14,165,233,0.35)] hover:opacity-90"
+              >
+                <Sparkles className="mr-2 h-4 w-4" /> Nueva cita
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowTimeSlotManager(true)}
+                className="h-12 rounded-full border-white/30 bg-white/5 text-white hover:bg-white/10"
+              >
+                <Clock className="mr-2 h-4 w-4" /> Horarios inteligentes
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowConfigModal(true)}
+                className="h-12 rounded-full border-white/30 bg-white/5 text-white hover:bg-white/10"
+              >
+                <Settings className="mr-2 h-4 w-4" /> Configuración
+              </Button>
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur">
+              <p className="text-sm text-white/60">Citas filtradas</p>
+              <div className="mt-2 flex items-end justify-between">
+                <span className="text-3xl font-semibold">{filteredAppointments.length}</span>
+                <Badge className="rounded-full bg-emerald-400/20 text-emerald-100 border-emerald-300/30">{appointments.length} totales</Badge>
+              </div>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur">
+              <p className="text-sm text-white/60">Hoy</p>
+              <div className="mt-2 flex items-end justify-between">
+                <span className="text-3xl font-semibold">{todayAppointmentsCount}</span>
+                <Badge className="rounded-full bg-cyan-400/20 text-cyan-50 border-cyan-300/30">agenda diaria</Badge>
+              </div>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur">
+              <p className="text-sm text-white/60">Próximos 7 días</p>
+              <div className="mt-2 flex items-end justify-between">
+                <span className="text-3xl font-semibold">{upcomingWeekCount}</span>
+                <Badge className="rounded-full bg-purple-400/20 text-purple-50 border-purple-300/30">siguiente semana</Badge>
+              </div>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur">
+              <p className="text-sm text-white/60">Ocupación estimada</p>
+              <div className="mt-2 flex items-end justify-between">
+                <span className="text-3xl font-semibold">{occupancyRate}%</span>
+                <Badge className="rounded-full bg-white/10 text-white border-white/20">modo {viewMode}</Badge>
+              </div>
+            </div>
+          </div>
+        </GlassPanel>
+
+        <GlassPanel className="overflow-hidden border-white/15 bg-gradient-to-b from-white/10 via-white/5 to-transparent">
+          <div className="border-b border-white/5 px-6 py-4">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex items-center gap-3">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => navigateDate('prev')}
-                  className="flex items-center gap-2"
+                  className="rounded-full border-white/30 bg-white/5 text-white hover:bg-white/10"
                 >
                   <ChevronLeft className="h-4 w-4" />
                   Anterior
@@ -662,146 +737,135 @@ export default function AgendaPage() {
                   variant="outline"
                   size="sm"
                   onClick={() => navigateDate('next')}
-                  className="flex items-center gap-2"
+                  className="rounded-full border-white/30 bg-white/5 text-white hover:bg-white/10"
                 >
                   Siguiente
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
-              
-              <div className="text-center">
-                <h2 className="text-lg font-semibold text-gray-700">
-                  {getDateRangeText()}
-                </h2>
+              <div className="text-center text-xl font-semibold tracking-tight text-white">
+                {getDateRangeText()}
               </div>
-              
-              <div className="flex items-center">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setCurrentDate(new Date())}
-                  className="text-indigo-600 hover:text-indigo-700"
-                >
-                  Hoy
-                </Button>
-              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setCurrentDate(new Date())}
+                className="rounded-full text-emerald-200 hover:text-white"
+              >
+                Hoy
+              </Button>
             </div>
-            
-            {/* View Mode Tabs */}
-            <div className="flex justify-between items-center mt-4 gap-4">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-gray-700">Modo de vista:</span>
-                <select
-                  value={advancedViewMode}
-                  onChange={(e) => setAdvancedViewMode(e.target.value as any)}
-                  className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white"
-                >
-                  <option value="calendar">📅 Calendario Estándar</option>
-                  <option value="timeline-doctor">👨‍⚕️ Timeline por Doctor</option>
-                  <option value="timeline-consultorio">🏥 Timeline por Consultorio</option>
-                  <option value="grid-multi">📊 Grid Multi-Doctor</option>
-                </select>
+          </div>
+
+          <div className="flex flex-col gap-4 border-b border-white/5 px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:gap-4">
+              <span className="text-sm uppercase tracking-wide text-white/60">Modo de vista</span>
+              <select
+                value={advancedViewMode}
+                onChange={(e) => setAdvancedViewMode(e.target.value as any)}
+                className="pill-select flex h-11 items-center justify-between px-4 text-sm shadow-lg"
+              >
+                <option value="calendar">Calendario estándar</option>
+                <option value="timeline-doctor">Timeline por doctor</option>
+                <option value="timeline-consultorio">Timeline por consultorio</option>
+                <option value="grid-multi">Grid multi-doctor</option>
+              </select>
+            </div>
+
+            {advancedViewMode === 'calendar' && (
+              <Tabs value={viewMode} onValueChange={v => setViewMode(v as 'day' | 'week' | 'month')}>
+                <TabsList className="rounded-full bg-white/10 p-1 text-white">
+                  <TabsTrigger value="day" className="rounded-full data-[state=active]:bg-white data-[state=active]:text-slate-900">Día</TabsTrigger>
+                  <TabsTrigger value="week" className="rounded-full data-[state=active]:bg-white data-[state=active]:text-slate-900">Semana</TabsTrigger>
+                  <TabsTrigger value="month" className="rounded-full data-[state=active]:bg-white data-[state=active]:text-slate-900">Mes</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            )}
+          </div>
+
+          <div className="border-b border-white/5 px-6 py-5">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white/70">
+                <Filter className="h-4 w-4" />
+                Filtros rápidos
               </div>
-              
-              {advancedViewMode === 'calendar' && (
-                <Tabs value={viewMode} onValueChange={v => setViewMode(v as 'day' | 'week' | 'month')}>
-                  <TabsList>
-                    <TabsTrigger value="day">Día</TabsTrigger>
-                    <TabsTrigger value="week">Semana</TabsTrigger>
-                    <TabsTrigger value="month">Mes</TabsTrigger>
-                  </TabsList>
-                </Tabs>
+
+              <select
+                value={filterDoctor}
+                onChange={(e) => setFilterDoctor(e.target.value)}
+                className="glass-select min-w-[200px]"
+              >
+                <option value="all">Todos los doctores</option>
+                {doctors.map((doctor) => (
+                  <option key={doctor.id} value={doctor.id}>
+                    {doctor.nombre}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={filterConsultorio}
+                onChange={(e) => setFilterConsultorio(e.target.value)}
+                className="glass-select min-w-[200px]"
+              >
+                <option value="all">Todos los consultorios</option>
+                {consultorios.map((consultorio) => (
+                  <option key={consultorio.id} value={consultorio.id}>
+                    {consultorio.nombre}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
+                className="glass-select min-w-[200px]"
+              >
+                <option value="all">Todos los tipos</option>
+                {appointmentTypes.map((type) => (
+                  <option key={type.id} value={type.id}>
+                    {type.nombre}
+                  </option>
+                ))}
+              </select>
+
+              {(filterDoctor !== 'all' || filterConsultorio !== 'all' || filterType !== 'all') && (
+                <button
+                  onClick={() => {
+                    setFilterDoctor('all');
+                    setFilterConsultorio('all');
+                    setFilterType('all');
+                  }}
+                  className="rounded-full border border-white/20 bg-transparent px-4 py-2 text-sm text-white/80 transition hover:border-white/40 hover:text-white"
+                >
+                  Limpiar filtros
+                </button>
               )}
-            </div>
 
-            {/* 🆕 Filters Section */}
-            <div className="mt-4 p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
-              <div className="flex items-center gap-3 flex-wrap">
-                <div className="flex items-center gap-2">
-                  <Filter className="h-4 w-4 text-gray-500" />
-                  <span className="text-sm font-medium text-gray-700">Filtros:</span>
-                </div>
-                
-                {/* Doctor Filter */}
-                <select
-                  value={filterDoctor}
-                  onChange={(e) => setFilterDoctor(e.target.value)}
-                  className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                >
-                  <option value="all">Todos los doctores</option>
-                  {doctors.map((doctor) => (
-                    <option key={doctor.id} value={doctor.id}>
-                      {doctor.nombre}
-                    </option>
-                  ))}
-                </select>
-
-                {/* Consultorio Filter */}
-                <select
-                  value={filterConsultorio}
-                  onChange={(e) => setFilterConsultorio(e.target.value)}
-                  className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                >
-                  <option value="all">Todos los consultorios</option>
-                  {consultorios.map((consultorio) => (
-                    <option key={consultorio.id} value={consultorio.id}>
-                      {consultorio.nombre}
-                    </option>
-                  ))}
-                </select>
-
-                {/* Appointment Type Filter */}
-                <select
-                  value={filterType}
-                  onChange={(e) => setFilterType(e.target.value)}
-                  className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                >
-                  <option value="all">Todos los tipos</option>
-                  {appointmentTypes.map((type) => (
-                    <option key={type.id} value={type.id}>
-                      {type.nombre}
-                    </option>
-                  ))}
-                </select>
-
-                {/* Clear Filters Button */}
-                {(filterDoctor !== 'all' || filterConsultorio !== 'all' || filterType !== 'all') && (
-                  <button
-                    onClick={() => {
-                      setFilterDoctor('all');
-                      setFilterConsultorio('all');
-                      setFilterType('all');
-                    }}
-                    className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 underline"
-                  >
-                    Limpiar filtros
-                  </button>
-                )}
-
-                {/* Active filters count */}
-                <div className="ml-auto flex items-center gap-2">
-                  <Badge variant="secondary" className="bg-indigo-100 text-indigo-700">
-                    {filteredAppointments.length} de {appointments.length} citas
-                  </Badge>
-                </div>
+              <div className="ml-auto flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-sm text-white/80">
+                <Badge className="rounded-full bg-emerald-400/20 text-emerald-50 border-transparent">
+                  {filteredAppointments.length} / {appointments.length}
+                </Badge>
+                citas visibles
               </div>
             </div>
-          </CardHeader>
-          <CardContent>
+          </div>
+
+          <div className="px-4 py-6 sm:px-6">
             {loading ? (
-              <div className="flex items-center justify-center py-12">
+              <div className="flex items-center justify-center py-12 text-white/70">
                 <div className="text-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-                  <p className="text-gray-600">Cargando agenda...</p>
+                  <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-b-2 border-white"></div>
+                  <p>Cargando agenda...</p>
                 </div>
               </div>
             ) : error ? (
-              <div className="text-center py-12">
-                <p className="text-red-600">{error}</p>
+              <div className="py-12 text-center text-rose-200">
+                <p>{error}</p>
                 <Button 
                   onClick={loadAppointments}
                   variant="outline"
-                  className="mt-4"
+                  className="mt-4 rounded-full border-white/30 text-white"
                 >
                   Reintentar
                 </Button>
@@ -852,8 +916,8 @@ export default function AgendaPage() {
                 )}
               </>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </GlassPanel>
         
         {/* Modals */}
         {showAppointmentModal && (

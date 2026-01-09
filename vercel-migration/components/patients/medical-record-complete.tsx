@@ -7,9 +7,10 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { Card } from '@/components/ui/card';
+import { GlassPanel } from '@/components/ui/glass-panel';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import {
   Accordion,
   AccordionContent,
@@ -170,70 +171,62 @@ export function MedicalRecordComplete({
   const allergyCount = resolvedAllergies.length;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6 text-white">
       {/* Header con NOM-004 */}
-      <Card className="overflow-hidden">
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 text-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold mb-2">
-                Expediente Médico Electrónico
-              </h2>
-              <p className="text-blue-100 text-sm">
-                NOM-004-SSA3-2012 • Sistema de Gestión Médica
-              </p>
-            </div>
-            {(onOpenTimeline || onCreateConsultation) && (
-              <div className="flex flex-wrap gap-2">
-                {onCreateConsultation && (
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    className="bg-white/20 text-white border-white/40 hover:bg-white/30"
-                    onClick={onCreateConsultation}
-                  >
-                    Registrar consulta
-                  </Button>
-                )}
-                {onOpenTimeline && (
-                  <Button
-                    size="sm"
-                    variant="default"
-                    className="bg-white text-blue-600 hover:bg-blue-50"
-                    onClick={onOpenTimeline}
-                  >
-                    Ver expediente completo
-                  </Button>
-                )}
-              </div>
-            )}
+      <GlassPanel className="overflow-hidden border-white/15 bg-gradient-to-r from-indigo-500/40 via-purple-500/30 to-blue-500/30 p-6 text-white">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h2 className="text-2xl font-bold">Expediente Médico Electrónico</h2>
+            <p className="text-sm text-white/80">NOM-004-SSA3-2012 • Sistema de Gestión Médica</p>
           </div>
+          {(onOpenTimeline || onCreateConsultation) && (
+            <div className="flex flex-wrap gap-3">
+              {onCreateConsultation && (
+                <Button
+                  size="sm"
+                  className="rounded-full border border-white/30 bg-white/10 px-6 py-2 text-sm font-semibold text-white shadow-[0_0_40px_rgba(139,92,246,0.6)] backdrop-blur transition-all hover:border-white/50 hover:bg-white/20 hover:shadow-[0_0_50px_rgba(139,92,246,0.8)]"
+                  onClick={onCreateConsultation}
+                >
+                  Registrar consulta
+                </Button>
+              )}
+              {onOpenTimeline && (
+                <Button
+                  size="sm"
+                  className="rounded-full border border-white/40 bg-gradient-to-r from-indigo-500/50 via-purple-500/50 to-cyan-400/50 px-6 py-2 text-sm font-bold text-white shadow-[0_0_50px_rgba(99,102,241,0.7)] backdrop-blur transition-all hover:from-indigo-400/60 hover:via-purple-400/60 hover:to-cyan-300/60 hover:shadow-[0_0_60px_rgba(99,102,241,0.9)]"
+                  onClick={onOpenTimeline}
+                >
+                  Ver expediente completo
+                </Button>
+              )}
+            </div>
+          )}
         </div>
+      </GlassPanel>
 
-        {/* Accordion Sections */}
+      {/* Accordion Sections */}
+      <GlassPanel className="border-white/10 bg-white/5 p-0">
         <div className="p-6">
           <Accordion 
             type="multiple" 
             value={activeSections}
             onValueChange={setActiveSections}
-            className="space-y-3"
+            className="space-y-4"
           >
             {/* 1. DATOS DEMOGRÁFICOS */}
-            <AccordionItem value="demograficos" className="border rounded-lg">
-              <AccordionTrigger className="px-4 hover:no-underline hover:bg-gray-50">
+            <AccordionItem value="demograficos" className="rounded-2xl border border-white/10 bg-white/5">
+              <AccordionTrigger className="px-4 text-white hover:no-underline hover:bg-white/5">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                    <User className="w-5 h-5 text-blue-600" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-white/10">
+                    <User className="w-5 h-5" />
                   </div>
                   <div className="text-left">
                     <div className="font-semibold">Datos Demográficos</div>
-                    <div className="text-xs text-gray-500">
-                      Información personal del paciente
-                    </div>
+                    <div className="text-xs text-white/60">Información personal del paciente</div>
                   </div>
                 </div>
               </AccordionTrigger>
-              <AccordionContent className="px-4 pb-4">
+              <AccordionContent className="px-4 pb-4 text-white">
                 <DemographicSection 
                   patientData={patientData}
                 />
@@ -241,21 +234,19 @@ export function MedicalRecordComplete({
             </AccordionItem>
 
             {/* 2. HISTORIA CLÍNICA */}
-            <AccordionItem value="historia" className="border rounded-lg">
-              <AccordionTrigger className="px-4 hover:no-underline hover:bg-gray-50">
+            <AccordionItem value="historia" className="rounded-2xl border border-white/10 bg-white/5">
+              <AccordionTrigger className="px-4 text-white hover:no-underline hover:bg-white/5">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
-                    <Heart className="w-5 h-5 text-purple-600" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-white/10">
+                    <Heart className="w-5 h-5" />
                   </div>
                   <div className="text-left">
                     <div className="font-semibold">Historia Clínica Completa</div>
-                    <div className="text-xs text-gray-500">
-                      Antecedentes heredo-familiares, personales y gineco-obstétricos
-                    </div>
+                    <div className="text-xs text-white/60">Antecedentes heredo-familiares, personales y gineco-obstétricos</div>
                   </div>
                 </div>
               </AccordionTrigger>
-              <AccordionContent className="px-4 pb-4">
+              <AccordionContent className="px-4 pb-4 text-white">
                 <MedicalHistorySection 
                   medicalHistory={medicalHistory}
                   antecedentesFallback={antecedentesFallback}
@@ -264,15 +255,15 @@ export function MedicalRecordComplete({
             </AccordionItem>
 
             {/* 3. ALERGIAS */}
-            <AccordionItem value="alergias" className="border rounded-lg">
-              <AccordionTrigger className="px-4 hover:no-underline hover:bg-gray-50">
+            <AccordionItem value="alergias" className="rounded-2xl border border-white/10 bg-white/5">
+              <AccordionTrigger className="px-4 text-white hover:no-underline hover:bg-white/5">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
-                    <AlertTriangle className="w-5 h-5 text-red-600" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-white/10">
+                    <AlertTriangle className="w-5 h-5" />
                   </div>
                   <div className="text-left">
                     <div className="font-semibold">Alergias</div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-white/60">
                       {allergyCount > 0 
                         ? `${allergyCount} alergia${allergyCount > 1 ? 's' : ''} registrada${allergyCount > 1 ? 's' : ''}`
                         : 'Sin alergias registradas'
@@ -286,7 +277,7 @@ export function MedicalRecordComplete({
                   )}
                 </div>
               </AccordionTrigger>
-              <AccordionContent className="px-4 pb-4">
+              <AccordionContent className="px-4 pb-4 text-white">
                 <AllergiesSection 
                   allergies={resolvedAllergies}
                 />
@@ -294,15 +285,15 @@ export function MedicalRecordComplete({
             </AccordionItem>
 
             {/* 4. MEDICAMENTOS ACTUALES */}
-            <AccordionItem value="medicamentos" className="border rounded-lg">
-              <AccordionTrigger className="px-4 hover:no-underline hover:bg-gray-50">
+            <AccordionItem value="medicamentos" className="rounded-2xl border border-white/10 bg-white/5">
+              <AccordionTrigger className="px-4 text-white hover:no-underline hover:bg-white/5">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
-                    <Pill className="w-5 h-5 text-green-600" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-white/10">
+                    <Pill className="w-5 h-5" />
                   </div>
                   <div className="text-left">
                     <div className="font-semibold">Medicamentos Actuales</div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-white/60">
                       {activeMedicationCount > 0
                         ? `${activeMedicationCount} medicamento${activeMedicationCount > 1 ? 's' : ''} activo${activeMedicationCount > 1 ? 's' : ''}`
                         : 'Sin medicamentos activos'
@@ -316,7 +307,7 @@ export function MedicalRecordComplete({
                   )}
                 </div>
               </AccordionTrigger>
-              <AccordionContent className="px-4 pb-4">
+              <AccordionContent className="px-4 pb-4 text-white">
                 <MedicationsSection 
                   medications={resolvedMedications}
                 />
@@ -324,15 +315,15 @@ export function MedicalRecordComplete({
             </AccordionItem>
 
             {/* 5. CONSULTAS Y EVOLUCIÓN */}
-            <AccordionItem value="consultas" className="border rounded-lg">
-              <AccordionTrigger className="px-4 hover:no-underline hover:bg-gray-50">
+            <AccordionItem value="consultas" className="rounded-2xl border border-white/10 bg-white/5">
+              <AccordionTrigger className="px-4 text-white hover:no-underline hover:bg-white/5">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                    <Stethoscope className="w-5 h-5 text-indigo-600" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-white/10">
+                    <Stethoscope className="w-5 h-5" />
                   </div>
                   <div className="text-left">
                     <div className="font-semibold">Consultas y Evolución</div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-white/60">
                       {consultationsCount} consulta{consultationsCount !== 1 ? 's' : ''} registrada{consultationsCount !== 1 ? 's' : ''}
                     </div>
                   </div>
@@ -343,7 +334,7 @@ export function MedicalRecordComplete({
                   )}
                 </div>
               </AccordionTrigger>
-              <AccordionContent className="px-4 pb-4">
+              <AccordionContent className="px-4 pb-4 text-white">
                 <ConsultationsTimeline 
                   medicalNotes={sortedNotes}
                   totalConsultations={consultationsCount}
@@ -352,7 +343,7 @@ export function MedicalRecordComplete({
             </AccordionItem>
           </Accordion>
         </div>
-      </Card>
+      </GlassPanel>
     </div>
   );
 }
@@ -603,10 +594,10 @@ function AllergiesSection({
 }) {
   if (allergies.length === 0) {
     return (
-      <div className="text-center py-8 text-gray-500">
-        <AlertTriangle className="w-12 h-12 mx-auto mb-3 opacity-50" />
+      <div className="py-8 text-center text-white/60">
+        <AlertTriangle className="mx-auto mb-3 h-12 w-12 text-white/40" />
         <p className="text-sm">No hay alergias registradas</p>
-        <p className="text-xs text-gray-400 mt-2">Se documenta ausencia de alergias conocidas</p>
+        <p className="mt-2 text-xs text-white/50">Se documenta ausencia de alergias conocidas</p>
       </div>
     );
   }
@@ -614,7 +605,7 @@ function AllergiesSection({
   return (
     <div className="space-y-3">
       {allergies.map((allergy) => (
-        <Card key={allergy.id} className="p-4 border-l-4 border-l-red-500">
+        <GlassPanel key={allergy.id} className="border border-rose-400/40 bg-rose-500/5 p-4 text-white">
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
@@ -627,16 +618,16 @@ function AllergiesSection({
               </div>
               <h5 className="font-semibold text-lg">{allergy.alergeno}</h5>
               {allergy.reaccion && (
-                <p className="text-sm text-gray-600 mt-1">
+                <p className="mt-1 text-sm text-white/70">
                   <span className="font-medium">Reacción:</span> {allergy.reaccion}
                 </p>
               )}
               {allergy.notas && (
-                <p className="text-sm text-gray-500 mt-1">{allergy.notas}</p>
+                <p className="mt-1 text-sm text-white/60">{allergy.notas}</p>
               )}
             </div>
           </div>
-        </Card>
+        </GlassPanel>
       ))}
     </div>
   );
@@ -651,10 +642,10 @@ function MedicationsSection({
   
   if (activeMeds.length === 0) {
     return (
-      <div className="text-center py-8 text-gray-500">
-        <Pill className="w-12 h-12 mx-auto mb-3 opacity-50" />
+      <div className="py-8 text-center text-white/60">
+        <Pill className="mx-auto mb-3 h-12 w-12 text-white/40" />
         <p className="text-sm">No hay medicamentos activos</p>
-        <p className="text-xs text-gray-400 mt-2">Sin tratamiento farmacológico actual</p>
+        <p className="mt-2 text-xs text-white/50">Sin tratamiento farmacológico actual</p>
       </div>
     );
   }
@@ -662,14 +653,14 @@ function MedicationsSection({
   return (
     <div className="space-y-3">
       {activeMeds.map((med) => (
-        <Card key={med.id} className="p-4">
+        <GlassPanel key={med.id} className="border-white/10 bg-white/5 p-4 text-white">
           <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-              <Pill className="w-5 h-5 text-green-600" />
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/10">
+              <Pill className="w-5 h-5" />
             </div>
             <div className="flex-1">
               <h5 className="font-semibold text-lg">{med.medicamento}</h5>
-              <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
+              <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
                 <DataField label="Dosis" value={med.dosis} />
                 <DataField label="Frecuencia" value={med.frecuencia} />
                 {med.via_administracion && (
@@ -683,7 +674,7 @@ function MedicationsSection({
               </div>
             </div>
           </div>
-        </Card>
+        </GlassPanel>
       ))}
     </div>
   );
@@ -722,10 +713,10 @@ function ConsultationsTimeline({
 
   if (medicalNotes.length === 0) {
     return (
-      <div className="text-center py-8 text-gray-500">
-        <Stethoscope className="w-12 h-12 mx-auto mb-3 opacity-50" />
-        <p className="text-sm mb-3">No hay consultas registradas</p>
-        <p className="text-xs text-gray-400">
+      <div className="py-8 text-center text-white/60">
+        <Stethoscope className="mx-auto mb-3 h-12 w-12 text-white/40" />
+        <p className="mb-3 text-sm">No hay consultas registradas</p>
+        <p className="text-xs text-white/50">
           Las consultas aparecerán aquí después de cada cita médica
         </p>
       </div>
@@ -753,171 +744,169 @@ function ConsultationsTimeline({
         const talla = vitals?.talla ?? note?.talla ?? null;
         const tipo = note?.tipo_consulta as keyof typeof tipoLabels | undefined;
         const tipoLabel = tipo ? tipoLabels[tipo] ?? note?.tipo_consulta : note?.tipo_consulta;
-        const tipoBadgeClass = tipo ? tipoBadgeClasses[tipo] ?? 'bg-gray-100 text-gray-700 border-gray-300' : 'bg-gray-100 text-gray-700 border-gray-300';
+        const tipoBadgeClass = tipo ? tipoBadgeClasses[tipo] ?? 'bg-white/10 text-white' : 'bg-white/10 text-white';
         const tratamiento = Array.isArray(note?.tratamiento) ? note.tratamiento : [];
         const notasPrivadas = note?.notas_privadas ?? note?.notasPrivadas ?? '';
         const medicoNombre = note?.medico_nombre ?? note?.medico ?? '';
         const medicoEspecialidad = note?.medico_especialidad ?? note?.medicoEspecialidad ?? '';
 
         return (
-          <Card
+          <GlassPanel
             key={noteId}
-            className="overflow-hidden hover:shadow-md transition-all cursor-pointer"
+            className="cursor-pointer border-white/10 bg-white/5 p-4 text-white transition hover:border-white/20"
             onClick={() => toggleNote(noteId)}
           >
-            <div className="p-4">
-              <div className="flex items-start gap-4">
-                <div className="flex-shrink-0">
-                  <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center">
-                    <Calendar className="w-6 h-6 text-indigo-600" />
-                  </div>
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {note?.tipo_consulta && (
-                        <Badge className={`border ${tipoBadgeClass}`}>
-                          {tipoLabel}
-                        </Badge>
-                      )}
-                      {note?.fecha_consulta && (
-                        <span className="text-sm text-gray-500">
-                          {format(new Date(note.fecha_consulta), "d 'de' MMMM, yyyy", { locale: es })}
-                        </span>
-                      )}
-                    </div>
-                    <ChevronRight 
-                      className={`w-5 h-5 text-gray-400 transition-transform flex-shrink-0 ${
-                        isExpanded ? 'rotate-90' : ''
-                      }`}
-                    />
-                  </div>
-
-                  {diagnosis && (
-                    <div className="mb-2">
-                      <p className="text-sm font-medium text-gray-900 line-clamp-1">
-                        {diagnosis}
-                      </p>
-                    </div>
-                  )}
-
-                  {isExpanded && (
-                    <div className="mt-4 space-y-3 animate-in slide-in-from-top-2">
-                      {diagnosis && (
-                        <div className="p-3 bg-blue-50 rounded-lg">
-                          <div className="flex items-start gap-2">
-                            <Stethoscope className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                            <div className="min-w-0 flex-1">
-                              <span className="text-xs font-medium text-blue-600">Diagnóstico:</span>
-                              <p className="text-sm font-medium text-gray-900 mt-1">{diagnosis}</p>
-                              {cie10 && (
-                                <p className="text-xs text-gray-500 mt-1">CIE-10: {cie10}</p>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {planContent && (
-                        <div className="p-3 bg-green-50 rounded-lg">
-                          <div className="flex items-start gap-2">
-                            <ClipboardList className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
-                            <div className="min-w-0 flex-1">
-                              <span className="text-xs font-medium text-green-600">Plan de Tratamiento:</span>
-                              <p className="text-sm text-gray-700 whitespace-pre-wrap mt-1">{planContent}</p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {tratamiento.length > 0 && (
-                        <div className="p-3 bg-green-100 rounded-lg">
-                          <span className="text-xs font-medium text-green-700">Prescripciones:</span>
-                          <div className="space-y-2 mt-1">
-                            {tratamiento.map((med: any, medIndex: number) => (
-                              <div key={medIndex} className="text-xs bg-white rounded border border-green-200 p-2 shadow-sm">
-                                <p className="font-semibold text-gray-800">{med.nombre}</p>
-                                <p className="text-gray-600">
-                                  {[med.dosis, med.via, med.frecuencia, med.duracion]
-                                    .filter(Boolean)
-                                    .join(' • ')}
-                                </p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {notasPrivadas && (
-                        <div className="p-3 bg-gray-50 rounded-lg">
-                          <span className="text-xs font-medium text-gray-600">Notas Privadas:</span>
-                          <div className="text-sm text-gray-700 whitespace-pre-wrap mt-1">
-                            {notasPrivadas}
-                          </div>
-                        </div>
-                      )}
-
-                      {(presionArterial || frecuenciaCardiaca || temperatura || peso || saturacion || talla) && (
-                        <div className="p-3 bg-purple-50 rounded-lg">
-                          <span className="text-xs font-medium text-purple-600 mb-2 block">Signos Vitales:</span>
-                          <div className="flex flex-wrap gap-4">
-                            {presionArterial && (
-                              <div className="flex items-center gap-1 text-xs">
-                                <Activity className="w-3 h-3 text-red-500" />
-                                <span className="text-gray-600">PA:</span>
-                                <span className="font-medium">{presionArterial}</span>
-                              </div>
-                            )}
-                            {frecuenciaCardiaca && (
-                              <div className="flex items-center gap-1 text-xs">
-                                <Heart className="w-3 h-3 text-pink-500" />
-                                <span className="text-gray-600">FC:</span>
-                                <span className="font-medium">{frecuenciaCardiaca} bpm</span>
-                              </div>
-                            )}
-                            {temperatura && (
-                              <div className="flex items-center gap-1 text-xs">
-                                <span className="text-gray-600">Temp:</span>
-                                <span className="font-medium">{temperatura}°C</span>
-                              </div>
-                            )}
-                            {peso && (
-                              <div className="flex items-center gap-1 text-xs">
-                                <span className="text-gray-600">Peso:</span>
-                                <span className="font-medium">{peso} kg</span>
-                              </div>
-                            )}
-                            {talla && (
-                              <div className="flex items-center gap-1 text-xs">
-                                <span className="text-gray-600">Talla:</span>
-                                <span className="font-medium">{talla} cm</span>
-                              </div>
-                            )}
-                            {saturacion && (
-                              <div className="flex items-center gap-1 text-xs">
-                                <span className="text-gray-600">SpO₂:</span>
-                                <span className="font-medium">{saturacion}%</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      {(medicoNombre || medicoEspecialidad) && (
-                        <div className="pt-3 border-t text-xs text-gray-500">
-                          <span className="font-medium">Médico:</span> {medicoNombre}
-                          {medicoEspecialidad && (
-                            <span className="text-gray-400"> • {medicoEspecialidad}</span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-white/10">
+                  <Calendar className="h-6 w-6" />
                 </div>
               </div>
+
+              <div className="min-w-0 flex-1">
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {note?.tipo_consulta && (
+                      <Badge className={`border ${tipoBadgeClass}`}>
+                        {tipoLabel}
+                      </Badge>
+                    )}
+                    {note?.fecha_consulta && (
+                      <span className="text-sm text-white/60">
+                        {format(new Date(note.fecha_consulta), "d 'de' MMMM, yyyy", { locale: es })}
+                      </span>
+                    )}
+                  </div>
+                  <ChevronRight 
+                    className={`h-5 w-5 text-white/50 transition-transform ${
+                      isExpanded ? 'rotate-90' : ''
+                    }`}
+                  />
+                </div>
+
+                {diagnosis && (
+                  <div className="mb-2">
+                    <p className="line-clamp-1 text-sm font-semibold text-white">
+                      {diagnosis}
+                    </p>
+                  </div>
+                )}
+
+                {isExpanded && (
+                  <div className="mt-4 space-y-3 animate-in slide-in-from-top-2">
+                    {diagnosis && (
+                      <div className="rounded-2xl border border-blue-400/20 bg-blue-500/10 p-3">
+                        <div className="flex items-start gap-2">
+                          <Stethoscope className="mt-0.5 h-4 w-4 text-blue-200" />
+                          <div className="min-w-0 flex-1">
+                            <span className="text-xs font-medium text-blue-100">Diagnóstico:</span>
+                            <p className="mt-1 text-sm font-medium text-white">{diagnosis}</p>
+                            {cie10 && (
+                              <p className="mt-1 text-xs text-white/70">CIE-10: {cie10}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {planContent && (
+                      <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-3">
+                        <div className="flex items-start gap-2">
+                          <ClipboardList className="mt-0.5 h-4 w-4 text-emerald-200" />
+                          <div className="min-w-0 flex-1">
+                            <span className="text-xs font-medium text-emerald-100">Plan de Tratamiento:</span>
+                            <p className="mt-1 whitespace-pre-wrap text-sm text-white/80">{planContent}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {tratamiento.length > 0 && (
+                      <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/5 p-3">
+                        <span className="text-xs font-medium text-emerald-200">Prescripciones:</span>
+                        <div className="mt-2 space-y-2">
+                          {tratamiento.map((med: any, medIndex: number) => (
+                            <div key={medIndex} className="rounded-xl border border-white/10 bg-white/5 p-2 text-xs text-white">
+                              <p className="font-semibold">{med.nombre}</p>
+                              <p className="text-white/70">
+                                {[med.dosis, med.via, med.frecuencia, med.duracion]
+                                  .filter(Boolean)
+                                  .join(' • ')}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {notasPrivadas && (
+                      <div className="rounded-2xl border border-white/15 bg-white/5 p-3">
+                        <span className="text-xs font-medium text-white/70">Notas Privadas:</span>
+                        <div className="mt-1 whitespace-pre-wrap text-sm text-white/80">
+                          {notasPrivadas}
+                        </div>
+                      </div>
+                    )}
+
+                    {(presionArterial || frecuenciaCardiaca || temperatura || peso || saturacion || talla) && (
+                      <div className="rounded-2xl border border-purple-400/20 bg-purple-500/10 p-3">
+                        <span className="mb-2 block text-xs font-medium text-purple-100">Signos Vitales:</span>
+                        <div className="flex flex-wrap gap-4">
+                          {presionArterial && (
+                            <div className="flex items-center gap-1 text-xs text-white/80">
+                              <Activity className="h-3 w-3 text-rose-200" />
+                              <span>PA:</span>
+                              <span className="font-semibold text-white">{presionArterial}</span>
+                            </div>
+                          )}
+                          {frecuenciaCardiaca && (
+                            <div className="flex items-center gap-1 text-xs text-white/80">
+                              <Heart className="h-3 w-3 text-pink-200" />
+                              <span>FC:</span>
+                              <span className="font-semibold text-white">{frecuenciaCardiaca} bpm</span>
+                            </div>
+                          )}
+                          {temperatura && (
+                            <div className="flex items-center gap-1 text-xs text-white/80">
+                              <span>Temp:</span>
+                              <span className="font-semibold text-white">{temperatura}°C</span>
+                            </div>
+                          )}
+                          {peso && (
+                            <div className="flex items-center gap-1 text-xs text-white/80">
+                              <span>Peso:</span>
+                              <span className="font-semibold text-white">{peso} kg</span>
+                            </div>
+                          )}
+                          {talla && (
+                            <div className="flex items-center gap-1 text-xs text-white/80">
+                              <span>Talla:</span>
+                              <span className="font-semibold text-white">{talla} cm</span>
+                            </div>
+                          )}
+                          {saturacion && (
+                            <div className="flex items-center gap-1 text-xs text-white/80">
+                              <span>SpO₂:</span>
+                              <span className="font-semibold text-white">{saturacion}%</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {(medicoNombre || medicoEspecialidad) && (
+                      <div className="border-t border-white/10 pt-3 text-xs text-white/70">
+                        <span className="font-medium text-white">Médico:</span> {medicoNombre}
+                        {medicoEspecialidad && (
+                          <span className="text-white/60"> • {medicoEspecialidad}</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
-          </Card>
+          </GlassPanel>
         );
       })}
     </div>

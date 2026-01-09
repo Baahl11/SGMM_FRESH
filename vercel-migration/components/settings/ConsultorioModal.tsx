@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, MapPin } from 'lucide-react'
+import { GlassPanel } from '@/components/ui/glass-panel'
 
 interface Consultorio {
   id: string
@@ -54,6 +55,9 @@ export default function ConsultorioModal({ isOpen, onClose, onSave, consultorio 
     onSave(formData)
   }
 
+  const inputClass = 'mt-3 w-full rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-white placeholder:text-white/35 focus:border-emerald-200 focus:ring-emerald-200/30 focus:outline-none transition'
+  const labelClass = 'text-xs uppercase tracking-[0.35em] text-white/60'
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -66,156 +70,166 @@ export default function ConsultorioModal({ isOpen, onClose, onSave, consultorio 
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
           />
 
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4 sm:p-8">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              transition={{ type: "spring", duration: 0.5 }}
-              className="w-full max-w-lg bg-white dark:bg-gray-800 rounded-2xl shadow-2xl overflow-hidden"
+              transition={{ type: 'spring', duration: 0.45 }}
+              className="w-full max-w-2xl"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="relative px-6 py-5 border-b border-gray-200 dark:border-gray-700">
-                <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-500" />
-                <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                    {consultorio ? 'Editar Consultorio' : 'Nuevo Consultorio'}
-                  </h2>
-                  <motion.button
-                    whileHover={{ scale: 1.1, rotate: 90 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={onClose}
-                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                  >
-                    <X className="w-5 h-5 text-gray-500" />
-                  </motion.button>
-                </div>
-              </div>
-
-              <form onSubmit={handleSubmit} className="p-6 space-y-5">
-                <div className="flex justify-center">
-                  <motion.div
-                    whileHover={{ scale: 1.1, rotate: -5 }}
-                    className="w-20 h-20 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-2xl flex items-center justify-center text-white shadow-lg"
-                  >
-                    <MapPin className="w-10 h-10" />
-                  </motion.div>
+              <GlassPanel className="relative overflow-hidden border-white/10 bg-gradient-to-b from-slate-950/95 via-slate-950/90 to-slate-950/85 p-0">
+                <div className="pointer-events-none absolute inset-0 opacity-70">
+                  <div className="absolute -top-20 right-0 h-72 w-72 rounded-full bg-emerald-400/30 blur-[160px]" />
+                  <div className="absolute -bottom-24 left-0 h-72 w-72 rounded-full bg-sky-400/20 blur-[150px]" />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Nombre *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.nombre}
-                    onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all text-gray-900 dark:text-white"
-                    placeholder="Consultorio Principal"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Ubicación
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.ubicacion}
-                    onChange={(e) => setFormData({ ...formData, ubicacion: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all text-gray-900 dark:text-white"
-                    placeholder="Planta Baja - Sala 101"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Descripción
-                  </label>
-                  <textarea
-                    value={formData.descripcion}
-                    onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
-                    rows={3}
-                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all text-gray-900 dark:text-white resize-none"
-                    placeholder="Detalles adicionales sobre el consultorio..."
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Capacidad
-                  </label>
-                  <div className="flex items-center gap-4">
-                    <input
-                      type="range"
-                      min="1"
-                      max="10"
-                      value={formData.capacidad}
-                      onChange={(e) => setFormData({ ...formData, capacidad: parseInt(e.target.value) })}
-                      className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
-                    />
+                <div className="relative border-b border-white/10 px-6 py-6 sm:px-10 sm:py-8">
+                  <div className="flex items-start gap-4">
                     <motion.div
-                      key={formData.capacidad}
-                      initial={{ scale: 1.3 }}
-                      animate={{ scale: 1 }}
-                      className="w-12 h-12 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl flex items-center justify-center text-emerald-600 dark:text-emerald-400 font-bold text-lg"
+                      whileHover={{ rotate: -4, scale: 1.05 }}
+                      className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/15 bg-white/10 text-white"
                     >
-                      {formData.capacidad}
+                      <MapPin className="h-8 w-8" />
                     </motion.div>
+                    <div className="flex-1">
+                      <p className="text-xs uppercase tracking-[0.35em] text-white/60">
+                        {consultorio ? 'Actualizar espacio' : 'Nuevo espacio físico'}
+                      </p>
+                      <h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
+                        {consultorio ? 'Editar consultorio' : 'Crear consultorio'}
+                      </h2>
+                      <p className="mt-1 text-sm text-white/70">
+                        Define nombre, ubicación y capacidad para mantener tus agendas sincronizadas.
+                      </p>
+                    </div>
+                    <motion.button
+                      whileHover={{ scale: 1.1, rotate: 90 }}
+                      whileTap={{ scale: 0.92 }}
+                      onClick={onClose}
+                      className="rounded-2xl border border-white/15 p-2 text-white/70 transition hover:border-white/40 hover:text-white"
+                    >
+                      <X className="h-5 w-5" />
+                    </motion.button>
                   </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                    Número de personas que pueden atenderse simultáneamente
-                  </p>
                 </div>
 
-                <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-xl">
+                <form onSubmit={handleSubmit} className="relative space-y-8 px-6 py-6 sm:px-10 sm:py-10">
                   <div>
-                    <div className="text-sm font-medium text-gray-900 dark:text-white">
-                      Estado
+                    <label className={labelClass}>Nombre *</label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.nombre}
+                      onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                      className={inputClass}
+                      placeholder="Consultorio Principal"
+                    />
+                  </div>
+
+                  <div className="grid gap-6 sm:grid-cols-2">
+                    <div>
+                      <label className={labelClass}>Ubicación</label>
+                      <input
+                        type="text"
+                        value={formData.ubicacion}
+                        onChange={(e) => setFormData({ ...formData, ubicacion: e.target.value })}
+                        className={inputClass}
+                        placeholder="Planta baja - sala 101"
+                      />
                     </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      {formData.activo ? 'Consultorio disponible' : 'Consultorio no disponible'}
+                    <div>
+                      <label className={labelClass}>Capacidad</label>
+                      <div className="mt-3 rounded-3xl border border-white/15 bg-white/5 p-4">
+                        <div className="flex items-center gap-4">
+                          <input
+                            type="range"
+                            min="1"
+                            max="10"
+                            value={formData.capacidad}
+                            onChange={(e) => setFormData({ ...formData, capacidad: parseInt(e.target.value) })}
+                            className="flex-1 appearance-none rounded-full bg-white/10 accent-emerald-300"
+                          />
+                          <motion.div
+                            key={formData.capacidad}
+                            initial={{ scale: 1.15 }}
+                            animate={{ scale: 1 }}
+                            className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/20 bg-white/10 text-xl font-semibold text-emerald-200"
+                          >
+                            {formData.capacidad}
+                          </motion.div>
+                        </div>
+                        <p className="mt-3 text-xs text-white/60">
+                          Número de atenciones simultáneas permitidas en este espacio.
+                        </p>
+                      </div>
                     </div>
                   </div>
-                  <motion.button
-                    type="button"
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => setFormData({ ...formData, activo: !formData.activo })}
-                    className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
-                      formData.activo ? 'bg-emerald-600' : 'bg-gray-300 dark:bg-gray-600'
-                    }`}
-                  >
-                    <motion.span
-                      layout
-                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ${
-                        formData.activo ? 'translate-x-6' : 'translate-x-1'
-                      }`}
-                    />
-                  </motion.button>
-                </div>
 
-                <div className="flex gap-3 pt-4">
-                  <motion.button
-                    type="button"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={onClose}
-                    className="flex-1 px-4 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                  >
-                    Cancelar
-                  </motion.button>
-                  <motion.button
-                    type="submit"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="flex-1 px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl font-medium shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/30 transition-all"
-                  >
-                    {consultorio ? 'Guardar Cambios' : 'Crear Consultorio'}
-                  </motion.button>
-                </div>
-              </form>
+                  <div>
+                    <label className={labelClass}>Descripción</label>
+                    <textarea
+                      value={formData.descripcion}
+                      onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
+                      rows={3}
+                      placeholder="Detalles adicionales, equipamiento o notas internas..."
+                      className={`${inputClass} min-h-[120px] resize-none`}
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-white/5 p-5 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-white">
+                        Estado del consultorio
+                      </p>
+                      <p className="text-xs text-white/60">
+                        {formData.activo ? 'Visible para agendas y asignaciones' : 'Oculto y bloqueado temporalmente'}
+                      </p>
+                    </div>
+                    <motion.button
+                      type="button"
+                      whileTap={{ scale: 0.96 }}
+                      onClick={() => setFormData({ ...formData, activo: !formData.activo })}
+                      className={`relative inline-flex h-12 w-24 items-center rounded-full border px-1 transition ${
+                        formData.activo
+                          ? 'border-emerald-300/60 bg-emerald-400/25'
+                          : 'border-white/15 bg-white/5'
+                      }`}
+                    >
+                      <motion.span
+                        layout
+                        transition={{ type: 'spring', stiffness: 450, damping: 30 }}
+                        className={`inline-flex h-10 w-10 items-center justify-center rounded-full bg-white text-sm font-semibold text-slate-900 shadow-xl ${
+                          formData.activo ? 'translate-x-12' : 'translate-x-0'
+                        }`}
+                      >
+                        {formData.activo ? 'ON' : 'OFF'}
+                      </motion.span>
+                    </motion.button>
+                  </div>
+
+                  <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:justify-end">
+                    <motion.button
+                      type="button"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.97 }}
+                      onClick={onClose}
+                      className="aura-cta aura-cta--ghost w-full justify-center sm:w-auto"
+                    >
+                      Cancelar
+                    </motion.button>
+                    <motion.button
+                      type="submit"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.97 }}
+                      className="aura-cta aura-cta--primary w-full justify-center sm:w-auto"
+                    >
+                      {consultorio ? 'Guardar cambios' : 'Crear consultorio'}
+                    </motion.button>
+                  </div>
+                </form>
+              </GlassPanel>
             </motion.div>
           </div>
         </>

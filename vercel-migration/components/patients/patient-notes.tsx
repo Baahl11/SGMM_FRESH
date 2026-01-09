@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { GlassPanel } from "@/components/ui/glass-panel";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -21,20 +21,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Plus, Edit, Trash2, Check, X } from "lucide-react";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
-import { formatDistanceToNow } from "date-fns";
 import { QuickPhraseSelector } from "@/components/quick-phrases/quick-phrase-selector";
 import { QuickPhraseManager } from "@/components/quick-phrases/quick-phrase-manager";
 
 interface PatientNote {
   id: string;
   patient_id: string;
-  tipo_nota: 'pendiente' | 'idea' | 'importante' | 'general' | 'completada';
-  titulo?: string;
+  tipo_nota: "pendiente" | "idea" | "importante" | "general" | "completada";
+  titulo?: string | null;
   contenido: string;
   completada: boolean;
-  fecha_completada?: string;
+  fecha_completada?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -43,61 +42,60 @@ interface PatientNotesProps {
   patientId: string;
 }
 
-const tipoConfig = {
+const tipoConfig: Record<PatientNote["tipo_nota"], {
+  emoji: string;
+  label: string;
+  gradient: string;
+  bgLight: string;
+  border: string;
+}> = {
   pendiente: {
-    emoji: '📌',
-    label: 'Pendiente',
-    gradient: 'from-yellow-400 to-orange-500',
-    bgLight: 'bg-yellow-50',
-    border: 'border-yellow-300',
-    text: 'text-yellow-900',
+    emoji: "📌",
+    label: "Pendiente",
+    gradient: "from-amber-400/80 to-orange-500/80",
+    bgLight: "from-amber-500/10 to-orange-500/5",
+    border: "border-amber-300/40",
   },
   idea: {
-    emoji: '💡',
-    label: 'Idea',
-    gradient: 'from-blue-400 to-cyan-500',
-    bgLight: 'bg-blue-50',
-    border: 'border-blue-300',
-    text: 'text-blue-900',
+    emoji: "💡",
+    label: "Idea",
+    gradient: "from-sky-400/80 to-cyan-500/80",
+    bgLight: "from-sky-400/10 to-cyan-500/5",
+    border: "border-cyan-300/40",
   },
   importante: {
-    emoji: '⚠️',
-    label: 'Importante',
-    gradient: 'from-red-500 to-pink-600',
-    bgLight: 'bg-red-50',
-    border: 'border-red-300',
-    text: 'text-red-900',
+    emoji: "⚠️",
+    label: "Importante",
+    gradient: "from-rose-500/80 to-orange-500/80",
+    bgLight: "from-rose-500/10 to-orange-500/5",
+    border: "border-rose-400/40",
   },
   general: {
-    emoji: '📋',
-    label: 'General',
-    gradient: 'from-gray-400 to-slate-500',
-    bgLight: 'bg-gray-50',
-    border: 'border-gray-300',
-    text: 'text-gray-900',
+    emoji: "📋",
+    label: "General",
+    gradient: "from-slate-400/80 to-slate-600/80",
+    bgLight: "from-white/10 to-white/5",
+    border: "border-white/30",
   },
   completada: {
-    emoji: '✅',
-    label: 'Completada',
-    gradient: 'from-green-400 to-emerald-500',
-    bgLight: 'bg-green-50',
-    border: 'border-green-300',
-    text: 'text-green-900',
+    emoji: "✅",
+    label: "Completada",
+    gradient: "from-emerald-400/80 to-green-500/80",
+    bgLight: "from-emerald-500/10 to-green-500/5",
+    border: "border-emerald-400/40",
   },
 };
 
 export function PatientNotes({ patientId }: PatientNotesProps) {
   const [notes, setNotes] = useState<PatientNote[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<PatientNote | null>(null);
-  
-  // Form state
-  const [tipoNota, setTipoNota] = useState<PatientNote['tipo_nota']>('general');
-  const [titulo, setTitulo] = useState('');
-  const [contenido, setContenido] = useState('');
-  
-  // Quick Phrases state
+  const [tipoNota, setTipoNota] = useState<PatientNote["tipo_nota"]>("general");
+  const [titulo, setTitulo] = useState("");
+  const [contenido, setContenido] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const [quickPhraseOpen, setQuickPhraseOpen] = useState(false);
   const [managePhrasesOpen, setManagePhrasesOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -106,173 +104,183 @@ export function PatientNotes({ patientId }: PatientNotesProps) {
     fetchNotes();
   }, [patientId]);
 
-  // Insert quick phrase at cursor position
-  const handleQuickPhraseSelect = (phraseContent: string, phraseId: string) => {
-    const textarea = textareaRef.current;
-    if (!textarea) {
-      // Fallback: append to end
-      setContenido(prev => prev ? `${prev}\n\n${phraseContent}` : phraseContent);
-      return;
-    }
-
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const text = contenido;
-
-    // Insert phrase at cursor position
-    const before = text.substring(0, start);
-    const after = text.substring(end);
-    const newText = before + phraseContent + after;
-
-    setContenido(newText);
-
-    // Set cursor position after inserted text
-    setTimeout(() => {
-      textarea.focus();
-      const newPosition = start + phraseContent.length;
-      textarea.setSelectionRange(newPosition, newPosition);
-    }, 0);
-  };
-
   const fetchNotes = async () => {
     setLoading(true);
+    setError(null);
     try {
-      const response = await fetch(`/api/patient-notes?patient_id=${patientId}`);
-      if (response.ok) {
-        const data = await response.json();
-        setNotes(data);
+      const response = await fetch(`/api/patient-notes?patient_id=${patientId}`, {
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        throw new Error("No se pudieron cargar las notas");
       }
-    } catch (error) {
-      console.error('Error fetching notes:', error);
+      const data: PatientNote[] = await response.json();
+      setNotes(data);
+    } catch (err) {
+      console.error("Error fetching notes", err);
+      setError("No pudimos cargar las notas del paciente. Intenta de nuevo.");
     } finally {
       setLoading(false);
     }
   };
 
+  const resetFormFields = () => {
+    setEditingNote(null);
+    setTipoNota("general");
+    setTitulo("");
+    setContenido("");
+  };
+
+  const handleQuickPhraseSelect = (phraseContent: string) => {
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      setContenido((prev) => (prev ? `${prev}\n\n${phraseContent}` : phraseContent));
+      return;
+    }
+
+    const start = textarea.selectionStart ?? textarea.value.length;
+    const end = textarea.selectionEnd ?? textarea.value.length;
+    const before = textarea.value.slice(0, start);
+    const after = textarea.value.slice(end);
+    const nextValue = before + phraseContent + after;
+    setContenido(nextValue);
+
+    requestAnimationFrame(() => {
+      const cursor = start + phraseContent.length;
+      textarea.focus();
+      textarea.setSelectionRange(cursor, cursor);
+    });
+  };
+
   const handleSubmit = async () => {
-    if (!contenido.trim()) return;
+    if (!contenido.trim()) {
+      setError("El contenido de la nota es obligatorio.");
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    const payload = editingNote
+      ? {
+          tipo_nota: tipoNota,
+          titulo: titulo.trim() || null,
+          contenido,
+        }
+      : {
+          patient_id: patientId,
+          tipo_nota: tipoNota,
+          titulo: titulo.trim() || null,
+          contenido,
+        };
 
     try {
-      if (editingNote) {
-        // Actualizar nota existente
-        const response = await fetch(`/api/patient-notes/${editingNote.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tipo_nota: tipoNota, titulo, contenido }),
-        });
-        
-        if (response.ok) {
-          fetchNotes();
-          resetForm();
+      const response = await fetch(
+        editingNote ? `/api/patient-notes/${editingNote.id}` : "/api/patient-notes",
+        {
+          method: editingNote ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
         }
-      } else {
-        // Crear nueva nota
-        const response = await fetch('/api/patient-notes', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            patient_id: patientId,
-            tipo_nota: tipoNota,
-            titulo,
-            contenido,
-          }),
-        });
-        
-        if (response.ok) {
-          fetchNotes();
-          resetForm();
-        }
+      );
+
+      if (!response.ok) {
+        throw new Error("No se pudo guardar la nota");
       }
-    } catch (error) {
-      console.error('Error saving note:', error);
+
+      await fetchNotes();
+      resetFormFields();
+      setDialogOpen(false);
+    } catch (err) {
+      console.error("Error saving note", err);
+      setError("Tuvimos un problema guardando la nota. Intenta nuevamente.");
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleToggleComplete = async (note: PatientNote) => {
     try {
       const response = await fetch(`/api/patient-notes/${note.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ completada: !note.completada }),
       });
-      
-      if (response.ok) {
-        fetchNotes();
+
+      if (!response.ok) {
+        throw new Error("No se pudo actualizar la nota");
       }
-    } catch (error) {
-      console.error('Error toggling complete:', error);
+
+      fetchNotes();
+    } catch (err) {
+      console.error("Error toggling note", err);
+      setError("No pudimos actualizar el estado de la nota.");
     }
   };
 
   const handleDelete = async (noteId: string) => {
-    if (!confirm('¿Eliminar esta nota?')) return;
-    
     try {
       const response = await fetch(`/api/patient-notes/${noteId}`, {
-        method: 'DELETE',
+        method: "DELETE",
       });
-      
-      if (response.ok) {
-        fetchNotes();
+
+      if (!response.ok) {
+        throw new Error("No se pudo eliminar la nota");
       }
-    } catch (error) {
-      console.error('Error deleting note:', error);
+
+      fetchNotes();
+    } catch (err) {
+      console.error("Error deleting note", err);
+      setError("No pudimos eliminar la nota. Intenta más tarde.");
     }
   };
 
   const handleEdit = (note: PatientNote) => {
     setEditingNote(note);
     setTipoNota(note.tipo_nota);
-    setTitulo(note.titulo || '');
+    setTitulo(note.titulo ?? "");
     setContenido(note.contenido);
     setDialogOpen(true);
   };
 
-  const resetForm = () => {
-    setEditingNote(null);
-    setTipoNota('general');
-    setTitulo('');
-    setContenido('');
-    setDialogOpen(false);
+  const handleDialogChange = (open: boolean) => {
+    setDialogOpen(open);
+    if (!open) {
+      resetFormFields();
+    }
   };
 
   return (
     <div className="space-y-6">
-      {/* Header con botón de agregar */}
-      <div className="flex items-center justify-between">
+      <GlassPanel className="flex flex-col gap-4 border-white/15 bg-white/5 p-6 text-white sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-            📝 Notas & Recordatorios
-          </h2>
-          <p className="text-gray-600 mt-1">
-            Gestiona ideas, pendientes y recordatorios del paciente
+          <p className="text-xs uppercase tracking-[0.35em] text-white/60">Notas & Seguimiento</p>
+          <h2 className="mt-2 text-2xl font-semibold">📝 Notas & Recordatorios</h2>
+          <p className="mt-1 text-sm text-white/70">
+            Documenta ideas, pendientes y recordatorios accionables del paciente.
           </p>
         </div>
-        
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <Dialog open={dialogOpen} onOpenChange={handleDialogChange}>
           <DialogTrigger asChild>
             <Button
-              onClick={resetForm}
-              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+              onClick={resetFormFields}
+              className="bg-gradient-to-r from-violet-500 to-fuchsia-500 px-6 text-white shadow-[0_10px_40px_-15px_rgba(147,51,234,0.9)] hover:from-violet-600 hover:to-fuchsia-600"
             >
-              <Plus className="h-4 w-4 mr-2" />
-              Nueva Nota
+              <Plus className="mr-2 h-4 w-4" />
+              {editingNote ? "Editar Nota" : "Nueva Nota"}
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px]">
+          <DialogContent className="border border-white/10 bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 text-white">
             <DialogHeader>
-              <DialogTitle>
-                {editingNote ? 'Editar Nota' : 'Nueva Nota'}
-              </DialogTitle>
+              <DialogTitle>{editingNote ? "Editar nota" : "Nueva nota"}</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 py-4">
+            <div className="space-y-4">
               <div>
-                <label className="text-sm font-medium mb-2 block">Tipo de Nota</label>
-                <Select value={tipoNota} onValueChange={(value: any) => setTipoNota(value)}>
-                  <SelectTrigger>
-                    <SelectValue />
+                <label className="mb-2 block text-sm font-semibold text-white/80">Tipo de nota</label>
+                <Select value={tipoNota} onValueChange={(value: PatientNote["tipo_nota"]) => setTipoNota(value)}>
+                  <SelectTrigger className="border-white/20 bg-white/5 text-white">
+                    <SelectValue placeholder="Selecciona el tipo" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-slate-900 text-white">
                     {Object.entries(tipoConfig).map(([key, config]) => (
                       <SelectItem key={key} value={key}>
                         {config.emoji} {config.label}
@@ -281,169 +289,172 @@ export function PatientNotes({ patientId }: PatientNotesProps) {
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div>
-                <label className="text-sm font-medium mb-2 block">Título (opcional)</label>
+                <label className="mb-2 block text-sm font-semibold text-white/80">Título (opcional)</label>
                 <Input
                   value={titulo}
-                  onChange={(e) => setTitulo(e.target.value)}
+                  onChange={(event) => setTitulo(event.target.value)}
                   placeholder="Ej: Llamar para seguimiento..."
+                  className="border-white/20 bg-white/5 text-white placeholder:text-white/40"
                 />
               </div>
-              
+
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-sm font-medium">Contenido</label>
-                  <div className="flex items-center gap-2">
-                    <QuickPhraseSelector
-                      context="medical_record"
-                      onSelect={handleQuickPhraseSelect}
-                      onManage={() => setManagePhrasesOpen(true)}
-                      open={quickPhraseOpen}
-                      onOpenChange={setQuickPhraseOpen}
-                    />
-                  </div>
+                <div className="mb-2 flex items-center justify-between">
+                  <label className="text-sm font-semibold text-white/80">Contenido</label>
+                  <QuickPhraseSelector
+                    context="medical_record"
+                    onSelect={handleQuickPhraseSelect}
+                    onManage={() => setManagePhrasesOpen(true)}
+                    open={quickPhraseOpen}
+                    onOpenChange={setQuickPhraseOpen}
+                  />
                 </div>
                 <Textarea
                   ref={textareaRef}
                   value={contenido}
-                  onChange={(e) => setContenido(e.target.value)}
-                  placeholder="Escribe tu nota aquí... o usa frases rápidas"
+                  onChange={(event) => setContenido(event.target.value)}
+                  placeholder="Escribe tu nota aquí o inserta frases rápidas"
                   rows={5}
-                  className="resize-none"
+                  className="min-h-[140px] resize-none border-white/20 bg-white/5 text-white placeholder:text-white/40"
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  💡 Usa el botón "Frase rápida" para insertar textos predefinidos
-                </p>
+                <p className="mt-1 text-xs text-white/50">💡 Usa frases rápidas para documentar hallazgos recurrentes.</p>
               </div>
-              
-              <div className="flex gap-2 justify-end">
-                <Button variant="outline" onClick={resetForm}>
+
+              <div className="flex items-center justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setDialogOpen(false)}
+                  className="border-white/30 text-white hover:bg-white/10"
+                >
                   Cancelar
                 </Button>
-                <Button onClick={handleSubmit}>
-                  {editingNote ? 'Actualizar' : 'Crear Nota'}
+                <Button
+                  onClick={handleSubmit}
+                  disabled={saving}
+                  className="bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white hover:from-violet-600 hover:to-fuchsia-600 disabled:opacity-70"
+                >
+                  {saving ? "Guardando..." : editingNote ? "Actualizar" : "Crear nota"}
                 </Button>
               </div>
             </div>
           </DialogContent>
         </Dialog>
-      </div>
+      </GlassPanel>
 
-      {/* Lista de notas */}
+      {error && (
+        <GlassPanel className="border border-rose-400/40 bg-gradient-to-r from-rose-500/20 to-orange-500/10 p-4 text-sm text-rose-50">
+          {error}
+        </GlassPanel>
+      )}
+
       {loading ? (
-        <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
-        </div>
+        <GlassPanel className="flex items-center justify-center border-white/10 bg-white/5 py-12 text-white">
+          <div className="h-12 w-12 animate-spin rounded-full border-2 border-white/10 border-t-white"></div>
+        </GlassPanel>
       ) : notes.length === 0 ? (
-        <Card className="border-2 border-dashed">
-          <CardContent className="py-12 text-center">
-            <div className="h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Plus className="h-8 w-8 text-gray-400" />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Sin notas aún</h3>
-            <p className="text-gray-600 mb-4">
-              Comienza agregando recordatorios, ideas o notas importantes
-            </p>
-            <Button
-              onClick={() => setDialogOpen(true)}
-              variant="outline"
-              className="border-purple-300 text-purple-700 hover:bg-purple-50"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Crear Primera Nota
-            </Button>
-          </CardContent>
-        </Card>
+        <GlassPanel className="border border-dashed border-white/20 bg-white/5 py-12 text-center text-white">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-white/30">
+            <Plus className="h-8 w-8 text-white/70" />
+          </div>
+          <h3 className="text-lg font-semibold">Sin notas aún</h3>
+          <p className="mt-1 text-sm text-white/70">
+            Guarda pendientes clínicos, ideas de follow-up o recordatorios internos.
+          </p>
+          <Button
+            onClick={() => {
+              resetFormFields();
+              setDialogOpen(true);
+            }}
+            variant="outline"
+            className="mt-6 border-white/30 text-white hover:bg-white/10"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Crear primera nota
+          </Button>
+        </GlassPanel>
       ) : (
         <div className="space-y-4">
           {notes.map((note) => {
             const config = tipoConfig[note.tipo_nota];
             return (
-              <Card
+              <GlassPanel
                 key={note.id}
-                className={`border-2 ${config.border} ${config.bgLight} hover:shadow-lg transition-all duration-200 overflow-hidden`}
+                className={`border ${config.border} bg-gradient-to-r ${config.bgLight} p-6 text-white`}
               >
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <Badge className={`bg-gradient-to-r ${config.gradient} text-white border-0`}>
-                          {config.emoji} {config.label}
-                        </Badge>
-                        <span className="text-sm text-gray-600">
-                          {formatDistanceToNow(new Date(note.created_at), { addSuffix: true, locale: es })}
-                        </span>
-                      </div>
-                      
-                      {note.titulo && (
-                        <h4 className="font-semibold text-gray-900 mb-1">{note.titulo}</h4>
-                      )}
-                      
-                      <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">
-                        {note.contenido}
-                      </p>
-                      
-                      {note.completada && note.fecha_completada && (
-                        <p className="text-xs text-green-600 mt-2">
-                          ✓ Completada el {format(new Date(note.fecha_completada), "dd 'de' MMMM, yyyy", { locale: es })}
-                        </p>
-                      )}
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex-1">
+                    <div className="mb-3 flex flex-wrap items-center gap-3 text-sm text-white/70">
+                      <Badge className={`bg-gradient-to-r ${config.gradient} text-white shadow-inner`}> 
+                        {config.emoji} {config.label}
+                      </Badge>
+                      <span>
+                        {formatDistanceToNow(new Date(note.created_at), {
+                          addSuffix: true,
+                          locale: es,
+                        })}
+                      </span>
                     </div>
+                    {note.titulo && <h4 className="mb-1 text-lg font-semibold">{note.titulo}</h4>}
+                    <p className="whitespace-pre-wrap text-white/85">{note.contenido}</p>
+                    {note.completada && note.fecha_completada && (
+                      <p className="mt-2 text-xs text-emerald-200">
+                        ✓ Completada el {format(new Date(note.fecha_completada), "dd 'de' MMMM, yyyy", { locale: es })}
+                      </p>
+                    )}
                   </div>
-                  
-                  <div className="flex gap-2 mt-4 pt-4 border-t">
-                    {note.tipo_nota === 'pendiente' && !note.completada && (
+
+                  <div className="flex flex-wrap gap-2">
+                    {note.tipo_nota === "pendiente" && !note.completada && (
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => handleToggleComplete(note)}
-                        className="text-green-600 border-green-300 hover:bg-green-50"
+                        className="border-emerald-300/60 text-emerald-100 hover:bg-emerald-500/10"
                       >
-                        <Check className="h-3 w-3 mr-1" />
-                        Marcar completada
+                        <Check className="mr-1 h-3 w-3" />
+                        Marcar
                       </Button>
                     )}
-                    
                     {note.completada && (
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => handleToggleComplete(note)}
-                        className="text-yellow-600 border-yellow-300 hover:bg-yellow-50"
+                        className="border-amber-300/60 text-amber-100 hover:bg-amber-500/10"
                       >
-                        <X className="h-3 w-3 mr-1" />
+                        <X className="mr-1 h-3 w-3" />
                         Reabrir
                       </Button>
                     )}
-                    
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => handleEdit(note)}
+                      className="border-white/30 text-white hover:bg-white/10"
                     >
-                      <Edit className="h-3 w-3 mr-1" />
+                      <Edit className="mr-1 h-3 w-3" />
                       Editar
                     </Button>
-                    
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => handleDelete(note.id)}
-                      className="text-red-600 border-red-300 hover:bg-red-50"
+                      className="border-rose-400/60 text-rose-100 hover:bg-rose-500/10"
                     >
-                      <Trash2 className="h-3 w-3 mr-1" />
+                      <Trash2 className="mr-1 h-3 w-3" />
                       Eliminar
                     </Button>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </GlassPanel>
             );
           })}
         </div>
       )}
 
-      {/* Quick Phrase Manager Modal */}
       <QuickPhraseManager
         open={managePhrasesOpen}
         onOpenChange={setManagePhrasesOpen}

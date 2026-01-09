@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { GlassPanel } from '@/components/ui/glass-panel';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Minus, MapPin, Users, Loader2, Check, X } from 'lucide-react';
+import { Plus, MapPin, Users, Loader2, Check, X, Sparkles } from 'lucide-react';
 import { getAllAddons, type AddonConfig } from '@/lib/stripe/addons';
 import toast from 'react-hot-toast';
+import { motion } from 'framer-motion';
 
 interface ActiveAddon {
   id: string;
@@ -71,6 +71,12 @@ export function AddonsManager() {
       const data = await res.json();
 
       if (res.ok) {
+        if (data.checkoutUrl) {
+          toast.success('Redirigiéndote a Stripe para completar el pago...');
+          window.location.href = data.checkoutUrl;
+          return;
+        }
+
         toast.success(data.message || 'Add-on agregado exitosamente');
         await loadData(); // Reload to show updated addons
       } else {
@@ -115,161 +121,196 @@ export function AddonsManager() {
 
   if (loading) {
     return (
-      <Card>
-        <CardContent className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </CardContent>
-      </Card>
+      <GlassPanel className="border-white/10 p-12">
+        <div className="flex flex-col items-center justify-center gap-4 text-white">
+          <Loader2 className="h-10 w-10 animate-spin text-emerald-400" />
+          <p className="text-sm text-white/60">Cargando add-ons...</p>
+        </div>
+      </GlassPanel>
     );
   }
 
   return (
     <div className="space-y-6">
+      {/* Hero Panel */}
+      <GlassPanel className="relative overflow-hidden border-white/10 p-6 sm:p-8 text-white">
+        <div className="pointer-events-none absolute inset-0 opacity-70">
+          <div className="absolute -top-32 right-0 h-72 w-72 rounded-full bg-purple-400/30 blur-[140px]" />
+          <div className="absolute -bottom-32 left-0 h-72 w-72 rounded-full bg-sky-500/20 blur-[150px]" />
+        </div>
+        <div className="relative space-y-4">
+          <div className="inline-flex items-center gap-3 rounded-full border border-white/15 bg-white/10 px-5 py-1 text-xs font-semibold uppercase tracking-[0.35em] text-white/70">
+            <Sparkles className="h-4 w-4" />
+            Expansión
+          </div>
+          <div>
+            <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">Add-ons Premium</h2>
+            <p className="mt-2 text-sm text-white/70">
+              Expande la capacidad de tu plan agregando ubicaciones y doctores adicionales.
+            </p>
+          </div>
+        </div>
+      </GlassPanel>
+
       {/* Current Usage Summary */}
       {quotaUsage && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Uso Actual</CardTitle>
-            <CardDescription>Tu plan {quotaUsage.plan_tier.toUpperCase()} + Add-ons</CardDescription>
-          </CardHeader>
-          <CardContent className="grid md:grid-cols-2 gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-                <MapPin className="h-5 w-5 text-blue-600" />
+        <div className="grid gap-6 md:grid-cols-2">
+          <GlassPanel className="border-white/10 p-6 text-white">
+            <div className="flex items-center gap-4">
+              <div className="rounded-2xl border border-sky-400/40 bg-sky-500/20 p-4">
+                <MapPin className="h-6 w-6 text-sky-200" />
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Ubicaciones</p>
-                <p className="text-2xl font-bold">
-                  {quotaUsage.current_locations} <span className="text-sm text-muted-foreground">/ {quotaUsage.max_locations}</span>
+              <div className="flex-1">
+                <p className="text-sm uppercase tracking-wide text-white/60">Ubicaciones</p>
+                <p className="mt-1 text-3xl font-bold text-white">
+                  {quotaUsage.current_locations}
+                  <span className="text-lg text-white/50"> / {quotaUsage.max_locations}</span>
+                </p>
+                <p className="mt-1 text-xs text-white/60">
+                  Plan {quotaUsage.plan_tier.toUpperCase()}
                 </p>
               </div>
             </div>
+          </GlassPanel>
 
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-green-100 dark:bg-green-900/20 rounded-lg">
-                <Users className="h-5 w-5 text-green-600" />
+          <GlassPanel className="border-white/10 p-6 text-white">
+            <div className="flex items-center gap-4">
+              <div className="rounded-2xl border border-emerald-400/40 bg-emerald-500/20 p-4">
+                <Users className="h-6 w-6 text-emerald-200" />
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Doctores</p>
-                <p className="text-2xl font-bold">
-                  {quotaUsage.current_doctors} <span className="text-sm text-muted-foreground">/ {quotaUsage.max_doctors}</span>
+              <div className="flex-1">
+                <p className="text-sm uppercase tracking-wide text-white/60">Doctores</p>
+                <p className="mt-1 text-3xl font-bold text-white">
+                  {quotaUsage.current_doctors}
+                  <span className="text-lg text-white/50"> / {quotaUsage.max_doctors}</span>
+                </p>
+                <p className="mt-1 text-xs text-white/60">
+                  {quotaUsage.max_doctors - quotaUsage.current_doctors} disponibles
                 </p>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </GlassPanel>
+        </div>
       )}
 
       {/* Available Add-ons */}
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid gap-6 md:grid-cols-2">
         {availableAddons.map((config: AddonConfig) => {
           const currentQuantity = getActiveAddonQuantity(config.id);
           const activeAddon = addons.find(a => a.addon_type === config.id && a.status === 'active');
           const isPurchasing = purchasing === config.id;
 
           return (
-            <Card key={config.id} className="relative overflow-hidden">
-              {currentQuantity > 0 && (
-                <div className="absolute top-4 right-4">
-                  <Badge variant="default" className="flex items-center gap-1">
-                    <Check className="h-3 w-3" />
-                    Activo ({currentQuantity})
-                  </Badge>
-                </div>
-              )}
-
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <span className="text-2xl">{config.icon}</span>
-                  {config.name}
-                </CardTitle>
-                <CardDescription>{config.description}</CardDescription>
-              </CardHeader>
-
-              <CardContent className="space-y-4">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold">${config.price}</span>
-                  <span className="text-muted-foreground">MXN/mes</span>
-                </div>
-
-                {currentQuantity > 0 ? (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Cantidad actual:</span>
-                      <span className="font-semibold">{currentQuantity}</span>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => purchaseAddon(config.id, 1)}
-                        disabled={isPurchasing || currentQuantity >= config.maxQuantity}
-                        className="flex-1"
-                      >
-                        {isPurchasing ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <>
-                            <Plus className="h-4 w-4 mr-1" />
-                            Agregar +1
-                          </>
-                        )}
-                      </Button>
-
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => activeAddon && cancelAddon(activeAddon.id)}
-                        disabled={isPurchasing}
-                      >
-                        <X className="h-4 w-4 mr-1" />
-                        Cancelar
-                      </Button>
-                    </div>
-
-                    <p className="text-xs text-muted-foreground">
-                      Total: ${(currentQuantity * config.price).toLocaleString('es-MX')} MXN/mes
-                    </p>
+            <motion.div
+              key={config.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <GlassPanel className="relative border-white/10 p-6 text-white transition hover:border-white/30">
+                {currentQuantity > 0 && (
+                  <div className="absolute right-4 top-4">
+                    <Badge className="border-emerald-300/60 bg-emerald-500/15 text-emerald-50">
+                      <Check className="mr-1 h-3 w-3" />
+                      Activo ({currentQuantity})
+                    </Badge>
                   </div>
-                ) : (
-                  <Button
-                    onClick={() => purchaseAddon(config.id, 1)}
-                    disabled={isPurchasing}
-                    className="w-full"
-                  >
-                    {isPurchasing ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Procesando...
-                      </>
-                    ) : (
-                      <>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Agregar Add-on
-                      </>
-                    )}
-                  </Button>
                 )}
 
-                <p className="text-xs text-muted-foreground text-center">
-                  Máximo {config.maxQuantity} unidades
-                </p>
-              </CardContent>
-            </Card>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-3">
+                      <span className="text-3xl">{config.icon}</span>
+                      <h3 className="text-xl font-semibold">{config.name}</h3>
+                    </div>
+                    <p className="text-sm text-white/60">{config.description}</p>
+                  </div>
+
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-4xl font-bold text-purple-200">${config.price}</span>
+                    <span className="text-white/50">MXN/mes</span>
+                  </div>
+
+                  {currentQuantity > 0 ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                        <span className="text-sm text-white/70">Cantidad actual:</span>
+                        <span className="text-lg font-semibold">{currentQuantity}</span>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => purchaseAddon(config.id, 1)}
+                          disabled={isPurchasing || currentQuantity >= config.maxQuantity}
+                          className="aura-cta aura-cta--ghost flex-1"
+                        >
+                          {isPurchasing ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <>
+                              <Plus className="h-4 w-4" />
+                              Agregar +1
+                            </>
+                          )}
+                        </button>
+
+                        <button
+                          onClick={() => activeAddon && cancelAddon(activeAddon.id)}
+                          disabled={isPurchasing}
+                          className="aura-cta aura-cta--ghost border-rose-400/40 text-rose-100 hover:bg-rose-500/10"
+                        >
+                          <X className="h-4 w-4" />
+                          Cancelar
+                        </button>
+                      </div>
+
+                      <p className="text-center text-xs text-white/50">
+                        Total: ${(currentQuantity * config.price).toLocaleString('es-MX')} MXN/mes
+                      </p>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => purchaseAddon(config.id, 1)}
+                      disabled={isPurchasing}
+                      className="aura-cta aura-cta--primary w-full"
+                    >
+                      {isPurchasing ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Procesando...
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="h-4 w-4" />
+                          Agregar Add-on
+                        </>
+                      )}
+                    </button>
+                  )}
+
+                  <p className="text-center text-xs text-white/50">
+                    Máximo {config.maxQuantity} unidades permitidas
+                  </p>
+                </div>
+              </GlassPanel>
+            </motion.div>
           );
         })}
       </div>
 
       {/* Help Text */}
-      <Card className="bg-muted/50">
-        <CardContent className="pt-6">
-          <p className="text-sm text-muted-foreground">
-            💡 <strong>Nota:</strong> Los add-ons se facturan mensualmente y se suman a tu suscripción actual.
-            Puedes cancelarlos en cualquier momento y el cargo se detendrá al final del periodo de facturación actual.
-          </p>
-        </CardContent>
-      </Card>
+      <GlassPanel className="border-purple-400/30 bg-purple-500/10 p-6 text-white">
+        <div className="flex gap-4">
+          <div className="text-2xl">💡</div>
+          <div className="flex-1 space-y-1">
+            <p className="font-semibold">Información importante</p>
+            <p className="text-sm text-white/70">
+              Los add-ons se facturan mensualmente y se suman a tu suscripción actual.
+              Puedes cancelarlos en cualquier momento y el cargo se detendrá al final del periodo de facturación actual.
+            </p>
+          </div>
+        </div>
+      </GlassPanel>
     </div>
   );
 }
