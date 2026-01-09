@@ -118,12 +118,25 @@ export default function WhatsAppConfigPage() {
           </div>
           <span className="text-sm uppercase tracking-[0.3em] text-white/60">WhatsApp Business</span>
         </div>
-        <h1 className="text-3xl font-semibold text-white md:text-4xl mb-4">
-          Conecta WhatsApp con tu Consultorio
-        </h1>
-        <p className="text-base text-white/80 max-w-3xl">
-          Elige el método perfecto para tu consultorio. Desde links directos gratuitos hasta integraciones automáticas completas.
-        </p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-semibold text-white md:text-4xl mb-4">
+              Conecta WhatsApp con tu Consultorio
+            </h1>
+            <p className="text-base text-white/80 max-w-3xl">
+              Elige el método perfecto para tu consultorio. Desde links directos gratuitos hasta integraciones automáticas completas.
+            </p>
+          </div>
+          {settings.whatsapp_enabled && settings.whatsapp_phone && (
+            <a
+              href="/dashboard/settings/whatsapp/test"
+              className="flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-2xl bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-400/30 text-yellow-100 text-sm font-medium transition-all"
+            >
+              <Sparkles className="h-4 w-4" />
+              Probar WhatsApp
+            </a>
+          )}
+        </div>
       </GlassPanel>
 
       <Tabs defaultValue={settings.whatsapp_config_level || 'basic'} className="space-y-6">
