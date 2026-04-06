@@ -41,8 +41,13 @@ import {
   Activity,
   DollarSign,
   Pencil,
-  Trash2
+  Trash2,
+  ClipboardCopy,
+  Star,
+  PenLine,
+  Link2
 } from 'lucide-react';
+import { toast } from 'sonner';
 import PatientBilling from '@/components/billing/patient-billing';
 import PendingBilling from '@/components/billing/pending-billing';
 import { formatPaymentMethod } from '@/app/lib/payment';
@@ -136,6 +141,9 @@ export default function PatientDetailsClient({ patientId }: PatientDetailsClient
   const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
   const [sendFormModalOpen, setSendFormModalOpen] = useState(false);
   const [medicalTimelineOpen, setMedicalTimelineOpen] = useState(false);
+  const [intakeForms, setIntakeForms] = useState<{ id: string; title: string; is_active: boolean }[]>([]);
+  const [npsSurveys, setNpsSurveys] = useState<{ id: string; title: string; is_active: boolean }[]>([]);
+  const [docTemplates, setDocTemplates] = useState<{ id: string; title: string; is_active: boolean }[]>([]);
   const [consultationWizardOpen, setConsultationWizardOpen] = useState(false);
 
   useEffect(() => {
@@ -239,6 +247,16 @@ export default function PatientDetailsClient({ patientId }: PatientDetailsClient
         console.warn('⚠️ Could not load allergies');
         setAllergies([]);
       }
+
+      // Fetch intake forms, NPS surveys, doc templates (for Formularios tab)
+      const [intakeRes, npsRes, docsRes] = await Promise.all([
+        fetch('/api/intake-forms'),
+        fetch('/api/nps'),
+        fetch('/api/documents'),
+      ]);
+      if (intakeRes.ok) { const d = await intakeRes.json(); setIntakeForms(d.forms || []); }
+      if (npsRes.ok)    { const d = await npsRes.json();    setNpsSurveys(d.surveys || []); }
+      if (docsRes.ok)   { const d = await docsRes.json();   setDocTemplates(d.templates || []); }
 
       // Fetch current medications
       console.log(`🔥 PatientDetailsClient: Fetching medications for patient ${patientId}`);
@@ -584,12 +602,12 @@ export default function PatientDetailsClient({ patientId }: PatientDetailsClient
                   </Link>
                 </Button>
                 <Button
-                  onClick={() => setSendFormModalOpen(true)}
+                  onClick={() => setActiveTab('formularios')}
                   variant="outline"
                   className="h-12 w-full justify-start border-white/15 bg-white/5 text-white hover:bg-white/10"
                 >
-                  <FileText className="mr-2 h-4 w-4" />
-                  Enviar Formulario
+                  <Link2 className="mr-2 h-4 w-4" />
+                  Formularios / Links
                 </Button>
                 <Button
                   asChild
@@ -606,7 +624,7 @@ export default function PatientDetailsClient({ patientId }: PatientDetailsClient
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6">
-            <TabsList className="grid w-full grid-cols-5 rounded-2xl border border-white/10 bg-white/5 p-1 text-white/70">
+            <TabsList className="grid w-full grid-cols-6 rounded-2xl border border-white/10 bg-white/5 p-1 text-white/70">
               <TabsTrigger value="treatments" className="rounded-xl px-3 py-2 text-sm font-medium transition hover:bg-white/10 data-[state=active]:bg-white/15 data-[state=active]:text-white">
                 <Stethoscope className="h-4 w-4" />
                 Tratamientos
@@ -626,6 +644,10 @@ export default function PatientDetailsClient({ patientId }: PatientDetailsClient
               <TabsTrigger value="photos" className="rounded-xl px-3 py-2 text-sm font-medium transition hover:bg-white/10 data-[state=active]:bg-white/15 data-[state=active]:text-white">
                 <Camera className="h-4 w-4" />
                 Fotos
+              </TabsTrigger>
+              <TabsTrigger value="formularios" className="rounded-xl px-3 py-2 text-sm font-medium transition hover:bg-white/10 data-[state=active]:bg-white/15 data-[state=active]:text-white">
+                <Link2 className="h-4 w-4" />
+                Formularios
               </TabsTrigger>
             </TabsList>
 
@@ -834,6 +856,103 @@ export default function PatientDetailsClient({ patientId }: PatientDetailsClient
                   </div>
                 )}
               </GlassPanel>
+            </TabsContent>
+
+            <TabsContent value="formularios">
+              <div className="space-y-6">
+                {/* Intake Forms */}
+                <GlassPanel className="border-white/10 bg-white/5 p-6">
+                  <div className="flex items-center gap-3 mb-5">
+                    <div className="rounded-2xl bg-violet-400/20 p-2 text-violet-100"><FileText className="h-4 w-4" /></div>
+                    <p className="text-lg font-semibold text-white">Formularios de Intake</p>
+                  </div>
+                  {intakeForms.filter(f => f.is_active).length === 0 ? (
+                    <p className="text-white/50 text-sm">No hay formularios activos. <a href="/intake-forms" className="text-violet-300 hover:underline">Crear uno</a>.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {intakeForms.filter(f => f.is_active).map(form => {
+                        const url = `${window.location.origin}/f/${form.id}?pid=${patientId}`;
+                        return (
+                          <div key={form.id} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+                            <span className="text-white/90 text-sm">{form.title}</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="gap-2 border-white/20 bg-white/5 text-white hover:bg-white/15"
+                              onClick={() => { navigator.clipboard.writeText(url); toast.success('Enlace copiado'); }}
+                            >
+                              <ClipboardCopy className="h-3.5 w-3.5" />
+                              Copiar enlace
+                            </Button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </GlassPanel>
+
+                {/* NPS Surveys */}
+                <GlassPanel className="border-white/10 bg-white/5 p-6">
+                  <div className="flex items-center gap-3 mb-5">
+                    <div className="rounded-2xl bg-emerald-400/20 p-2 text-emerald-100"><Star className="h-4 w-4" /></div>
+                    <p className="text-lg font-semibold text-white">Encuestas NPS</p>
+                  </div>
+                  {npsSurveys.filter(s => s.is_active).length === 0 ? (
+                    <p className="text-white/50 text-sm">No hay encuestas activas. <a href="/nps" className="text-emerald-300 hover:underline">Crear una</a>.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {npsSurveys.filter(s => s.is_active).map(survey => {
+                        const url = `${window.location.origin}/nps/${survey.id}?pid=${patientId}`;
+                        return (
+                          <div key={survey.id} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+                            <span className="text-white/90 text-sm">{survey.title}</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="gap-2 border-white/20 bg-white/5 text-white hover:bg-white/15"
+                              onClick={() => { navigator.clipboard.writeText(url); toast.success('Enlace copiado'); }}
+                            >
+                              <ClipboardCopy className="h-3.5 w-3.5" />
+                              Copiar enlace
+                            </Button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </GlassPanel>
+
+                {/* Document Templates */}
+                <GlassPanel className="border-white/10 bg-white/5 p-6">
+                  <div className="flex items-center gap-3 mb-5">
+                    <div className="rounded-2xl bg-sky-400/20 p-2 text-sky-100"><PenLine className="h-4 w-4" /></div>
+                    <p className="text-lg font-semibold text-white">Consentimientos Firmables</p>
+                  </div>
+                  {docTemplates.filter(d => d.is_active).length === 0 ? (
+                    <p className="text-white/50 text-sm">No hay documentos activos. <a href="/documents" className="text-sky-300 hover:underline">Crear uno</a>.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {docTemplates.filter(d => d.is_active).map(doc => {
+                        const url = `${window.location.origin}/sign/${doc.id}?pid=${patientId}`;
+                        return (
+                          <div key={doc.id} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+                            <span className="text-white/90 text-sm">{doc.title}</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="gap-2 border-white/20 bg-white/5 text-white hover:bg-white/15"
+                              onClick={() => { navigator.clipboard.writeText(url); toast.success('Enlace copiado'); }}
+                            >
+                              <ClipboardCopy className="h-3.5 w-3.5" />
+                              Copiar enlace
+                            </Button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </GlassPanel>
+              </div>
             </TabsContent>
 
           </Tabs>
