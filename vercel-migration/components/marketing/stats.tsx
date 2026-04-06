@@ -1,19 +1,19 @@
 export function MomentumStats() {
   const stats = [
     {
-      label: 'Reducción de no-shows',
+      label: 'Reducción de inasistencias',
       value: '-78%',
-      detail: 'Con anticipos online y recordatorios automáticos',
+      detail: 'Con anticipos online y recordatorios automáticos por WhatsApp',
     },
     {
-      label: 'Tu ganancia por cada pago',
-      value: '97%',
-      detail: 'Solo cobramos 3% + transacción bancaria',
+      label: 'Horas administrativas ahorradas',
+      value: '18 h/sem',
+      detail: 'Sin llamadas de confirmación ni seguimiento manual',
     },
     {
-      label: 'Inventario actualizado',
-      value: 'Tiempo real',
-      detail: 'Alertas cuando se acaban toxinas o materiales',
+      label: 'Aumento en facturación anual',
+      value: '+120%',
+      detail: 'Citas llenas, lista de espera activa y cobros automatizados',
     },
   ]
 

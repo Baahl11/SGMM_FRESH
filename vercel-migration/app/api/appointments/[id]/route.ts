@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, supabaseAdmin } from '@/lib/supabase';
+import { createClient as createServerClient } from '@/lib/supabase/server';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const params = await context.params;
   try {
     const supabase = createClient();
     const { id } = params;
@@ -39,8 +41,9 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const params = await context.params;
   try {
     const body = await request.json();
     const { id } = params;
@@ -165,23 +168,21 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
-  console.log('🗑️ [API ENDPOINT] DELETE request received');
-  console.log('🗑️ [API ENDPOINT] Params:', params);
-  
+  const params = await context.params;
   try {
     const { id } = params;
-    console.log('🗑️ [API ENDPOINT] Appointment ID to delete:', id);
-    
-    const supabase = createClient();
-    console.log('🗑️ [API ENDPOINT] Supabase client created');
-
-    console.log('🗑️ [API ENDPOINT] Executing DELETE query...');
-    const { error } = await supabase
+    const supabase = await createServerClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const { error } = await supabaseAdmin
       .from('appointments')
       .delete()
-      .eq('id', id);
+      .eq('id', id)
+      .eq('user_id', user.id);
 
     if (error) {
       console.error('❌ [API ENDPOINT] Supabase error:', error);
@@ -190,8 +191,6 @@ export async function DELETE(
         { status: 500 }
       );
     }
-
-    console.log('✅ [API ENDPOINT] Appointment deleted successfully');
     return NextResponse.json({ 
       message: 'Appointment deleted successfully',
       id: id

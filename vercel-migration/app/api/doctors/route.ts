@@ -8,11 +8,7 @@ export async function GET() {
 
     // Verificar autenticación
     const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    console.log('🔥 [doctors] GET request, user:', user?.id);
-    
     if (authError || !user) {
-      console.log('❌ [doctors] Unauthorized');
       return NextResponse.json(
         { error: 'No autorizado' },
         { status: 401 }
@@ -33,8 +29,6 @@ export async function GET() {
         { status: 500 }
       )
     }
-
-    console.log(`✅ [doctors] Found ${doctors?.length || 0} doctors`);
     // Return array directly for compatibility with frontend
     return NextResponse.json(doctors || [])
   } catch (error) {

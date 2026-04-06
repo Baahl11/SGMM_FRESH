@@ -4,8 +4,9 @@ import { NextResponse } from 'next/server';
 // GET /api/submissions/[id] - Obtener detalles de una submission
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const params = await context.params;
   try {
     const supabase = await createClient();
 
@@ -76,8 +77,9 @@ export async function GET(
 // PUT /api/submissions/[id] - Actualizar estado de revisión
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const params = await context.params;
   try {
     const supabase = await createClient();
 

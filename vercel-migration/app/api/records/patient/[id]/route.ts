@@ -3,11 +3,11 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createClient()
-    const patientId = params.id
+    const { id: patientId } = await params
 
     if (!patientId) {
       return NextResponse.json({ error: 'Patient ID is required' }, { status: 400 })

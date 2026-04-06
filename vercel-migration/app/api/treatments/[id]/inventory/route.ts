@@ -8,25 +8,19 @@ import { getAuthUser } from '@/lib/auth-server';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const params = await context.params;
   try {
     const treatmentId = params.id;
-    console.log(`🔥 GET /api/treatments/${treatmentId}/inventory - Fetching treatment items...`);
-
     // Authenticate user
     const user = await getAuthUser();
     if (!user) {
       console.error('❌ Unauthorized: No user found');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    console.log('✅ Authenticated user:', user.id);
-
     const supabase = await createClient();
-    console.log('[Inventory GET] Supabase client created');
-
     // Fetch treatment inventory items
-    console.log('[Inventory GET] Querying treatment_inventory_items...');
     const { data: items, error } = await supabase
       .from('treatment_inventory_items')
       .select('*')
@@ -41,18 +35,13 @@ export async function GET(
         { status: 500 }
       );
     }
-
-    console.log(`[Inventory GET] Raw items fetched: ${items ? items.length : 0}`);
-
     // If no items, return empty array
     if (!items || items.length === 0) {
-      console.log(`✅ No inventory items for treatment ${treatmentId}`);
       return NextResponse.json([]);
     }
 
     // Fetch inventory_items details for each item
     const itemIds = items.map(item => item.inventory_item_id);
-    console.log('[Inventory GET] Inventory item IDs found:', itemIds);
     const { data: inventoryDetails, error: invError } = await supabase
       .from('inventory_items')
       .select('id, nombre, descripcion, stock_actual, stock_minimo, precio_unitario')
@@ -70,8 +59,6 @@ export async function GET(
       ...item,
       inventory_items: inventoryDetails?.find(inv => inv.id === item.inventory_item_id) || null
     }));
-
-    console.log(`✅ Found ${items.length} inventory items for treatment ${treatmentId}`);
     return NextResponse.json(itemsWithDetails);
   } catch (error) {
     console.error('❌ API error:', error);
@@ -92,17 +79,13 @@ export async function GET(
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const params = await context.params;
   try {
     const treatmentId = params.id; // UUID string, no parseInt!
     const body = await request.json();
     const { inventory_item_id, cantidad_requerida } = body;
-
-    console.log(`🔥 POST /api/treatments/${treatmentId}/inventory`);
-    console.log('📦 Request body:', body);
-    console.log('📦 Parsed:', { inventory_item_id, cantidad_requerida });
-
     // Validate input
     if (!inventory_item_id || !cantidad_requerida) {
       console.error('❌ Missing fields:', { inventory_item_id, cantidad_requerida });
@@ -127,10 +110,7 @@ export async function POST(
     }
 
     const supabase = await createClient();
-    console.log('[Inventory POST] Supabase client created');
-
     // Verify that inventory_item exists
-    console.log('[Inventory POST] Verifying inventory item exists:', inventory_item_id);
     const { data: inventoryItem, error: itemError } = await supabase
       .from('inventory_items')
       .select('id, nombre')
@@ -149,12 +129,6 @@ export async function POST(
     }
 
     // Insert treatment_inventory_item
-    console.log('[Inventory POST] Inserting treatment_inventory_item with payload:', {
-      treatment_id: treatmentId,
-      inventory_item_id,
-      cantidad_requerida,
-      user_id: user.id,
-    });
     const { data: newItem, error: insertError } = await supabase
       .from('treatment_inventory_items')
       .insert({
@@ -185,7 +159,6 @@ export async function POST(
     }
 
     // Fetch inventory item details separately
-    console.log('[Inventory POST] Fetching inventory details for:', inventory_item_id);
     const { data: inventoryDetails, error: detailsError } = await supabase
       .from('inventory_items')
       .select('id, nombre, descripcion, stock_actual, stock_minimo, precio_unitario')
@@ -197,9 +170,6 @@ export async function POST(
       ...newItem,
       inventory_items: inventoryDetails || null
     };
-
-    console.log('✅ Treatment inventory item assigned successfully:', newItem.id);
-    console.log('[Inventory POST] Final result payload:', result);
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
     console.error('❌ API error:', error);

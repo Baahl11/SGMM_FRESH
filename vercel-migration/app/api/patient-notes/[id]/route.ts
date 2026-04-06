@@ -4,8 +4,9 @@ import { NextRequest, NextResponse } from 'next/server';
 // PUT - Actualizar nota
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const params = await context.params;
   const supabase = await createClient();
   
   try {
@@ -44,8 +45,6 @@ export async function PUT(
       console.error('❌ Error updating patient note:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
-
-    console.log(`✅ Updated note ${params.id}`);
     return NextResponse.json(updatedNote);
 
   } catch (error) {
@@ -57,8 +56,9 @@ export async function PUT(
 // DELETE - Eliminar nota
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const params = await context.params;
   const supabase = await createClient();
   
   try {
@@ -78,8 +78,6 @@ export async function DELETE(
       console.error('❌ Error deleting patient note:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
-
-    console.log(`✅ Deleted note ${params.id}`);
     return NextResponse.json({ message: 'Nota eliminada exitosamente' });
 
   } catch (error) {

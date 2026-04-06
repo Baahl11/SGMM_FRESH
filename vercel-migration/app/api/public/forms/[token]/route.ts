@@ -4,8 +4,9 @@ import { NextResponse } from 'next/server';
 // GET /api/public/forms/[token] - Obtener formulario público (sin auth)
 export async function GET(
   request: Request,
-  { params }: { params: { token: string } }
+  context: { params: Promise<{ token: string }> }
 ) {
+  const params = await context.params;
   try {
     const supabase = await createClient();
 
@@ -94,8 +95,9 @@ export async function GET(
 // POST /api/public/forms/[token] - Enviar respuestas del formulario (sin auth)
 export async function POST(
   request: Request,
-  { params }: { params: { token: string } }
+  context: { params: Promise<{ token: string }> }
 ) {
+  const params = await context.params;
   try {
     const supabase = await createClient();
 

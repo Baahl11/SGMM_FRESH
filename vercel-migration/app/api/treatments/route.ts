@@ -40,9 +40,6 @@ export async function GET(request: NextRequest) {
     query = query.order('created_at', { ascending: false });
 
     const { data: treatments, error } = await query;
-
-    console.log("📦 /api/treatments returning", treatments?.length ?? 0, "rows for user", user.id);
-
     if (error) {
       console.error('Error fetching treatments:', error);
       return NextResponse.json({ error: 'Error fetching treatments' }, { status: 500 });
@@ -66,8 +63,6 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    console.log('📦 Received body:', JSON.stringify(body, null, 2));
-    
     const { nombre, descripcion, precio, costo_unitario, duracion_minutos, categoria, activo = true, category, tags } = body;
 
     // Validate required fields (descripcion is optional)
@@ -108,9 +103,6 @@ export async function POST(request: NextRequest) {
     if (tags && Array.isArray(tags)) {
       insertData.tags = tags;
     }
-
-    console.log('💾 Attempting to insert:', JSON.stringify(insertData, null, 2));
-
     // Insert new treatment with user_id
     const { data: treatment, error } = await supabase
       .from('treatments')
@@ -133,8 +125,6 @@ export async function POST(request: NextRequest) {
         code: error.code
       }, { status: 500 });
     }
-
-    console.log('✅ Treatment created successfully:', treatment?.id);
     return NextResponse.json(treatment, { status: 201 });
 
   } catch (error: any) {

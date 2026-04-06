@@ -17,8 +17,9 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const params = await context.params;
   try {
     const supabase = await createClient();
     
@@ -33,9 +34,6 @@ export async function GET(
     }
 
     const id = params.id;
-
-    console.log(`🔍 [GET /api/gastos-variables/${id}] Buscando gasto...`);
-
     // Buscar gasto
     const { data, error } = await supabase
       .from('variable_expenses')
@@ -60,9 +58,6 @@ export async function GET(
         { status: 500 }
       );
     }
-
-    console.log(`✅ [GET /api/gastos-variables/${id}] Gasto encontrado`);
-
     return NextResponse.json(data);
 
   } catch (error) {
@@ -82,8 +77,9 @@ export async function GET(
  */
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const params = await context.params;
   try {
     const supabase = await createClient();
     
@@ -99,9 +95,6 @@ export async function PUT(
 
     const id = params.id;
     const body = await request.json();
-
-    console.log(`📝 [PUT /api/gastos-variables/${id}] Actualizando gasto:`, body);
-
     // Verificar que el gasto existe y pertenece al usuario
     const { data: existingGasto, error: fetchError } = await supabase
       .from('variable_expenses')
@@ -177,9 +170,6 @@ export async function PUT(
         { status: 500 }
       );
     }
-
-    console.log(`✅ [PUT /api/gastos-variables/${id}] Gasto actualizado`);
-
     return NextResponse.json(data);
 
   } catch (error) {
@@ -198,8 +188,9 @@ export async function PUT(
  */
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const params = await context.params;
   try {
     const supabase = await createClient();
     
@@ -214,9 +205,6 @@ export async function DELETE(
     }
 
     const id = params.id;
-
-    console.log(`🗑️  [DELETE /api/gastos-variables/${id}] Eliminando gasto...`);
-
     // Verificar que el gasto existe y pertenece al usuario
     const { data: existingGasto, error: fetchError } = await supabase
       .from('variable_expenses')
@@ -248,9 +236,6 @@ export async function DELETE(
         { status: 500 }
       );
     }
-
-    console.log(`✅ [DELETE /api/gastos-variables/${id}] Gasto eliminado (soft delete)`);
-
     return NextResponse.json({ 
       message: 'Gasto eliminado exitosamente',
       id 

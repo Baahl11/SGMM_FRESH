@@ -76,9 +76,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    console.log('📦 Creating promotion for user:', user.id);
-
     // Create promotion with user_id
     const { data: promotion, error: promotionError } = await supabase
       .from('promotions')

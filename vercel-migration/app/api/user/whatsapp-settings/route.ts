@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { getAuthUser } from '@/lib/auth-server';
 
 /**
  * GET /api/user/whatsapp-settings
@@ -8,17 +7,21 @@ import { getAuthUser } from '@/lib/auth-server';
  */
 export async function GET() {
   try {
-    const user = await getAuthUser();
-    if (!user) {
+    const supabase = await createClient();
+    
+    // Get authenticated user directly from Supabase
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.error('Auth error:', authError);
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const supabase = await createClient();
     const { data: profile, error } = await supabase
       .from('user_profiles')
       .select('whatsapp_phone, whatsapp_enabled, whatsapp_default_message, whatsapp_config_level')
-      .eq('id', user.id)
-      .single();
+      .eq('user_id', user.id)
+      .maybeSingle();
 
     if (error) {
       console.error('Error fetching WhatsApp settings:', error);
@@ -43,13 +46,32 @@ export async function GET() {
  */
 export async function POST(request: NextRequest) {
   try {
-    const user = await getAuthUser();
-    if (!user) {
+    const supabase = await createClient();
+    
+    // Get authenticated user directly from Supabase
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.error('Auth error:', authError);
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await request.json();
-    const { whatsapp_phone, whatsapp_enabled, whatsapp_default_message, whatsapp_config_level } = body;
+    const { 
+      whatsapp_phone, 
+      whatsapp_enabled, 
+      whatsapp_default_message, 
+      whatsapp_config_level,
+      whatsapp_provider,
+      whatsapp_twilio_account_sid,
+      whatsapp_twilio_auth_token,
+      whatsapp_twilio_phone_number,
+      whatsapp_twilio_messaging_service_sid,
+      // Meta WhatsApp Cloud API
+      whatsapp_phone_number_id,
+      whatsapp_business_account_id,
+      whatsapp_access_token
+    } = body;
 
     // Validate phone format if provided
     if (whatsapp_phone) {
@@ -62,21 +84,58 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const supabase = await createClient();
+    // First check if profile exists
+    const { data: existingProfile } = await supabase
+      .from('user_profiles')
+      .select('user_id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (!existingProfile) {
+      return NextResponse.json(
+        { error: 'Perfil de usuario no encontrado. Por favor contacta soporte.' },
+        { status: 404 }
+      );
+    }
+
+    // Build update object dynamically to avoid updating undefined fields
+    const updateData: any = {
+      updated_at: new Date().toISOString(),
+    };
+
+    // Basic fields
+    if (whatsapp_phone !== undefined) updateData.whatsapp_phone = whatsapp_phone || null;
+    if (whatsapp_enabled !== undefined) updateData.whatsapp_enabled = whatsapp_enabled;
+    if (whatsapp_default_message !== undefined) updateData.whatsapp_default_message = whatsapp_default_message;
+    if (whatsapp_config_level !== undefined) updateData.whatsapp_config_level = whatsapp_config_level;
+    if (whatsapp_provider !== undefined) updateData.whatsapp_provider = whatsapp_provider;
+
+    // Twilio fields
+    if (whatsapp_twilio_account_sid !== undefined) updateData.whatsapp_twilio_account_sid = whatsapp_twilio_account_sid || null;
+    if (whatsapp_twilio_auth_token !== undefined) updateData.whatsapp_twilio_auth_token = whatsapp_twilio_auth_token || null;
+    if (whatsapp_twilio_phone_number !== undefined) updateData.whatsapp_twilio_phone_number = whatsapp_twilio_phone_number || null;
+    if (whatsapp_twilio_messaging_service_sid !== undefined) updateData.whatsapp_twilio_messaging_service_sid = whatsapp_twilio_messaging_service_sid || null;
+
+    // Meta WhatsApp Cloud API fields
+    if (whatsapp_phone_number_id !== undefined) updateData.whatsapp_phone_number_id = whatsapp_phone_number_id || null;
+    if (whatsapp_business_account_id !== undefined) updateData.whatsapp_business_account_id = whatsapp_business_account_id || null;
+    if (whatsapp_access_token !== undefined) updateData.whatsapp_access_token = whatsapp_access_token || null;
+
+    console.log('Updating user_profiles with data:', JSON.stringify(updateData, null, 2));
+
     const { error } = await supabase
       .from('user_profiles')
-      .update({
-        whatsapp_phone: whatsapp_phone || null,
-        whatsapp_enabled: whatsapp_enabled || false,
-        whatsapp_default_message: whatsapp_default_message || '¡Hola! Me contacto desde AgendaMedPro',
-        whatsapp_config_level: whatsapp_config_level || 'basic',
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', user.id);
+      .update(updateData)
+      .eq('user_id', user.id);
 
     if (error) {
-      console.error('Error updating WhatsApp settings:', error);
-      return NextResponse.json({ error: 'Error updating settings' }, { status: 500 });
+      console.error('Error updating WhatsApp settings:', JSON.stringify(error, null, 2));
+      return NextResponse.json({ 
+        error: 'Error updating settings', 
+        details: error.message,
+        hint: error.hint,
+        code: error.code
+      }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });

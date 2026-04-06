@@ -9,8 +9,9 @@ import { isValidRFC, isValidCodigoPostal } from '@/lib/types/facturama';
 // GET - Retrieve fiscal data for a patient
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const params = await context.params;
   try {
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -43,8 +44,9 @@ export async function GET(
 // POST - Create new fiscal data for a patient
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const params = await context.params;
   try {
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();

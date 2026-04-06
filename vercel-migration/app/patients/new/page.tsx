@@ -108,8 +108,6 @@ export default function NewPatientPage() {
   const loadPatients = async () => {
     setLoadingPatients(true);
     try {
-      console.log('🔥 loadPatients: Loading patients...');
-      
       const response = await fetch('/api/patients');
       
       if (!response.ok) {
@@ -119,10 +117,8 @@ export default function NewPatientPage() {
       const data = await response.json();
       
       if (Array.isArray(data)) {
-        console.log(`✅ Patients loaded: ${data.length} patients`);
         setPatients(data);
       } else {
-        console.log('⚠️ No patients data received');
         setPatients([]);
       }
     } catch (error) {
@@ -136,8 +132,6 @@ export default function NewPatientPage() {
   const loadTreatments = async () => {
     setLoadingTreatments(true);
     try {
-      console.log('🔥 loadTreatments: Loading treatments...');
-      
       const response = await fetch('/api/treatments');
       
       if (!response.ok) {
@@ -147,10 +141,8 @@ export default function NewPatientPage() {
       const data = await response.json();
       
       if (Array.isArray(data)) {
-        console.log(`✅ Treatments loaded: ${data.length} treatments`);
         setTreatments(data);
       } else {
-        console.log('⚠️ No treatments data received');
         setTreatments([]);
       }
     } catch (error) {
@@ -166,8 +158,6 @@ export default function NewPatientPage() {
     setLoading(true);
 
     try {
-      console.log('🔥 handleNewPatientSubmit: Creating new patient...');
-      
       const response = await fetch('/api/patients', {
         method: 'POST',
         headers: {
@@ -181,8 +171,6 @@ export default function NewPatientPage() {
       }
 
       const result = await response.json();
-      console.log('✅ Patient created successfully:', result);
-
       alert('Paciente creado exitosamente');
       router.push('/patients');
     } catch (error) {
@@ -209,8 +197,6 @@ export default function NewPatientPage() {
     setLoading(true);
 
     try {
-      console.log('🔥 handleMultiTreatmentSubmit: Creating treatments...');
-      
       for (const form of treatmentForms) {
         const response = await fetch('/api/records', {
           method: 'POST',
@@ -227,8 +213,6 @@ export default function NewPatientPage() {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
       }
-
-      console.log('✅ All treatments created successfully');
       alert('Tratamientos agregados exitosamente');
       router.push('/patients');
     } catch (error) {

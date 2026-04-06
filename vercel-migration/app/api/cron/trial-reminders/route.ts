@@ -31,9 +31,6 @@ export async function GET(request: NextRequest) {
       console.warn('⚠️  Unauthorized cron attempt');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    console.log('🔄 Starting trial reminder check...');
-
     // Calculate target date: 2 days from now
     const targetDate = new Date();
     targetDate.setDate(targetDate.getDate() + 2);
@@ -67,16 +64,12 @@ export async function GET(request: NextRequest) {
     }
 
     if (!expiringTrials || expiringTrials.length === 0) {
-      console.log('✅ No trials expiring in 2 days');
       return NextResponse.json({ 
         success: true, 
         message: 'No trials to remind',
         count: 0 
       });
     }
-
-    console.log(`📧 Found ${expiringTrials.length} trials expiring in 2 days`);
-
     // Send reminder emails
     const results = [];
     for (const trial of expiringTrials) {
@@ -84,9 +77,6 @@ export async function GET(request: NextRequest) {
         const user = trial.users as any;
         const userName = user.raw_user_meta_data?.full_name || user.email?.split('@')[0] || 'Usuario';
         const planName = trial.plan === 'pro' ? 'Profesional' : 'Básico';
-        
-        console.log(`📨 Sending reminder to ${user.email} (${userName})...`);
-
         const emailResult = await emailService.sendTrialExpirationReminder(
           user.email,
           userName,
@@ -101,9 +91,6 @@ export async function GET(request: NextRequest) {
           success: emailResult.success,
           plan: trial.plan
         });
-
-        console.log(`✅ Reminder sent to ${user.email}`);
-
         // Add small delay to avoid rate limiting
         await new Promise(resolve => setTimeout(resolve, 500));
 
@@ -118,8 +105,6 @@ export async function GET(request: NextRequest) {
     }
 
     const successCount = results.filter(r => r.success).length;
-    console.log(`✅ Trial reminders complete: ${successCount}/${results.length} sent`);
-
     return NextResponse.json({
       success: true,
       message: `Sent ${successCount} trial reminders`,

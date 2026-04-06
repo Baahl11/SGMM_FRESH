@@ -47,9 +47,6 @@ export async function POST(request: NextRequest) {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
-        
-        console.log('✅ Checkout session completed:', session.id);
-
         // Actualizar el depósito a "processing"
         const { data: deposit } = await supabase
           .from('booking_deposits')
@@ -66,8 +63,6 @@ export async function POST(request: NextRequest) {
             .from('public_bookings')
             .update({ deposit_status: 'paid' })
             .eq('id', deposit.booking_id);
-
-          console.log('✅ Deposit marked as processing:', deposit.id);
         }
 
         break;
@@ -75,9 +70,6 @@ export async function POST(request: NextRequest) {
 
       case 'payment_intent.succeeded': {
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
-        
-        console.log('✅ Payment succeeded:', paymentIntent.id);
-
         // Obtener detalles del método de pago
         const paymentMethod = paymentIntent.payment_method
           ? await stripe.paymentMethods.retrieve(paymentIntent.payment_method as string)
@@ -134,14 +126,10 @@ export async function POST(request: NextRequest) {
                   send_whatsapp: true,
                 }),
               });
-
-              console.log('✅ Confirmation notification sent for booking:', booking.id);
             } catch (notifError) {
               console.error('Error sending notification:', notifError);
             }
           }
-
-          console.log('✅ Deposit completed and booking confirmed:', deposit.id);
         }
 
         break;
@@ -149,9 +137,6 @@ export async function POST(request: NextRequest) {
 
       case 'payment_intent.payment_failed': {
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
-        
-        console.log('❌ Payment failed:', paymentIntent.id);
-
         // Actualizar el depósito a "failed"
         const { data: deposit } = await supabase
           .from('booking_deposits')
@@ -171,8 +156,6 @@ export async function POST(request: NextRequest) {
             .from('public_bookings')
             .update({ deposit_status: 'failed' })
             .eq('id', deposit.booking_id);
-
-          console.log('❌ Deposit marked as failed:', deposit.id);
         }
 
         break;
@@ -180,9 +163,6 @@ export async function POST(request: NextRequest) {
 
       case 'payment_intent.canceled': {
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
-        
-        console.log('🚫 Payment canceled:', paymentIntent.id);
-
         // Actualizar el depósito a "cancelled"
         const { data: deposit } = await supabase
           .from('booking_deposits')
@@ -199,15 +179,12 @@ export async function POST(request: NextRequest) {
             .from('public_bookings')
             .update({ deposit_status: 'failed' })
             .eq('id', deposit.booking_id);
-
-          console.log('🚫 Deposit marked as cancelled:', deposit.id);
         }
 
         break;
       }
 
       default:
-        console.log(`Unhandled event type: ${event.type}`);
     }
 
     return NextResponse.json({ received: true });

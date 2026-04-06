@@ -170,9 +170,6 @@ export async function DELETE(
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    console.log(`🗑️ Deleting promotion ${id} for user ${user.id}`);
-
     // Delete promotion_treatments first (foreign key constraint)
     const { error: treatmentsError } = await supabase
       .from('promotion_treatments')
@@ -183,9 +180,6 @@ export async function DELETE(
       console.error('❌ Error deleting promotion treatments:', treatmentsError);
       return NextResponse.json({ error: treatmentsError.message }, { status: 500 });
     }
-
-    console.log(`✅ Deleted promotion_treatments for promotion ${id}`);
-
     // Delete promotion (with user_id check for security)
     const { error } = await supabase
       .from('promotions')
@@ -197,9 +191,6 @@ export async function DELETE(
       console.error('❌ Error deleting promotion:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
-
-    console.log(`✅ Promotion ${id} deleted successfully`);
-
     return NextResponse.json({ success: true, message: 'Promotion deleted' });
   } catch (error) {
     console.error('💥 Error in DELETE /api/promotions/[id]:', error);

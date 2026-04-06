@@ -1,6 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
+import { trackTestimonialsView } from '@/lib/analytics/funnel-events'
 
 const testimonials = [
   {
@@ -26,6 +27,7 @@ const testimonials = [
 export function TestimonialShowcase() {
   return (
     <section className="bg-[#050b1d] py-24 text-white">
+      <motion.div onViewportEnter={trackTestimonialsView} viewport={{ once: true, amount: 0.1 }} />
       <div className="mx-auto max-w-5xl space-y-10 px-6">
         <div>
           <p className="text-sm uppercase tracking-[0.35em] text-white/50">Casos reales</p>

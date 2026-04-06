@@ -80,24 +80,24 @@ export default function InventoryItemPage() {
               Regresar
             </Button>
             <div className="flex items-center gap-3">
-              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center">
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center shadow-lg">
                 <Package className="h-6 w-6" />
               </div>
               <div>
                 {loading ? (
                   <Skeleton className="h-7 w-48" />
                 ) : (
-                  <h1 className="text-2xl font-bold text-gray-900">{item?.nombre}</h1>
+                  <h1 className="text-2xl font-bold text-white">{item?.nombre}</h1>
                 )}
-                <p className="text-sm text-gray-500">Detalle completo del consumible</p>
+                <p className="text-sm text-white/70">Detalle completo del consumible</p>
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            {item?.categoria && <Badge variant="outline">{item.categoria}</Badge>}
+            {item?.categoria && <Badge variant="outline" className="backdrop-blur-xl bg-white/10 border-white/30 text-white">{item.categoria}</Badge>}
             {item && (
-              <Badge variant="secondary">
+              <Badge variant="secondary" className="backdrop-blur-xl bg-white/10 border-white/30 text-white">
                 {item.precio_unitario.toLocaleString('es-MX', {
                   style: 'currency',
                   currency: 'MXN',
@@ -119,8 +119,8 @@ export default function InventoryItemPage() {
         </div>
 
         {error && (
-          <Card className="border-red-200 bg-red-50">
-            <CardContent className="flex items-center gap-3 py-4 text-red-700">
+          <Card className="backdrop-blur-xl bg-red-500/10 border-red-400/30">
+            <CardContent className="flex items-center gap-3 py-4 text-red-300">
               <AlertTriangle className="h-5 w-5" />
               <span>{error}</span>
             </CardContent>
@@ -128,32 +128,32 @@ export default function InventoryItemPage() {
         )}
 
         <div className="grid gap-6 md:grid-cols-3">
-          <Card>
+          <Card className="backdrop-blur-xl bg-gradient-to-br from-white/10 via-white/5 to-transparent border border-white/20">
             <CardHeader>
-              <CardTitle>Stock actual</CardTitle>
+              <CardTitle className="text-white/90">Stock actual</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               {loading ? (
                 <Skeleton className="h-8 w-32" />
               ) : (
-                <p className="text-3xl font-semibold text-gray-900">{item?.stock_actual?.toLocaleString('es-MX')}</p>
+                <p className="text-3xl font-semibold text-white">{item?.stock_actual?.toLocaleString('es-MX')}</p>
               )}
-              <div className="text-sm text-gray-500">
+              <div className="text-sm text-white/70">
                 Mínimo configurado: {item?.stock_minimo?.toLocaleString('es-MX')}
               </div>
-              <Badge variant={stockStatus.variant}>{stockStatus.label}</Badge>
+              <Badge variant={stockStatus.variant} className="backdrop-blur-xl bg-white/10 border-white/30 text-white">{stockStatus.label}</Badge>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="backdrop-blur-xl bg-gradient-to-br from-white/10 via-white/5 to-transparent border border-white/20">
             <CardHeader>
-              <CardTitle>Valor en inventario</CardTitle>
+              <CardTitle className="text-white/90">Valor en inventario</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               {loading ? (
                 <Skeleton className="h-8 w-32" />
               ) : (
-                <p className="text-3xl font-semibold text-gray-900">
+                <p className="text-3xl font-semibold text-white">
                   {monetaryValue.toLocaleString('es-MX', {
                     style: 'currency',
                     currency: 'MXN',
@@ -162,7 +162,7 @@ export default function InventoryItemPage() {
                   })}
                 </p>
               )}
-              <div className="text-sm text-gray-500">
+              <div className="text-sm text-white/70">
                 Precio unitario registrado:{' '}
                 {item?.precio_unitario?.toLocaleString('es-MX', {
                   style: 'currency',
@@ -174,11 +174,11 @@ export default function InventoryItemPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="backdrop-blur-xl bg-gradient-to-br from-white/10 via-white/5 to-transparent border border-white/20">
             <CardHeader>
-              <CardTitle>Información adicional</CardTitle>
+              <CardTitle className="text-white/90">Información adicional</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2 text-sm text-gray-600">
+            <CardContent className="space-y-2 text-sm text-white/70">
               {loading ? (
                 <div className="space-y-2">
                   <Skeleton className="h-4 w-full" />
@@ -187,11 +187,11 @@ export default function InventoryItemPage() {
               ) : (
                 <>
                   <div>
-                    <span className="font-medium text-gray-700">Creado:</span>{' '}
+                    <span className="font-medium text-white/90">Creado:</span>{' '}
                     {item?.created_at ? new Date(item.created_at).toLocaleString('es-MX') : '—'}
                   </div>
                   <div>
-                    <span className="font-medium text-gray-700">Última actualización:</span>{' '}
+                    <span className="font-medium text-white/90">Última actualización:</span>{' '}
                     {item?.updated_at ? new Date(item.updated_at).toLocaleString('es-MX') : '—'}
                   </div>
                 </>
@@ -201,12 +201,12 @@ export default function InventoryItemPage() {
         </div>
 
         {item?.descripcion && (
-          <Card>
+          <Card className="backdrop-blur-xl bg-gradient-to-br from-white/10 via-white/5 to-transparent border border-white/20">
             <CardHeader>
-              <CardTitle>Descripción</CardTitle>
+              <CardTitle className="text-white/90">Descripción</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-gray-600 whitespace-pre-line">{item.descripcion}</p>
+              <p className="text-sm text-white/70 whitespace-pre-line">{item.descripcion}</p>
             </CardContent>
           </Card>
         )}

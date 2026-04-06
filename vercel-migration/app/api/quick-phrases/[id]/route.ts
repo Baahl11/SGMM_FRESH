@@ -5,8 +5,9 @@ import { validateQuickPhrase } from '@/lib/types/quick-phrase';
 // GET /api/quick-phrases/[id] - Get single quick phrase
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const params = await context.params;
   try {
     const supabase = await createClient();
     
@@ -53,8 +54,9 @@ export async function GET(
 // PUT /api/quick-phrases/[id] - Update quick phrase
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const params = await context.params;
   try {
     const supabase = await createClient();
     
@@ -137,8 +139,9 @@ export async function PUT(
 // DELETE /api/quick-phrases/[id] - Delete quick phrase
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const params = await context.params;
   try {
     const supabase = await createClient();
     

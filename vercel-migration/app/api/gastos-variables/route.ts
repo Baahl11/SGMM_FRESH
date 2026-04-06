@@ -52,20 +52,6 @@ export async function GET(request: Request) {
     const es_deducible = searchParams.get('es_deducible');
     const limit = parseInt(searchParams.get('limit') || '100');
     const offset = parseInt(searchParams.get('offset') || '0');
-
-    console.log('🔍 [GET /api/gastos-variables] Filtros:', {
-      categoria,
-      fecha_inicio,
-      fecha_fin,
-      mes,
-      año,
-      proveedor,
-      estado,
-      es_deducible,
-      limit,
-      offset
-    });
-
     // Construir query
     let query = supabase
       .from('variable_expenses')
@@ -122,9 +108,6 @@ export async function GET(request: Request) {
         { status: 500 }
       );
     }
-
-    console.log(`✅ [GET /api/gastos-variables] ${data?.length || 0} gastos encontrados`);
-
     return NextResponse.json({
       data,
       count: data?.length || 0,
@@ -182,9 +165,6 @@ export async function POST(request: Request) {
 
     // Parsear body
     const body = await request.json();
-
-    console.log('📝 [POST /api/gastos-variables] Creando gasto:', body);
-
     // Validar campos requeridos
     if (!body.concepto) {
       return NextResponse.json(
@@ -274,9 +254,6 @@ export async function POST(request: Request) {
         { status: 500 }
       );
     }
-
-    console.log('✅ [POST /api/gastos-variables] Gasto creado:', data.id);
-
     return NextResponse.json(data, { status: 201 });
 
   } catch (error) {

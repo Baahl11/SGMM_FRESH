@@ -25,7 +25,7 @@ function TrialSuccessContent() {
       setCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(timer)
-          router.push('/agenda')
+          router.push('/welcome')
           return 0
         }
         return prev - 1
@@ -95,7 +95,7 @@ function TrialSuccessContent() {
         {/* CTA */}
         <div className="space-y-4">
           <Button
-            onClick={() => router.push('/agenda')}
+            onClick={() => router.push('/welcome')}
             size="lg"
             className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
           >

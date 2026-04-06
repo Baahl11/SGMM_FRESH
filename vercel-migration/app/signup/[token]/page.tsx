@@ -75,18 +75,12 @@ export default function InvitationSignupPage({ params }: PageProps) {
 
     try {
       setIsCreating(true);
-      console.log('🚀 Enviando solicitud de activación:', { token });
-      
       const response = await fetch('/api/invitations/accept', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, password }),
       });
-
-      console.log('📥 Response status:', response.status);
       const data = await response.json();
-      console.log('📦 Response data:', data);
-
       if (response.ok) {
         toast.success('¡Cuenta creada exitosamente!');
         

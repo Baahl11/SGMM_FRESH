@@ -109,7 +109,12 @@ export function MainNav() {
     router.push('/auth/signin');
   };
 
-  const routes = [
+  const routes: Array<{
+    href: string;
+    label: string;
+    active: boolean;
+    highlight?: boolean;
+  }> = [
     {
       href: "/dashboard",
       label: "Dashboard",
@@ -149,6 +154,31 @@ export function MainNav() {
       href: "/messaging",
       label: "Mensajería",
       active: pathname === "/messaging" || pathname?.startsWith("/messaging/"),
+    },
+    {
+      href: "/leads",
+      label: "Leads",
+      active: pathname === "/leads" || pathname?.startsWith("/leads/"),
+    },
+    {
+      href: "/intake-forms",
+      label: "Intake",
+      active: pathname === "/intake-forms" || pathname?.startsWith("/intake-forms/"),
+    },
+    {
+      href: "/nps",
+      label: "NPS",
+      active: pathname === "/nps" || pathname?.startsWith("/nps/"),
+    },
+    {
+      href: "/documents",
+      label: "Documentos",
+      active: pathname === "/documents" || pathname?.startsWith("/documents/"),
+    },
+    {
+      href: "/ai",
+      label: "IA",
+      active: pathname === "/ai" || pathname?.startsWith("/ai/"),
     },
     {
       href: "/gastos-fijos",
@@ -201,6 +231,8 @@ export function MainNav() {
                 "flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium transition",
                 route.active
                   ? "bg-white text-slate-900 shadow-lg"
+                  : route.highlight
+                  ? "bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-white border border-blue-500/30 hover:from-blue-500/30 hover:to-purple-500/30"
                   : "text-white/70 hover:bg-white/10 hover:text-white"
               )}
             >

@@ -77,9 +77,6 @@ export async function POST(request: Request) {
     const userFolder = user.id;
     const cerPath = `${userFolder}/certificate.cer`;
     const keyPath = `${userFolder}/certificate.key`;
-
-    console.log(`[Upload CSD] User: ${user.id}, Files: .cer (${cerBuffer.length} bytes), .key (${keyBuffer.length} bytes)`);
-
     // Upload .cer file
     const { data: cerUpload, error: cerError } = await supabaseAdmin.storage
       .from('facturama-certificates')
@@ -150,9 +147,6 @@ export async function POST(request: Request) {
         { status: 500 }
       );
     }
-
-    console.log(`[Upload CSD] Success for user ${user.id}`);
-
     return NextResponse.json({
       success: true,
       message: 'Certificados CSD subidos exitosamente',

@@ -65,7 +65,7 @@ export default function PatientBilling({ patientId, patientName }: PatientBillin
             <span>
               <strong>Facturama no configurado.</strong> Configure sus credenciales para generar facturas electrónicas (CFDI).
             </span>
-            <Link href="/settings/facturacion">
+            <Link href="/dashboard/settings/facturacion">
               <Button
                 variant="outline"
                 size="sm"

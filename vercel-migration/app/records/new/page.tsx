@@ -24,6 +24,7 @@ import {
   type PaymentCalculation 
 } from "@/app/lib/payment";
 import { createClient } from "@/lib/supabase";
+import { toast } from "sonner";
 
 interface Patient {
   id: string;
@@ -162,7 +163,6 @@ function NewRecordForm() {
       if (patientsData) setPatients(patientsData);
 
       // Load treatments via API endpoint (uses service role & full schema)
-      console.log('🔄 Loading treatments via API...');
       const treatmentsResponse = await fetch(`/api/treatments?t=${Date.now()}`, {
         credentials: 'include',
       });
@@ -174,8 +174,6 @@ function NewRecordForm() {
 
       const treatmentsData = await treatmentsResponse.json();
       const treatmentsCount = Array.isArray(treatmentsData) ? treatmentsData.length : 0;
-      console.log('✅ Treatments loaded via API:', treatmentsCount);
-
       setTreatments(Array.isArray(treatmentsData) ? treatmentsData : []);
 
       // Load promotions
@@ -186,19 +184,14 @@ function NewRecordForm() {
       }
     } catch (error) {
       console.error("Error loading data:", error);
-      alert("Error al cargar datos");
+      toast.error("Error al cargar datos");
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    console.log("🚀 SUBMIT STARTED");
     e.preventDefault();
     setIsLoading(true);
-    
-    console.log("📝 Form data:", formData);
-    
     try {
-      console.log("🌐 Sending request to /api/records...");
       const response = await fetch('/api/records', {
         method: 'POST',
         headers: {
@@ -223,15 +216,11 @@ function NewRecordForm() {
       });
 
       const result = await response.json().catch(() => ({ error: 'Error desconocido en la API' }));
-      console.log("📊 API response:", response.status, result);
-
       if (!response.ok || result.error) {
         console.error("🔴 API error detected:", result);
         throw new Error(result.error || 'Error en la creación del tratamiento');
       }
-
-      console.log("✅ Record created via API:", result);
-      alert("Tratamiento registrado exitosamente");
+      toast.success("Tratamiento registrado exitosamente");
       
       // Redirect back to patient or records page
       if (patientId) {
@@ -244,7 +233,7 @@ function NewRecordForm() {
       const errorMessage = error instanceof Error
         ? error.message
         : JSON.stringify(error, null, 2);
-      alert("Error al registrar tratamiento:\n\n" + errorMessage);
+      toast.error("Error al registrar tratamiento: " + errorMessage, { duration: 5000 });
     } finally {
       setIsLoading(false);
     }
@@ -265,12 +254,8 @@ function NewRecordForm() {
 
     const promotion = promotions.find(p => p.id === promotionId);
     if (!promotion) {
-      console.log('❌ Promotion not found:', promotionId);
-      console.log('Available promotions:', promotions.map(p => p.id));
       return;
     }
-
-    console.log('✅ Promotion selected:', promotion);
     setSelectedPromotion(promotion);
 
     // Calculate total cost from all treatments in promotion
@@ -542,31 +527,31 @@ function NewRecordForm() {
             )}
 
             {calculation && (
-              <Card className="bg-gray-50">
+              <Card className="backdrop-blur-xl bg-gradient-to-br from-white/10 via-white/5 to-transparent border border-white/20 shadow-2xl">
                 <CardContent className="pt-4">
-                  <h4 className="font-medium mb-2">Resumen de Cálculos</h4>
+                  <h4 className="font-medium mb-2 text-white/90">Resumen de Cálculos</h4>
                   <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div>Monto Pagado:</div>
-                    <div className="font-medium">${formData.monto_pagado.toLocaleString()}</div>
+                    <div className="text-white/70">Monto Pagado:</div>
+                    <div className="font-medium text-white">${formData.monto_pagado.toLocaleString()}</div>
                     
                     {calculation.tasa > 0 && (
                       <>
-                        <div>Tasa de Comisión:</div>
-                        <div className="font-medium">{calculation.tasa.toFixed(2)}%</div>
+                        <div className="text-white/70">Tasa de Comisión:</div>
+                        <div className="font-medium text-white">{calculation.tasa.toFixed(2)}%</div>
                         
-                        <div>Comisión:</div>
-                        <div className="font-medium text-red-600">-${calculation.comision.toFixed(2)}</div>
+                        <div className="text-white/70">Comisión:</div>
+                        <div className="font-medium text-red-400">-${calculation.comision.toFixed(2)}</div>
                         
-                        <div>Monto Neto:</div>
-                        <div className="font-medium">${calculation.montoNeto.toFixed(2)}</div>
+                        <div className="text-white/70">Monto Neto:</div>
+                        <div className="font-medium text-white">${calculation.montoNeto.toFixed(2)}</div>
                       </>
                     )}
                     
-                    <div>Costo:</div>
-                    <div className="font-medium text-red-600">-${formData.costo_unitario.toLocaleString()}</div>
+                    <div className="text-white/70">Costo:</div>
+                    <div className="font-medium text-red-400">-${formData.costo_unitario.toLocaleString()}</div>
                     
-                    <div>Ganancia:</div>
-                    <div className={`font-bold ${calculation.ganancia >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    <div className="text-white/70">Ganancia:</div>
+                    <div className={`font-bold ${calculation.ganancia >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                       ${calculation.ganancia.toFixed(2)}
                     </div>
                   </div>

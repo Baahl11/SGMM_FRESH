@@ -33,8 +33,6 @@ export async function GET(request: NextRequest) {
       console.error('❌ Error fetching patient notes:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
-
-    console.log(`✅ Loaded ${notes?.length || 0} notes for patient ${patientId}`);
     return NextResponse.json(notes || []);
 
   } catch (error) {
@@ -93,8 +91,6 @@ export async function POST(request: NextRequest) {
       console.error('❌ Error creating patient note:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
-
-    console.log(`✅ Created note ${newNote.id} for patient ${patient_id}`);
     return NextResponse.json(newNote, { status: 201 });
 
   } catch (error) {

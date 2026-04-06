@@ -9,18 +9,19 @@ import { TagsInput } from "@/components/treatments/tags-input";
 import { TREATMENT_CATEGORIES, type TreatmentCategory } from "@/lib/types/treatment";
 import { QuickPhraseSelector } from "@/components/quick-phrases/quick-phrase-selector";
 import { QuickPhraseManager } from "@/components/quick-phrases/quick-phrase-manager";
+import { toast } from "sonner";
 
-// UI Components (igual que edit page)
+// UI Components with glass/aura styling
 const Card = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
-  <div className={`bg-white rounded-lg shadow-sm border border-gray-200 ${className}`}>{children}</div>
+  <div className={`backdrop-blur-xl bg-gradient-to-br from-white/10 via-white/5 to-transparent border border-white/20 rounded-lg shadow-2xl ${className}`}>{children}</div>
 )
 
 const CardHeader = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
-  <div className={`p-6 pb-4 border-b border-gray-100 ${className}`}>{children}</div>
+  <div className={`p-6 pb-4 border-b border-white/10 ${className}`}>{children}</div>
 )
 
 const CardTitle = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
-  <h3 className={`text-lg font-semibold ${className}`}>{children}</h3>
+  <h3 className={`text-lg font-semibold text-white/90 ${className}`}>{children}</h3>
 )
 
 const CardContent = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
@@ -31,7 +32,7 @@ const Button = ({ children, className = "", variant = "default", size = "default
   const baseClasses = "inline-flex items-center justify-center rounded-md transition-colors font-medium"
   const variantClasses: Record<string, string> = {
     default: "bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed",
-    outline: "border border-gray-300 bg-white hover:bg-gray-50 text-gray-700",
+    outline: "border border-white/20 backdrop-blur-xl bg-white/5 hover:bg-white/10 text-white",
     destructive: "bg-red-600 text-white hover:bg-red-700"
   }
   const sizeClasses: Record<string, string> = {
@@ -52,11 +53,11 @@ const Button = ({ children, className = "", variant = "default", size = "default
 }
 
 const Input = ({ className = "", ...props }: any) => (
-  <input className={`flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:cursor-not-allowed disabled:opacity-50 ${className}`} {...props} />
+  <input className={`flex h-10 w-full rounded-md border border-white/20 backdrop-blur-xl bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent disabled:cursor-not-allowed disabled:opacity-50 ${className}`} {...props} />
 )
 
 const Label = ({ children, htmlFor, className = "" }: any) => (
-  <label htmlFor={htmlFor} className={`text-sm font-medium text-gray-700 ${className}`}>{children}</label>
+  <label htmlFor={htmlFor} className={`text-sm font-medium text-white/70 ${className}`}>{children}</label>
 )
 
 interface InventoryItem {
@@ -217,8 +218,6 @@ export default function NewTreatmentPage() {
 
       // Step 2: Assign consumibles if any were selected
       if (selectedConsumibles.length > 0) {
-        console.log(`📦 Asignando ${selectedConsumibles.length} consumibles al tratamiento ${treatmentId}`);
-        
         for (const consumible of selectedConsumibles) {
           try {
             const inventoryResponse = await fetch(`/api/treatments/${treatmentId}/inventory`, {
@@ -235,7 +234,6 @@ export default function NewTreatmentPage() {
               console.error(`❌ Error asignando ${consumible.nombre}:`, errorData);
               // Continue with other items even if one fails
             } else {
-              console.log(`✅ Asignado: ${consumible.nombre} (${consumible.cantidad_requerida})`);
             }
           } catch (inventoryErr) {
             console.error(`❌ Error asignando consumible:`, inventoryErr);
@@ -244,7 +242,7 @@ export default function NewTreatmentPage() {
         }
       }
 
-      alert(`Tratamiento creado exitosamente${selectedConsumibles.length > 0 ? ` con ${selectedConsumibles.length} consumible(s) asignado(s)` : ''}`);
+      toast.success(`Tratamiento creado exitosamente${selectedConsumibles.length > 0 ? ` con ${selectedConsumibles.length} consumible(s) asignado(s)` : ''}`);
       router.push("/treatments");
     } catch (err: any) {
       console.error("Error creating treatment:", err);
@@ -321,15 +319,15 @@ export default function NewTreatmentPage() {
 
               {/* Profit Margin Display */}
               {precioNum > 0 && (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div className="backdrop-blur-xl bg-gradient-to-br from-green-500/10 via-emerald-500/5 to-transparent border border-green-400/30 rounded-lg p-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-green-900">Ganancia Estimada</p>
-                      <p className="text-2xl font-bold text-green-700">${ganancia.toFixed(2)}</p>
+                      <p className="text-sm font-medium text-green-400">Ganancia Estimada</p>
+                      <p className="text-2xl font-bold text-green-300">${ganancia.toFixed(2)}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm text-green-700">Margen</p>
-                      <p className="text-xl font-semibold text-green-800">{margen.toFixed(1)}%</p>
+                      <p className="text-sm text-green-400">Margen</p>
+                      <p className="text-xl font-semibold text-green-300">{margen.toFixed(1)}%</p>
                     </div>
                   </div>
                 </div>
@@ -362,7 +360,7 @@ export default function NewTreatmentPage() {
                   value={descripcion}
                   onChange={(e) => setDescripcion(e.target.value)}
                   placeholder="Descripción detallada del tratamiento... o usa frases rápidas"
-                  className="flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[100px]"
+                  className="flex w-full rounded-md border border-white/20 backdrop-blur-xl bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent min-h-[100px]"
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   💡 Usa frases rápidas para indicaciones, contraindicaciones o cuidados comunes
@@ -375,16 +373,17 @@ export default function NewTreatmentPage() {
                   id="category"
                   value={category}
                   onChange={(e) => setCategory(e.target.value as TreatmentCategory)}
-                  className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="flex h-10 w-full rounded-md border border-white/20 backdrop-blur-xl bg-white/5 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                  style={{ colorScheme: 'dark' }}
                 >
-                  <option value="">Sin categoría</option>
+                  <option value="" style={{ backgroundColor: '#1a1a2e', color: 'white' }}>Sin categoría</option>
                   {TREATMENT_CATEGORIES.map((cat) => (
-                    <option key={cat.value} value={cat.value}>
+                    <option key={cat.value} value={cat.value} style={{ backgroundColor: '#1a1a2e', color: 'white' }}>
                       {cat.icon} {cat.label}
                     </option>
                   ))}
                 </select>
-                <p className="text-xs text-gray-500 mt-1">Organiza tus tratamientos por tipo</p>
+                <p className="text-xs text-white/50 mt-1">Organiza tus tratamientos por tipo</p>
               </div>
 
               <div>
@@ -455,13 +454,13 @@ export default function NewTreatmentPage() {
             ) : (
               <div className="space-y-3">
                 {selectedConsumibles.map((item) => (
-                  <div key={item.inventory_item_id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <div key={item.inventory_item_id} className="flex items-center justify-between p-4 backdrop-blur-xl bg-white/5 rounded-lg border border-white/20">
                     <div className="flex-1">
-                      <p className="font-medium text-gray-900">{item.nombre}</p>
-                      <div className="flex gap-4 mt-1 text-sm text-gray-600">
-                        <span>Cantidad: <strong>{item.cantidad_requerida}</strong></span>
-                        <span>Stock disponible: <strong>{item.stock_actual}</strong></span>
-                        <span>Precio unitario: <strong>${item.precio_unitario}</strong></span>
+                      <p className="font-medium text-white">{item.nombre}</p>
+                      <div className="flex gap-4 mt-1 text-sm text-white/60">
+                        <span>Cantidad: <strong className="text-white">{item.cantidad_requerida}</strong></span>
+                        <span>Stock disponible: <strong className="text-white">{item.stock_actual}</strong></span>
+                        <span>Precio unitario: <strong className="text-white">${item.precio_unitario}</strong></span>
                       </div>
                     </div>
                     <Button
@@ -487,10 +486,10 @@ export default function NewTreatmentPage() {
 
         {/* Add Consumible Modal */}
         {showAddModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-              <div className="p-6 border-b border-gray-200">
-                <h3 className="text-lg font-semibold">Agregar Consumible</h3>
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="backdrop-blur-xl bg-gradient-to-br from-white/10 via-white/5 to-transparent border border-white/20 rounded-lg shadow-2xl max-w-md w-full mx-4">
+              <div className="p-6 border-b border-white/10">
+                <h3 className="text-lg font-semibold text-white/90">Agregar Consumible</h3>
               </div>
               <div className="p-6 space-y-4">
                 <div>
@@ -499,13 +498,14 @@ export default function NewTreatmentPage() {
                     id="item"
                     value={selectedItemId}
                     onChange={(e) => setSelectedItemId(e.target.value)}
-                    className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex h-10 w-full rounded-md border border-white/20 backdrop-blur-xl bg-white/5 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                    style={{ colorScheme: 'dark' }}
                   >
-                    <option value="">Seleccionar...</option>
+                    <option value="" style={{ backgroundColor: '#1a1a2e', color: 'white' }}>Seleccionar...</option>
                     {inventoryItems
                       .filter(item => !selectedConsumibles.some(s => s.inventory_item_id === item.id))
                       .map((item) => (
-                        <option key={item.id} value={item.id}>
+                        <option key={item.id} value={item.id} style={{ backgroundColor: '#1a1a2e', color: 'white' }}>
                           {item.nombre} (Stock: {item.stock_actual})
                         </option>
                       ))}
@@ -521,12 +521,12 @@ export default function NewTreatmentPage() {
                     onChange={(e: any) => setCantidad(e.target.value)}
                     placeholder="1"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-white/50 mt-1">
                     Cantidad que se descontará cada vez que se aplique el tratamiento
                   </p>
                 </div>
               </div>
-              <div className="p-6 border-t border-gray-200 flex gap-3">
+              <div className="p-6 border-t border-white/10 flex gap-3">
                 <Button onClick={handleAddConsumible} className="flex-1" type="button">
                   Agregar
                 </Button>

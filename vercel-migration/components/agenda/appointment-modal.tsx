@@ -15,12 +15,17 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 function SkeletonLoader() {
   return (
     <div className="animate-pulse space-y-4">
-      <div className="h-10 bg-gray-200 rounded"></div>
-      <div className="h-10 bg-gray-200 rounded"></div>
-      <div className="h-10 bg-gray-200 rounded"></div>
+      <div className="h-10 bg-white/10 rounded-2xl border border-white/10"></div>
+      <div className="h-10 bg-white/10 rounded-2xl border border-white/10"></div>
+      <div className="h-10 bg-white/10 rounded-2xl border border-white/10"></div>
     </div>
   );
 }
+
+// Estilos reutilizables
+const inputClass = 'w-full rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-white placeholder:text-white/40 focus:border-white/40 focus:outline-none focus:ring-2 focus:ring-white/20';
+const labelClass = 'text-white/90 text-sm font-medium mb-2 block';
+const selectTriggerClass = 'rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-white hover:bg-white/10 focus:border-white/40 focus:ring-2 focus:ring-white/20';
 
 interface Patient {
   id: number;
@@ -509,13 +514,18 @@ export default function AppointmentModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto backdrop-blur-xl bg-gradient-to-br from-white/95 via-white/90 to-white/95 border border-white/20 shadow-2xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-gray-900">
-            <Calendar className="h-5 w-5 text-purple-600" />
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto backdrop-blur-xl bg-gradient-to-br from-slate-900/95 via-slate-800/95 to-slate-900/95 border border-white/20 shadow-2xl">
+        <div className="pointer-events-none absolute inset-0 opacity-40">
+          <div className="absolute -top-32 right-0 h-72 w-72 rounded-full bg-purple-500/20 blur-[150px]" />
+          <div className="absolute -bottom-32 left-0 h-72 w-72 rounded-full bg-blue-500/15 blur-[140px]" />
+        </div>
+        
+        <DialogHeader className="relative z-10">
+          <DialogTitle className="flex items-center gap-2 text-white">
+            <Calendar className="h-5 w-5 text-purple-400" />
             {selectedAppointment ? "Editar Cita" : "Nueva Cita"}
           </DialogTitle>
-          <DialogDescription className="text-gray-600">
+          <DialogDescription className="text-white/70">
             {selectedAppointment 
               ? "Modifica los detalles de la cita existente." 
               : "Completa la información para agendar una nueva cita médica."
@@ -523,10 +533,10 @@ export default function AppointmentModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-6 relative z-10">
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-              <p className="text-red-800 text-sm">{error}</p>
+            <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-3 backdrop-blur-sm">
+              <p className="text-red-300 text-sm">{error}</p>
             </div>
           )}
 
@@ -537,18 +547,18 @@ export default function AppointmentModal({
             <>
               {/* Conflict Alerts */}
               {validating && (
-                <Alert className="border-blue-200 bg-blue-50">
-                  <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-                  <AlertDescription className="text-blue-800">
+                <Alert className="border-blue-400/30 bg-blue-500/10 backdrop-blur-sm">
+                  <Loader2 className="h-4 w-4 animate-spin text-blue-300" />
+                  <AlertDescription className="text-blue-100">
                     Validando disponibilidad...
                   </AlertDescription>
                 </Alert>
               )}
               
               {(conflicts.doctorBusy || conflicts.consultorioBusy || conflicts.patientDuplicate || conflicts.doctorNotWorking || conflicts.outsideWorkingHours || conflicts.doctorException) && !validating && (
-                <Alert className={`border-amber-200 bg-amber-50 ${conflicts.doctorNotWorking || conflicts.outsideWorkingHours || conflicts.doctorException ? 'border-red-200 bg-red-50' : ''}`}>
-                  <AlertCircle className={`h-4 w-4 ${conflicts.doctorNotWorking || conflicts.outsideWorkingHours || conflicts.doctorException ? 'text-red-600' : 'text-amber-600'}`} />
-                  <AlertDescription className={conflicts.doctorNotWorking || conflicts.outsideWorkingHours || conflicts.doctorException ? 'text-red-800' : 'text-amber-800'}>
+                <Alert className={`backdrop-blur-sm ${conflicts.doctorNotWorking || conflicts.outsideWorkingHours || conflicts.doctorException ? 'border-red-400/30 bg-red-500/10' : 'border-amber-400/30 bg-amber-500/10'}`}>
+                  <AlertCircle className={`h-4 w-4 ${conflicts.doctorNotWorking || conflicts.outsideWorkingHours || conflicts.doctorException ? 'text-red-300' : 'text-amber-300'}`} />
+                  <AlertDescription className={conflicts.doctorNotWorking || conflicts.outsideWorkingHours || conflicts.doctorException ? 'text-red-100' : 'text-amber-100'}>
                     <div className="font-medium mb-1">
                       {conflicts.doctorNotWorking || conflicts.outsideWorkingHours || conflicts.doctorException ? '❌ No disponible:' : '⚠️ Conflictos detectados:'}
                     </div>
@@ -567,35 +577,37 @@ export default function AppointmentModal({
           {/* Date and Time */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="date">Fecha</Label>
+              <Label htmlFor="date" className={labelClass}>Fecha</Label>
               <Input
                 id="date"
                 type="date"
                 value={formData.date}
                 onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
+                className={inputClass}
               />
             </div>
             <div>
-              <Label htmlFor="time">Hora</Label>
+              <Label htmlFor="time" className={labelClass}>Hora</Label>
               <Input
                 id="time"
                 type="time"
                 value={formData.time}
                 onChange={(e) => setFormData(prev => ({ ...prev, time: e.target.value }))}
+                className={inputClass}
               />
             </div>
           </div>
 
           {/* Patient Selection */}
           <div>
-            <Label>Paciente</Label>
+            <Label className={labelClass}>Paciente</Label>
             {selectedPatient ? (
-              <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center justify-between p-3 bg-blue-500/10 border border-blue-400/30 rounded-2xl backdrop-blur-sm">
                 <div className="flex items-center gap-3">
-                  <User className="h-5 w-5 text-blue-600" />
+                  <User className="h-5 w-5 text-blue-300" />
                   <div>
-                    <div className="font-medium text-blue-900">{selectedPatient.nombre}</div>
-                    <div className="text-sm text-blue-600 flex items-center gap-1">
+                    <div className="font-medium text-white">{selectedPatient.nombre}</div>
+                    <div className="text-sm text-blue-200 flex items-center gap-1">
                       <Phone className="h-3 w-3" />
                       {selectedPatient.telefono}
                     </div>
@@ -605,6 +617,7 @@ export default function AppointmentModal({
                   variant="outline"
                   size="sm"
                   onClick={() => setSelectedPatient(null)}
+                  className="border-white/20 bg-white/5 text-white hover:bg-white/10"
                 >
                   Cambiar
                 </Button>
@@ -613,18 +626,18 @@ export default function AppointmentModal({
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
                   <div className="relative flex-1">
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Search className="absolute left-3 top-3 h-4 w-4 text-white/40" />
                     <Input
                       placeholder="Buscar paciente por nombre o teléfono..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10"
+                      className={`${inputClass} pl-10`}
                     />
                   </div>
                   <Button
                     variant="outline"
                     onClick={() => setShowNewPatientForm(!showNewPatientForm)}
-                    className="flex items-center gap-2"
+                    className="flex items-center gap-2 border-white/20 bg-white/5 text-white hover:bg-white/10 rounded-2xl"
                   >
                     <Plus className="h-4 w-4" />
                     Nuevo
@@ -632,24 +645,27 @@ export default function AppointmentModal({
                 </div>
 
                 {showNewPatientForm ? (
-                  <div className="p-4 bg-green-50 border border-green-200 rounded-lg space-y-3">
-                    <h4 className="font-medium text-green-900">Nuevo Paciente</h4>
+                  <div className="p-4 bg-green-500/10 border border-green-400/30 rounded-2xl space-y-3 backdrop-blur-sm">
+                    <h4 className="font-medium text-green-200">Nuevo Paciente</h4>
                     <div className="grid grid-cols-1 gap-3">
                       <Input
                         placeholder="Nombre completo"
                         value={formData.newPatientName}
                         onChange={(e) => setFormData(prev => ({ ...prev, newPatientName: e.target.value }))}
+                        className={inputClass}
                       />
                       <Input
                         placeholder="Teléfono"
                         value={formData.newPatientPhone}
                         onChange={(e) => setFormData(prev => ({ ...prev, newPatientPhone: e.target.value }))}
+                        className={inputClass}
                       />
                       <Input
                         placeholder="Email (opcional)"
                         type="email"
                         value={formData.newPatientEmail}
                         onChange={(e) => setFormData(prev => ({ ...prev, newPatientEmail: e.target.value }))}
+                        className={inputClass}
                       />
                     </div>
                   </div>
@@ -659,17 +675,17 @@ export default function AppointmentModal({
                       <div
                         key={patient.id}
                         onClick={() => setSelectedPatient(patient)}
-                        className="p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                        className="p-3 border border-white/15 bg-white/5 rounded-2xl cursor-pointer hover:bg-white/10 hover:border-white/30 transition-all backdrop-blur-sm"
                       >
-                        <div className="font-medium">{patient.nombre}</div>
-                        <div className="text-sm text-gray-600 flex items-center gap-1">
+                        <div className="font-medium text-white">{patient.nombre}</div>
+                        <div className="text-sm text-white/60 flex items-center gap-1">
                           <Phone className="h-3 w-3" />
                           {patient.telefono}
                         </div>
                       </div>
                     ))}
                     {filteredPatients.length === 0 && searchTerm && (
-                      <p className="text-center text-gray-500 py-4">
+                      <p className="text-center text-white/60 py-4">
                         No se encontraron pacientes. ¿Quieres crear uno nuevo?
                       </p>
                     )}
@@ -681,7 +697,7 @@ export default function AppointmentModal({
 
           {/* 🆕 Doctor Selection */}
           <div>
-            <Label>Doctor</Label>
+            <Label className={labelClass}>Doctor</Label>
             <Select 
               value={selectedDoctor?.id || ""} 
               onValueChange={(value) => {
@@ -689,13 +705,13 @@ export default function AppointmentModal({
                 setSelectedDoctor(doctor || null);
               }}
             >
-              <SelectTrigger>
+              <SelectTrigger className={selectTriggerClass}>
                 <SelectValue placeholder="Seleccionar doctor..." />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-slate-900 border-white/20 text-white">
                 {doctors.length > 0 ? (
                   doctors.map((doctor) => (
-                    <SelectItem key={doctor.id} value={doctor.id}>
+                    <SelectItem key={doctor.id} value={doctor.id} className="hover:bg-white/10 focus:bg-white/10">
                       <div className="flex items-center gap-2">
                         <div 
                           className="w-3 h-3 rounded-full" 
@@ -703,13 +719,13 @@ export default function AppointmentModal({
                         />
                         <span>{doctor.nombre}</span>
                         {doctor.especialidad && (
-                          <span className="text-xs text-gray-500">({doctor.especialidad})</span>
+                          <span className="text-xs text-white/50">({doctor.especialidad})</span>
                         )}
                       </div>
                     </SelectItem>
                   ))
                 ) : (
-                  <div className="p-2 text-sm text-gray-500 text-center">
+                  <div className="p-2 text-sm text-white/60 text-center">
                     No hay doctores disponibles
                   </div>
                 )}
@@ -719,7 +735,7 @@ export default function AppointmentModal({
 
           {/* 🆕 Consultorio Selection */}
           <div>
-            <Label>Consultorio</Label>
+            <Label className={labelClass}>Consultorio</Label>
             <Select 
               value={selectedConsultorio?.id || ""} 
               onValueChange={(value) => {
@@ -727,23 +743,23 @@ export default function AppointmentModal({
                 setSelectedConsultorio(consultorio || null);
               }}
             >
-              <SelectTrigger>
+              <SelectTrigger className={selectTriggerClass}>
                 <SelectValue placeholder="Seleccionar consultorio..." />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-slate-900 border-white/20 text-white">
                 {consultorios.length > 0 ? (
                   consultorios.map((consultorio) => (
-                    <SelectItem key={consultorio.id} value={consultorio.id}>
+                    <SelectItem key={consultorio.id} value={consultorio.id} className="hover:bg-white/10 focus:bg-white/10">
                       <div>
                         <div className="font-medium">{consultorio.nombre}</div>
                         {consultorio.ubicacion && (
-                          <div className="text-xs text-gray-500">{consultorio.ubicacion}</div>
+                          <div className="text-xs text-white/50">{consultorio.ubicacion}</div>
                         )}
                       </div>
                     </SelectItem>
                   ))
                 ) : (
-                  <div className="p-2 text-sm text-gray-500 text-center">
+                  <div className="p-2 text-sm text-white/60 text-center">
                     No hay consultorios disponibles
                   </div>
                 )}
@@ -753,7 +769,7 @@ export default function AppointmentModal({
 
           {/* 🆕 Appointment Type Selection */}
           <div>
-            <Label>Tipo de Cita</Label>
+            <Label className={labelClass}>Tipo de Cita</Label>
             <Select 
               value={selectedAppointmentType?.id || ""} 
               onValueChange={(value) => {
@@ -765,25 +781,25 @@ export default function AppointmentModal({
                 }
               }}
             >
-              <SelectTrigger>
+              <SelectTrigger className={selectTriggerClass}>
                 <SelectValue placeholder="Seleccionar tipo de cita..." />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-slate-900 border-white/20 text-white">
                 {appointmentTypes.length > 0 ? (
                   appointmentTypes.map((type) => (
-                    <SelectItem key={type.id} value={type.id}>
+                    <SelectItem key={type.id} value={type.id} className="hover:bg-white/10 focus:bg-white/10">
                       <div className="flex items-center gap-2">
                         <div 
                           className="w-3 h-3 rounded-full" 
                           style={{ backgroundColor: type.color }}
                         />
                         <span>{type.nombre}</span>
-                        <span className="text-xs text-gray-500">({type.duracion_minutos} min)</span>
+                        <span className="text-xs text-white/50">({type.duracion_minutos} min)</span>
                       </div>
                     </SelectItem>
                   ))
                 ) : (
-                  <div className="p-2 text-sm text-gray-500 text-center">
+                  <div className="p-2 text-sm text-white/60 text-center">
                     No hay tipos de cita disponibles
                   </div>
                 )}
@@ -793,15 +809,15 @@ export default function AppointmentModal({
 
           {/* Treatment Selection */}
           <div>
-            <Label>Tratamiento</Label>
+            <Label className={labelClass}>Tratamiento</Label>
             {/* Treatment Search */}
             <div className="relative mb-2">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/40 h-4 w-4" />
               <Input
                 placeholder="Buscar tratamiento..."
                 value={treatmentSearchTerm}
                 onChange={(e) => setTreatmentSearchTerm(e.target.value)}
-                className="pl-10"
+                className={`${inputClass} pl-10`}
               />
             </div>
             <Select 
@@ -812,28 +828,28 @@ export default function AppointmentModal({
                 setTreatmentSearchTerm(""); // Clear search after selection
               }}
             >
-              <SelectTrigger>
+              <SelectTrigger className={selectTriggerClass}>
                 <SelectValue placeholder="Seleccionar tratamiento..." />
               </SelectTrigger>
-              <SelectContent className="max-h-[300px] overflow-y-auto">
+              <SelectContent className="max-h-[300px] overflow-y-auto bg-slate-900 border-white/20 text-white">
                 {filteredTreatments.length > 0 ? (
                   filteredTreatments.map((treatment) => (
-                    <SelectItem key={treatment.id} value={treatment.id.toString()}>
+                    <SelectItem key={treatment.id} value={treatment.id.toString()} className="hover:bg-white/10 focus:bg-white/10">
                       <div>
                         <div className="font-medium">{treatment.nombre}</div>
-                        <div className="text-sm text-gray-600">${(Number(treatment.precio) || Number(treatment.precio_base) || 0).toLocaleString()}</div>
+                        <div className="text-sm text-white/60">${(Number(treatment.precio) || Number(treatment.precio_base) || 0).toLocaleString()}</div>
                       </div>
                     </SelectItem>
                   ))
                 ) : (
-                  <div className="p-2 text-sm text-gray-500 text-center">
+                  <div className="p-2 text-sm text-white/60 text-center">
                     {treatmentSearchTerm ? 'No se encontraron tratamientos' : 'No hay tratamientos disponibles'}
                   </div>
                 )}
               </SelectContent>
             </Select>
             {filteredTreatments.length > 0 && (
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-white/50 mt-1">
                 {filteredTreatments.length} de {treatments.length} tratamientos
               </p>
             )}
@@ -841,26 +857,26 @@ export default function AppointmentModal({
 
           {/* Status */}
           <div>
-            <Label>Estado</Label>
+            <Label className={labelClass}>Estado</Label>
             <Select 
               value={formData.status} 
               onValueChange={(value) => setFormData(prev => ({ ...prev, status: value as any }))}
             >
-              <SelectTrigger>
+              <SelectTrigger className={selectTriggerClass}>
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="scheduled">
-                  <Badge variant="secondary">Programada</Badge>
+              <SelectContent className="bg-slate-900 border-white/20 text-white">
+                <SelectItem value="scheduled" className="hover:bg-white/10 focus:bg-white/10">
+                  <Badge className="bg-gray-500/20 text-gray-300 border-gray-500/30">Programada</Badge>
                 </SelectItem>
-                <SelectItem value="confirmed">
-                  <Badge className="bg-blue-100 text-blue-800">Confirmada</Badge>
+                <SelectItem value="confirmed" className="hover:bg-white/10 focus:bg-white/10">
+                  <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30">Confirmada</Badge>
                 </SelectItem>
-                <SelectItem value="completed">
-                  <Badge className="bg-green-100 text-green-800">Completada</Badge>
+                <SelectItem value="completed" className="hover:bg-white/10 focus:bg-white/10">
+                  <Badge className="bg-green-500/20 text-green-300 border-green-500/30">Completada</Badge>
                 </SelectItem>
-                <SelectItem value="cancelled">
-                  <Badge variant="destructive">Cancelada</Badge>
+                <SelectItem value="cancelled" className="hover:bg-white/10 focus:bg-white/10">
+                  <Badge className="bg-red-500/20 text-red-300 border-red-500/30">Cancelada</Badge>
                 </SelectItem>
               </SelectContent>
             </Select>
@@ -868,25 +884,26 @@ export default function AppointmentModal({
 
           {/* Notes */}
           <div>
-            <Label htmlFor="notes">Notas</Label>
+            <Label htmlFor="notes" className={labelClass}>Notas</Label>
             <Textarea
               id="notes"
               placeholder="Notas adicionales sobre la cita..."
               value={formData.notes}
               onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
               rows={3}
+              className={`${inputClass} resize-none`}
             />
           </div>
 
           {/* Actions */}
-          <div className="flex items-center justify-between pt-4 border-t">
+          <div className="flex items-center justify-between pt-4 border-t border-white/10">
             <div>
               {selectedAppointment && (
                 <Button
                   variant="destructive"
                   onClick={handleDelete}
                   disabled={loading}
-                  className="bg-red-600 hover:bg-red-700 text-white"
+                  className="bg-red-500/20 border-red-500/30 text-red-300 hover:bg-red-500/30 rounded-2xl"
                 >
                   🗑️ Eliminar Cita
                 </Button>
@@ -894,10 +911,18 @@ export default function AppointmentModal({
             </div>
             
             <div className="flex items-center gap-3">
-              <Button variant="outline" onClick={onClose}>
+              <Button 
+                variant="outline" 
+                onClick={onClose}
+                className="border-white/20 bg-white/5 text-white hover:bg-white/10 rounded-2xl"
+              >
                 Cancelar
               </Button>
-              <Button onClick={handleSave} disabled={loading || (conflicts.doctorBusy || conflicts.consultorioBusy || conflicts.patientDuplicate || conflicts.doctorNotWorking || conflicts.outsideWorkingHours || conflicts.doctorException || false)}>
+              <Button 
+                onClick={handleSave} 
+                disabled={loading || (conflicts.doctorBusy || conflicts.consultorioBusy || conflicts.patientDuplicate || conflicts.doctorNotWorking || conflicts.outsideWorkingHours || conflicts.doctorException || false)}
+                className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white rounded-2xl disabled:opacity-50"
+              >
                 {loading ? "Guardando..." : selectedAppointment ? "Actualizar" : "Crear Cita"}
               </Button>
             </div>

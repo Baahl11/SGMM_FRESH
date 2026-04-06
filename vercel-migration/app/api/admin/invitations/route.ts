@@ -8,25 +8,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import type { CreateInvitationInput } from '@/lib/types/invitations';
 import crypto from 'crypto';
+import { Resend } from 'resend';
 
 // Helper to check if user is admin
 async function isAdmin(supabase: any, userId: string): Promise<boolean> {
-  console.log('🔍 Checking admin for userId:', userId);
-  
   const { data: profile, error } = await supabase
     .from('user_profiles')
     .select('role')
     .eq('user_id', userId)
     .single();
-  
-  console.log('📊 Profile query result:', { profile, error });
-  
   if (error || !profile) {
     console.error('❌ Error checking admin role:', error);
     return false;
   }
-  
-  console.log('✅ User role:', profile.role);
   return profile.role === 'admin';
 }
 
@@ -159,14 +153,42 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Error al crear invitación' }, { status: 500 });
     }
 
-    // TODO: Send email (implement with Resend)
-    // For now, we'll just return the invitation with signup URL
-    const signupUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/signup/${token}`;
+    // Send invitation email
+    const signupUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://agendamedpro.com'}/signup/${token}`;
+    
+    if (process.env.RESEND_API_KEY) {
+      try {
+        const resend = new Resend(process.env.RESEND_API_KEY);
+        await resend.emails.send({
+          from: 'AgendaMedPro <invitaciones@agendamedpro.com>',
+          to: body.email.toLowerCase(),
+          subject: '🎉 Invitación Exclusiva a AgendaMedPro',
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+              <h1 style="color: #10b981;">¡Hola ${body.name}!</h1>
+              <p>Has sido invitado/a a unirte a <strong>AgendaMedPro</strong>, la plataforma líder para gestión de clínicas médicas.</p>
+              <p>Tu plan: <strong>${body.plan_type || 'Premium'}</strong></p>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${signupUrl}" style="background-color: #10b981; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold;">
+                  Crear mi Cuenta
+                </a>
+              </div>
+              <p style="color: #666; font-size: 14px;">Este enlace expira en 7 días.</p>
+              <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+              <p style="color: #999; font-size: 12px;">AgendaMedPro - Gestión Médica Profesional</p>
+            </div>
+          `
+        });
+      } catch (emailError) {
+        console.error('Error sending invitation email:', emailError);
+        // Don't fail the request, just log the error
+      }
+    }
 
     return NextResponse.json({ 
       invitation,
       signup_url: signupUrl,
-      message: 'Invitación creada exitosamente'
+      message: 'Invitación creada y enviada exitosamente'
     });
 
   } catch (error) {

@@ -4,8 +4,9 @@ import { NextRequest, NextResponse } from 'next/server';
 // PATCH /api/quick-phrases/[id]/use - Increment usage counter
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const params = await context.params;
   try {
     const supabase = await createClient();
     

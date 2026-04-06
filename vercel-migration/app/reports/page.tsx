@@ -145,13 +145,9 @@ export default function ReportsPage() {
     try {
       setLoading(true);
       setError(null);
-      
-      console.log("📊 Loading report data from Vercel APIs...");
-      
       // Use Vercel API endpoints with fallback for missing ones
       const fetchWithFallback = async (url: string) => {
         try {
-          console.log(`🔗 Fetching from: ${url}`);
           const response = await fetch(url);
           
           if (!response.ok) {
@@ -164,12 +160,6 @@ export default function ReportsPage() {
           
           const data = await response.json();
           const resultData = Array.isArray(data) ? data : (data.data || data || []);
-          console.log(`✅ Data from ${url}:`, {
-            length: resultData?.length,
-            sample: resultData?.slice(0, 2),
-            type: typeof resultData
-          });
-          
           return resultData;
         } catch (error) {
           console.warn(`⚠️ Network error fetching from ${url}:`, error instanceof Error ? error.message : error);
@@ -204,35 +194,6 @@ export default function ReportsPage() {
       };
 
       const [patientsData, treatmentsData, recordsData, gastosFijosData, gastosVariablesData] = settledResults.map(extractArray);
-
-      console.log("📊 Report data summary:", {
-        patients: {
-          count: patientsData?.length || 0,
-          available: !!patientsData?.length,
-          sample: patientsData?.slice(0, 1)
-        },
-        treatments: {
-          count: treatmentsData?.length || 0,
-          available: !!treatmentsData?.length,
-          sample: treatmentsData?.slice(0, 1)
-        },
-        records: {
-          count: recordsData?.length || 0,
-          available: !!recordsData?.length,
-          note: recordsData?.length ? 'Data loaded' : 'Using empty data (API not ready)'
-        },
-        gastosFijos: {
-          count: gastosFijosData?.length || 0,
-          available: !!gastosFijosData?.length,
-          note: gastosFijosData?.length ? 'Data loaded' : 'Using empty data (API not ready)'
-        },
-        gastosVariables: {
-          count: gastosVariablesData?.length || 0,
-          available: !!gastosVariablesData?.length,
-          note: gastosVariablesData?.length ? 'Data loaded' : 'Using empty data (API not ready)'
-        }
-      });
-
       // Fallback to empty arrays if data is null/undefined
       const patients = patientsData || [];
       const treatments = treatmentsData || [];
@@ -334,10 +295,6 @@ export default function ReportsPage() {
     const todayStr = today.getFullYear() + '-' + 
                     String(today.getMonth() + 1).padStart(2, '0') + '-' + 
                     String(today.getDate()).padStart(2, '0');
-    
-    console.log('📅 Today date for filtering (local):', todayStr);
-    console.log('📅 Today date (UTC):', new Date().toISOString().split('T')[0]);
-    
     const todayRecords = records.filter(record => {
       if (!record.fecha) return false;
       
@@ -365,13 +322,6 @@ export default function ReportsPage() {
         const montoPagado = toNumber(record.monto_pagado);
 
         if (isToday && montoPagado > 0) {
-          console.log('✅ Found TODAY record with payment:', {
-            id: record.id,
-            fecha: record.fecha,
-            recordDate,
-            monto_pagado: montoPagado,
-            ganancia: record.ganancia
-          });
         }
         
         return isToday;
@@ -380,17 +330,7 @@ export default function ReportsPage() {
         return false;
       }
     });
-    
-    console.log('📊 Today records count:', todayRecords.length);
-    console.log('💰 Today records data:', todayRecords.map(r => ({
-      id: r.id,
-      monto: toNumber(r.monto_pagado),
-      ganancia: r.ganancia
-    })));
-    
   const todayRevenue = todayRecords.reduce((sum, record) => sum + toNumber(record.monto_pagado), 0);
-    console.log('💵 Today revenue calculated:', todayRevenue);
-    
     const todayVariableCosts = todayRecords.reduce((sum, record) => 
       sum + toNumber(record.costo_unitario) + toNumber(record.comision_monto), 0
     );
@@ -631,8 +571,16 @@ export default function ReportsPage() {
 
   const getCurrentData = () => {
     switch (selectedPeriod) {
+      case "daily7":
+        return reportData.daily7Revenue;
+      case "daily30":
+        return reportData.daily30Revenue;
+      case "monthly6":
+        return reportData.monthly6Revenue;
       case "monthly12":
         return reportData.monthly12Revenue;
+      case "monthly24":
+        return reportData.monthly24Revenue;
       default:
         return reportData.monthly12Revenue;
     }
@@ -640,8 +588,16 @@ export default function ReportsPage() {
 
   const getPeriodLabel = () => {
     switch (selectedPeriod) {
+      case "daily7":
+        return "Última semana";
+      case "daily30":
+        return "Últimos 30 días";
+      case "monthly6":
+        return "Últimos 6 meses";
       case "monthly12":
         return "Últimos 12 meses";
+      case "monthly24":
+        return "Últimos 24 meses";
       default:
         return "Período seleccionado";
     }
@@ -664,7 +620,7 @@ export default function ReportsPage() {
     profit: "Utilidad"
   };
   const revenueChartData = useMemo<ChartData<MixedBarLineChartType>>(() => ({
-    labels: currentData.map((item) => item.month),
+    labels: currentData.map((item) => (item as any).date || (item as any).month),
     datasets: [
       {
         type: "bar" as const,
@@ -995,9 +951,14 @@ export default function ReportsPage() {
               <select 
                 value={selectedPeriod} 
                 onChange={(e) => setSelectedPeriod(e.target.value)}
-                className="glass-select"
+                className="backdrop-blur-xl bg-white/10 border border-white/20 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500/50 hover:bg-white/15 transition-colors"
+                style={{ colorScheme: 'dark' }}
               >
-                <option value="monthly12">Últimos 12 meses</option>
+                <option value="daily7" style={{ backgroundColor: '#1a1a2e', color: 'white' }}>Última semana</option>
+                <option value="daily30" style={{ backgroundColor: '#1a1a2e', color: 'white' }}>Últimos 30 días</option>
+                <option value="monthly6" style={{ backgroundColor: '#1a1a2e', color: 'white' }}>Últimos 6 meses</option>
+                <option value="monthly12" style={{ backgroundColor: '#1a1a2e', color: 'white' }}>Últimos 12 meses</option>
+                <option value="monthly24" style={{ backgroundColor: '#1a1a2e', color: 'white' }}>Últimos 24 meses</option>
               </select>
             </div>
           </div>

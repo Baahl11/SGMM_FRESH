@@ -6,8 +6,9 @@ import type { UpdateTagInput } from '@/types/patient-tags'
 // GET /api/tags/[id] - Get single tag
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const params = await context.params;
   try {
     const supabase = await createClient()
     
@@ -40,8 +41,9 @@ export async function GET(
 // PATCH /api/tags/[id] - Update tag
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const params = await context.params;
   try {
     const supabase = await createClient()
     
@@ -97,8 +99,9 @@ export async function PATCH(
 // DELETE /api/tags/[id] - Delete tag
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const params = await context.params;
   try {
     const supabase = await createClient()
     

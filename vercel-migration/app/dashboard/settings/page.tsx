@@ -19,10 +19,19 @@ import {
   ArrowRight,
   Sparkles,
   CreditCard,
-  Upload
+  Upload,
+  CalendarSync,
+  CalendarCog
 } from 'lucide-react';
 
 const sections = [
+  {
+    name: 'Suscripción',
+    href: '/dashboard/settings/subscription',
+    icon: Sparkles,
+    description: 'Plan, pagos y cancelación',
+    color: 'from-emerald-500 to-teal-500'
+  },
   {
     name: 'Importar Datos',
     href: '/dashboard/settings/import',
@@ -113,6 +122,20 @@ const sections = [
     icon: FileText,
     description: 'Formularios de admisión',
     color: 'from-yellow-500 to-yellow-600'
+  },
+  {
+    name: 'Agenda',
+    href: '/dashboard/settings/agenda',
+    icon: CalendarCog,
+    description: 'Buffer, lista de espera y más',
+    color: 'from-emerald-500 to-cyan-500'
+  },
+  {
+    name: 'Google Calendar',
+    href: '/dashboard/settings/google-calendar',
+    icon: CalendarSync,
+    description: 'Sincroniza con tu calendario',
+    color: 'from-blue-500 to-sky-500'
   }
 ];
 

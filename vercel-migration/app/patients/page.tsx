@@ -92,9 +92,6 @@ export default function PatientsPage() {
   const fetchPatients = async () => {
     setLoading(true);
     setError("");
-    
-    console.log('🔥 fetchPatients: Loading patients...');
-    
     try {
       const response = await fetch('/api/patients')
       
@@ -105,8 +102,6 @@ export default function PatientsPage() {
       const data = await response.json()
       
       if (Array.isArray(data)) {
-        console.log(`✅ Patients loaded: ${data.length} patients`);
-        
         // Load tags for each patient
         const patientsWithTags = await Promise.all(
           data.map(async (patient) => {
@@ -125,7 +120,6 @@ export default function PatientsPage() {
         
         setPatients(patientsWithTags);
       } else {
-        console.log('⚠️ No patients data received');
         setPatients([]);
         setError("No se pudieron cargar los pacientes");
       }
@@ -144,8 +138,6 @@ export default function PatientsPage() {
     }
 
     try {
-      console.log(`🔥 handleDeletePatient: Deleting patient ${patientId}`);
-      
       const response = await fetch(`/api/patients/${patientId}`, {
         method: 'DELETE',
         headers: {
@@ -158,8 +150,6 @@ export default function PatientsPage() {
       }
 
       const result = await response.json();
-      console.log('✅ Patient deleted successfully:', result);
-
       // Actualizar la lista de pacientes
       setPatients(patients.filter(p => p.id !== patientId));
       alert("Paciente eliminado exitosamente");
@@ -184,12 +174,9 @@ export default function PatientsPage() {
     const patientsWithData = await Promise.all(
       filtered.map(async (patient) => {
         try {
-          console.log(`🔥 filterAndSortPatients: Getting records for patient ${patient.id}`);
-          
           const response = await fetch(`/api/records/patient/${patient.id}`);
           
           if (!response.ok) {
-            console.log(`⚠️ Failed to fetch records for patient ${patient.id}`);
             return {
               ...patient,
               totalPagado: 0,

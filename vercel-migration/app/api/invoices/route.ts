@@ -112,9 +112,6 @@ export async function POST(request: Request) {
       Items: items,
       ObservationsNotes: notas,
     };
-
-    console.log('Facturama payload:', JSON.stringify(facturamaPayload, null, 2));
-
     // 7. Generate invoice through Facturama
     let facturamaResponse;
     try {

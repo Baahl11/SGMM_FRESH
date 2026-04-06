@@ -3,9 +3,9 @@ import { createClient } from '@/lib/supabase/server';
 import { getAuthUser } from '@/lib/auth-server';
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 /**
@@ -16,7 +16,8 @@ interface RouteParams {
  * automáticamente a Meta. El doctor debe hacer el submit manualmente
  * en Meta Business Manager.
  */
-export async function POST(request: Request, { params }: RouteParams) {
+export async function POST(request: Request, context: RouteParams) {
+  const params = await context.params;
   try {
     const user = await getAuthUser();
     if (!user) {

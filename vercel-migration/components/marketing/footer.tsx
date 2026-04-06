@@ -1,17 +1,20 @@
 import Link from 'next/link'
+import { WHATSAPP_SALES_URL } from '@/lib/marketing/constants'
 
 const links = [
   { label: 'Producto', href: '/acerca-de' },
   { label: 'Casos de éxito', href: '/casos-exito' },
   { label: 'Documentación', href: '/documentacion' },
   { label: 'Soporte', href: '/soporte' },
+  { label: 'Privacidad', href: '/privacidad' },
+  { label: 'Términos', href: '/terminos' },
 ]
 
 const contactActions = [
   {
     label: 'Hablar por WhatsApp',
     detail: 'Respuesta en menos de 15 minutos',
-    href: 'https://wa.me/5215512345678',
+    href: WHATSAPP_SALES_URL,
   },
   {
     label: 'Agendar demo ejecutiva',

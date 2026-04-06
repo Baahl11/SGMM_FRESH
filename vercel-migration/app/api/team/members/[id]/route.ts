@@ -13,8 +13,9 @@ import { ROLE_PERMISSIONS } from '@/lib/types/team';
 // GET /api/team/members/[id]
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const params = await context.params;
   try {
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -46,8 +47,9 @@ export async function GET(
 // PATCH /api/team/members/[id]
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const params = await context.params;
   try {
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -58,9 +60,6 @@ export async function PATCH(
 
     const { id } = params;
     const body: UpdateTeamMemberInput = await request.json();
-
-    console.log('🔄 Updating team member:', id, body);
-
     // Verify ownership
     const { data: existing, error: fetchError } = await supabase
       .from('team_members')
@@ -110,9 +109,6 @@ export async function PATCH(
       console.error('❌ Error updating team member:', updateError);
       return NextResponse.json({ error: 'Error al actualizar miembro' }, { status: 500 });
     }
-
-    console.log('✅ Team member updated:', updated.id);
-
     return NextResponse.json({
       message: 'Miembro actualizado exitosamente',
       member: updated,
@@ -127,8 +123,9 @@ export async function PATCH(
 // DELETE /api/team/members/[id]
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const params = await context.params;
   try {
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -138,9 +135,6 @@ export async function DELETE(
     }
 
     const { id } = params;
-
-    console.log('🗑️  Removing team member:', id);
-
     // Verify ownership before delete
     const { data: existing, error: fetchError } = await supabase
       .from('team_members')
@@ -163,9 +157,6 @@ export async function DELETE(
       console.error('❌ Error deleting team member:', deleteError);
       return NextResponse.json({ error: 'Error al eliminar miembro' }, { status: 500 });
     }
-
-    console.log('✅ Team member removed:', existing.member_email);
-
     return NextResponse.json({
       message: 'Miembro eliminado exitosamente',
     });

@@ -43,9 +43,6 @@ export async function GET(request: NextRequest) {
     if (bookingsError) {
       console.error('❌ Error fetching public bookings:', bookingsError);
     }
-
-    console.log(`📊 Found ${appointments?.length || 0} internal appointments, ${publicBookings?.length || 0} public bookings`);
-
     // Transform regular appointments
     const transformedAppointments = appointments?.map(apt => ({
       ...apt,
@@ -122,9 +119,6 @@ export async function GET(request: NextRequest) {
       const dateB = new Date(b.fecha_hora || b.fecha).getTime();
       return dateA - dateB;
     });
-
-    console.log(`✅ Returning ${transformedAppointments.length} internal + ${transformedBookings.length} online bookings`);
-
     return NextResponse.json({ 
       appointments: allAppointments,
       stats: {

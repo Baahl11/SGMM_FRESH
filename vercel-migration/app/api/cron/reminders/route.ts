@@ -417,9 +417,6 @@ export async function GET(request: NextRequest) {
     if (authHeader !== `Bearer ${CRON_SECRET}`) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    
-    console.log('🤖 Starting auto-reminders cron job...');
-    
     // Get all users
     const { data: users, error: usersError } = await supabaseAdmin.auth.admin.listUsers();
     
@@ -427,9 +424,6 @@ export async function GET(request: NextRequest) {
       console.error('Error fetching users:', usersError);
       return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 });
     }
-    
-    console.log(`👥 Processing ${users.users.length} users...`);
-    
     const results = {
       users_processed: 0,
       users_skipped_dnd: 0,
@@ -484,13 +478,9 @@ export async function GET(request: NextRequest) {
         
         // Check DND hours
         if (isDNDActive(prefs)) {
-          console.log(`⏸️ User ${user.email} is in DND mode, skipping...`);
           results.users_skipped_dnd++;
           continue;
         }
-        
-        console.log(`✅ Processing user: ${user.email}`);
-        
         // Run all checks
         results.reminders_created.unsent_invoices += await checkUnsentInvoices(user.id, prefs);
         results.reminders_created.unpaid_invoices += await checkUnpaidInvoices(user.id, prefs);
@@ -507,14 +497,6 @@ export async function GET(request: NextRequest) {
     }
     
     const totalReminders = Object.values(results.reminders_created).reduce((a, b) => a + b, 0);
-    
-    console.log('✅ Cron job completed:', {
-      users_processed: results.users_processed,
-      users_skipped_dnd: results.users_skipped_dnd,
-      total_reminders: totalReminders,
-      breakdown: results.reminders_created,
-    });
-    
     return NextResponse.json({
       success: true,
       ...results,

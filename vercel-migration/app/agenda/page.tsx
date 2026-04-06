@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import toast, { Toaster } from 'react-hot-toast';
+import { toast } from 'sonner';
 import { 
   Calendar as CalendarIcon, 
   Clock, 
@@ -23,7 +24,6 @@ import AppLayout from "@/components/layout/app-layout";
 import CalendarGrid from "@/components/agenda/calendar-grid";
 import AppointmentModal from "@/components/agenda/appointment-modal";
 import TimeSlotManager from "@/components/agenda/time-slot-manager";
-import AgendaConfigModal from "@/components/agenda/agenda-config-modal";
 import TimelineDoctorView from "@/components/agenda/timeline-doctor-view";
 import TimelineConsultorioView from "@/components/agenda/timeline-consultorio-view";
 import GridMultiDoctorView from "@/components/agenda/grid-multi-doctor-view";
@@ -71,8 +71,8 @@ export default function AgendaPage() {
   const [workingHours, setWorkingHours] = useState<any>(null);
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const [showTimeSlotManager, setShowTimeSlotManager] = useState(false);
-  const [showConfigModal, setShowConfigModal] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<{ date: string; time: string } | null>(null);
+  const router = useRouter();
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   
   // 🆕 Multi-doctor filters
@@ -109,39 +109,28 @@ export default function AgendaPage() {
   // 🆕 Load filter data
   const loadFilters = async () => {
     try {
-      console.log('🔍 [FILTERS] Loading doctors, consultorios, and appointment types...');
       const [doctorsRes, consultoriosRes, typesRes] = await Promise.all([
         fetch('/api/doctors'),
         fetch('/api/consultorios'),
         fetch('/api/appointment-types')
       ]);
-      
-      console.log('🔍 [FILTERS] Doctors response status:', doctorsRes.status);
       if (doctorsRes.ok) {
         const data = await doctorsRes.json();
-        console.log('🔍 [FILTERS] Doctors data:', data);
         const activeDoctors = Array.isArray(data) ? data.filter((d: any) => d.activo !== false) : [];
-        console.log('🔍 [FILTERS] Active doctors count:', activeDoctors.length);
         setDoctors(activeDoctors);
       } else {
         console.error('❌ [FILTERS] Doctors endpoint returned error:', doctorsRes.status);
         setDoctors([]);
       }
-      
-      console.log('🔍 [FILTERS] Consultorios response status:', consultoriosRes.status);
       if (consultoriosRes.ok) {
         const data = await consultoriosRes.json();
-        console.log('🔍 [FILTERS] Consultorios data count:', Array.isArray(data) ? data.length : 0);
         setConsultorios(Array.isArray(data) ? data.filter((c: any) => c.activo !== false) : []);
       } else {
         console.error('❌ [FILTERS] Consultorios endpoint returned error:', consultoriosRes.status);
         setConsultorios([]);
       }
-      
-      console.log('🔍 [FILTERS] Appointment types response status:', typesRes.status);
       if (typesRes.ok) {
         const data = await typesRes.json();
-        console.log('🔍 [FILTERS] Appointment types data count:', Array.isArray(data) ? data.length : 0);
         setAppointmentTypes(Array.isArray(data) ? data.filter((t: any) => t.activo !== false) : []);
       } else {
         console.error('❌ [FILTERS] Appointment types endpoint returned error:', typesRes.status);
@@ -157,7 +146,6 @@ export default function AgendaPage() {
 
   // Loader for appointments
   const loadAppointments = async () => {
-    console.log('📥 [LOAD] Starting loadAppointments...');
     setLoading(true);
     setError(null);
     try {
@@ -166,9 +154,6 @@ export default function AgendaPage() {
       const response = await fetch(`/api/appointments/combined?_=${timestamp}`, {
         cache: 'no-store'
       });
-      
-      console.log('📥 [LOAD] Response status:', response.status);
-      
       if (!response.ok) {
         console.error(`❌ loadAppointments error: ${response.status}`);
         setError(`Error ${response.status}: No se pudieron cargar las citas`);
@@ -176,11 +161,7 @@ export default function AgendaPage() {
       }
 
       const result = await response.json();
-      console.log('📥 [LOAD] Raw result:', result);
-      
       const appointments = Array.isArray(result) ? result : (result.appointments || result.data || []);
-      console.log('📥 [LOAD] Parsed appointments count:', appointments.length);
-      
       if (appointments.length > 0) {
         const processedAppointments = appointments.map((appointment: any) => ({
           id: appointment.id,
@@ -202,11 +183,8 @@ export default function AgendaPage() {
           appointment_type_id: appointment.appointment_type_id,
           appointment_type_name: appointment.appointment_type_name
         }));
-        console.log('📥 [LOAD] Processed appointments:', processedAppointments.length);
-        console.log('📥 [LOAD] Appointment IDs:', processedAppointments.map((a: any) => a.id));
         setAppointments(processedAppointments);
       } else {
-        console.log('📥 [LOAD] No appointments found, setting empty array');
         setAppointments([]);
       }
     } catch (err) {
@@ -215,13 +193,11 @@ export default function AgendaPage() {
       setAppointments([]);
     } finally {
       setLoading(false);
-      console.log('📥 [LOAD] Loading complete, state updated');
     }
   };
 
   // Generate default time slots (8 AM to 6 PM, 30-min intervals)
   const generateDefaultTimeSlots = (): TimeSlot[] => {
-    console.log(`🔍 generateDefaultTimeSlots: STARTING slot generation...`);
     const slots: TimeSlot[] = [];
     const startHour = 8; // 8 AM
     const endHour = 18; // 6 PM
@@ -378,48 +354,32 @@ export default function AgendaPage() {
       const sameMinutes = existingDateTime.getMinutes() === appointmentDateTime.getMinutes();
       
       if (sameYear && sameMonth && sameDate && sameHour && sameMinutes) {
-        console.log('⚠️ [VALIDATION] Same time slot found:', existingApt.patient_name, existingDateTime.toISOString());
-        
         // ❌ CONFLICTO 1: Mismo doctor ocupado
         if (doctor_id && existingApt.doctor_id === doctor_id) {
-          console.log('❌ [VALIDATION] Doctor conflict detected');
           return `⚠️ El doctor ya tiene una cita agendada a esta hora con ${existingApt.patient_name || 'otro paciente'}`;
         }
 
         // ❌ CONFLICTO 2: Mismo paciente duplicado
         if (patient_id && Number(existingApt.patient_id) === Number(patient_id)) {
-          console.log('❌ [VALIDATION] Patient conflict detected');
           return `⚠️ Este paciente ya tiene una cita agendada a esta hora`;
         }
 
         // ❌ CONFLICTO 3: Mismo consultorio ocupado
         if (consultorio_id && existingApt.consultorio_id === consultorio_id) {
-          console.log('❌ [VALIDATION] Consultorio conflict detected');
           return `⚠️ El consultorio ya está ocupado a esta hora por ${existingApt.patient_name || 'otro paciente'}`;
         }
       }
     }
-
-    console.log('✅ [VALIDATION] No conflicts found');
     // ✅ Sin conflictos
     return null;
   };
 
   const handleAppointmentSave = async (appointmentData: any) => {
-    console.log('🔍 handleAppointmentSave called with data:', appointmentData);
-    console.log('🔍 selectedAppointment:', selectedAppointment);
-    console.log('🔍 selectedSlot:', selectedSlot);
-    
     // 🚨 VALIDAR CONFLICTOS antes de guardar
     const conflictError = validateAppointmentConflicts(appointmentData);
     if (conflictError) {
       toast.error(conflictError, {
         duration: 5000,
-        style: {
-          background: '#fee2e2',
-          color: '#991b1b',
-          border: '1px solid #fca5a5',
-        }
       });
       return; // ❌ No guardar si hay conflicto
     }
@@ -428,8 +388,6 @@ export default function AgendaPage() {
       let newAppointmentId = null;
       if (selectedAppointment) {
         // Update existing appointment
-        console.log('🔍 Updating existing appointment:', selectedAppointment.id);
-        
         const response = await fetch(`/api/appointments/${selectedAppointment.id}`, {
           method: 'PUT',
           headers: {
@@ -443,16 +401,11 @@ export default function AgendaPage() {
         }
 
         const result = await response.json();
-        console.log('📨 PUT Result:', result);
-        console.log('🎨 PUT doctor_color:', result.doctor_color);
         if (result.id) {
           newAppointmentId = result.id;
         }
       } else {
         // Create new appointment
-        console.log('🔍 Creating new appointment...');
-        console.log('🔍 Data being sent to API:', appointmentData);
-        
         const response = await fetch('/api/appointments', {
           method: 'POST',
           headers: {
@@ -460,17 +413,11 @@ export default function AgendaPage() {
           },
           body: JSON.stringify(appointmentData),
         });
-
-        console.log('🌐 POST Response status:', response.status);
-        console.log('🌐 POST Response ok:', response.ok);
-
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const result = await response.json();
-        console.log('📨 POST Result:', result);
-        
         if (result.id) {
           newAppointmentId = result.id;
         }
@@ -478,9 +425,7 @@ export default function AgendaPage() {
 
       // Reload appointments with retry
       const reloadWithRetry = async (attempts = 3) => {
-        console.log('🔄 Starting reloadWithRetry with', attempts, 'attempts');
         for (let i = 0; i < attempts; i++) {
-          console.log(`🔄 Retry attempt ${i + 1}/${attempts}`);
           await new Promise(resolve => setTimeout(resolve, i * 500));
           await loadAppointments();
           
@@ -488,18 +433,15 @@ export default function AgendaPage() {
             setTimeout(() => {
               setAppointments(prev => [...prev]);
               setRefreshTrigger(prev => prev + 1);
-              console.log('🔄 Final refresh trigger applied');
             }, 200);
           }
         }
-        console.log('✅ reloadWithRetry completed');
       };
 
       await reloadWithRetry();
       setShowAppointmentModal(false);
       setSelectedSlot(null);
       setSelectedAppointment(null);
-      console.log('✅ Appointment save/update completed with retry system');
     } catch (err) {
       console.error('❌ Error saving appointment:', err);
       setError('Error al guardar la cita');
@@ -507,21 +449,14 @@ export default function AgendaPage() {
   };
 
   const handleAppointmentDelete = async (appointmentId: number) => {
-    console.log('🗑️ [API DELETE] Starting API delete for ID:', appointmentId);
     try {
       const url = `/api/appointments/${appointmentId}`;
-      console.log('🗑️ [API DELETE] Fetching URL:', url);
-      
       const response = await fetch(url, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
         },
       });
-
-      console.log('🗑️ [API DELETE] Response status:', response.status);
-      console.log('🗑️ [API DELETE] Response ok:', response.ok);
-
       if (!response.ok) {
         const errorText = await response.text();
         console.error('❌ [API DELETE] Error response:', errorText);
@@ -529,23 +464,15 @@ export default function AgendaPage() {
       }
 
       const result = await response.json();
-      console.log('🗑️ [API DELETE] Result:', result);
-      
       if (result.error) {
         console.error('❌ [API DELETE] Result has error:', result.error);
         throw new Error(result.error);
       }
-      
-      console.log('✅ [API DELETE] Appointment deleted successfully');
-      
       // Update local state immediately instead of reloading
       setAppointments(prev => {
         const filtered = prev.filter(apt => apt.id !== appointmentId);
-        console.log('🗑️ [API DELETE] Filtered appointments count:', filtered.length, '(was:', prev.length, ')');
         return filtered;
       });
-      
-      console.log('✅ [API DELETE] Local state updated, appointment removed from UI');
     } catch (error) {
       console.error('❌ [API DELETE] Error deleting appointment:', error);
       console.error('❌ [API DELETE] Error stack:', error instanceof Error ? error.stack : 'No stack');
@@ -555,7 +482,6 @@ export default function AgendaPage() {
 
   // 🆕 Handler for drag-and-drop appointment move
   const handleAppointmentMove = async (appointmentId: number, newDate: string, newTime: string) => {
-    console.log('🎯 [DRAG] Moving appointment', appointmentId, 'to', newDate, newTime);
     try {
       // Combine date and time into ISO string
       const [hours, minutes] = newTime.split(':');
@@ -578,7 +504,6 @@ export default function AgendaPage() {
 
       // Reload appointments to show the change
       await loadAppointments();
-      console.log('✅ [DRAG] Appointment moved successfully');
     } catch (error) {
       console.error('❌ [DRAG] Error moving appointment:', error);
       alert('Error al mover la cita');
@@ -617,32 +542,27 @@ export default function AgendaPage() {
   // Load working hours from localStorage on mount
   useEffect(() => {
     const saved = localStorage.getItem('working-hours');
-    console.log('🔍 Initial load of working-hours from localStorage:', saved);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        console.log('🔍 Parsed working hours on mount:', parsed);
         setWorkingHours(parsed);
       } catch (e) {
         console.error('🔍 Error parsing working hours on mount:', e);
         setWorkingHours(null);
       }
     } else {
-      console.log('🔍 No working hours found in localStorage');
       setWorkingHours(null);
     }
   }, []);
 
   // Update time slots when workingHours, currentDate, viewMode, or refreshTrigger change
   useEffect(() => {
-    console.log('🔍 Effect triggered - workingHours changed:', workingHours);
     loadAppointments();
     loadTimeSlots();
   }, [currentDate, viewMode, refreshTrigger, workingHours]);
 
   // Force initial load of appointments when component mounts
   useEffect(() => {
-    console.log('🔍 FORCE LOAD - Calling loadAppointments...');
     loadFilters(); // 🆕 Load filter options
     loadAppointments();
     loadTimeSlots();
@@ -650,7 +570,6 @@ export default function AgendaPage() {
 
   return (
     <AppLayout>
-      <Toaster position="top-right" />
       <div className="dashboard-surface space-y-8 text-white">
         <GlassPanel className="p-6 border-white/15 bg-gradient-to-br from-white/10 via-white/5 to-transparent">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
@@ -680,7 +599,7 @@ export default function AgendaPage() {
               </Button>
               <Button
                 variant="outline"
-                onClick={() => setShowConfigModal(true)}
+                onClick={() => router.push('/dashboard/settings')}
                 className="h-12 rounded-full border-white/30 bg-white/5 text-white hover:bg-white/10"
               >
                 <Settings className="mr-2 h-4 w-4" /> Configuración
@@ -942,25 +861,18 @@ export default function AgendaPage() {
             onClose={() => setShowTimeSlotManager(false)}
             selectedDate={currentDate}
             onSlotUpdate={(slots) => {
-              console.log('🔍 TimeSlotManager onSlotUpdate called with slots:', slots?.length || 'undefined');
-              
               // Force reload working hours from localStorage
               try {
                 const saved = localStorage.getItem('working-hours');
-                console.log('🔍 Reading working-hours from localStorage:', saved);
-                
                 if (saved) {
                   const parsedHours = JSON.parse(saved);
-                  console.log('🔍 Parsed working hours:', parsedHours);
                   setWorkingHours(parsedHours);
                   
                   // Generate new slots based on updated working hours
                   const newSlots = generateCustomTimeSlots(parsedHours);
-                  console.log('🔍 Generated new slots from working hours:', newSlots.length);
                   setTimeSlots(newSlots);
                   setForceTimeSlots(newSlots);
                 } else {
-                  console.log('🔍 No working hours in localStorage, using default');
                   setWorkingHours(null);
                   const defaultSlots = generateDefaultTimeSlots();
                   setTimeSlots(defaultSlots);
@@ -976,18 +888,10 @@ export default function AgendaPage() {
               
               // Force a refresh to reload everything
               setRefreshTrigger(prev => prev + 1);
-              console.log('🔍 Forced refresh trigger');
             }}
           />
         )}
 
-        {/* Configuración Modal con TODAS las features */}
-        {showConfigModal && (
-          <AgendaConfigModal
-            isOpen={showConfigModal}
-            onClose={() => setShowConfigModal(false)}
-          />
-        )}
       </div>
     </AppLayout>
   );

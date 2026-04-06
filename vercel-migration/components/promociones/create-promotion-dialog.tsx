@@ -241,12 +241,12 @@ export function CreatePromotionDialog({ open, onOpenChange, onSuccess }: CreateP
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto backdrop-blur-xl bg-gradient-to-br from-gray-900/95 via-purple-900/90 to-gray-900/95 border border-white/20">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+          <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
             Nueva Promoción
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-white/70">
             Crea una promoción combinando múltiples tratamientos con un precio especial
           </DialogDescription>
         </DialogHeader>
@@ -254,7 +254,7 @@ export function CreatePromotionDialog({ open, onOpenChange, onSuccess }: CreateP
         <div className="space-y-6 py-4">
           {/* Error message */}
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
+            <div className="backdrop-blur-xl bg-red-500/10 border border-red-400/30 text-red-300 px-4 py-3 rounded-lg">
               {error}
             </div>
           )}
@@ -262,38 +262,38 @@ export function CreatePromotionDialog({ open, onOpenChange, onSuccess }: CreateP
           {/* Basic Info */}
           <div className="space-y-4">
             <div>
-              <Label htmlFor="nombre">Nombre de la Promoción *</Label>
+              <Label htmlFor="nombre" className="text-white/70">Nombre de la Promoción *</Label>
               <Input
                 id="nombre"
                 value={nombre}
                 onChange={(e) => setNombre(e.target.value)}
                 placeholder="Ej: Paquete Facial Completo"
-                className="mt-1"
+                className="mt-1 backdrop-blur-xl bg-white/5 border-white/20 text-white placeholder:text-white/40"
               />
             </div>
 
             <div>
-              <Label htmlFor="descripcion">Descripción (opcional)</Label>
+              <Label htmlFor="descripcion" className="text-white/70">Descripción (opcional)</Label>
               <Input
                 id="descripcion"
                 value={descripcion}
                 onChange={(e) => setDescripcion(e.target.value)}
                 placeholder="Descripción de la promoción"
-                className="mt-1"
+                className="mt-1 backdrop-blur-xl bg-white/5 border-white/20 text-white placeholder:text-white/40"
               />
             </div>
           </div>
 
           {/* Treatment Selection */}
           <div className="space-y-3">
-            <Label>Tratamientos Incluidos *</Label>
+            <Label className="text-white/70">Tratamientos Incluidos *</Label>
             <div className="flex gap-2">
               <Select
                 value={selectedTreatmentId}
                 onValueChange={setSelectedTreatmentId}
                 disabled={loadingTreatments}
               >
-                <SelectTrigger className="flex-1">
+                <SelectTrigger className="flex-1 backdrop-blur-xl bg-white/5 border-white/20 text-white">
                   <SelectValue placeholder="Seleccionar tratamiento..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -320,18 +320,18 @@ export function CreatePromotionDialog({ open, onOpenChange, onSuccess }: CreateP
             {selectedTreatments.length > 0 && (
               <div className="space-y-2 mt-4">
                 {selectedTreatments.map((treatment) => (
-                  <Card key={treatment.treatment_id}>
+                  <Card key={treatment.treatment_id} className="backdrop-blur-xl bg-white/5 border-white/20">
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between gap-4">
                         <div className="flex-1">
-                          <p className="font-medium">{treatment.nombre}</p>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="font-medium text-white/90">{treatment.nombre}</p>
+                          <p className="text-sm text-white/50">
                             Precio base: ${treatment.precio_base.toFixed(2)} | 
                             Costo: ${treatment.costo_unitario.toFixed(2)}
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Label className="text-sm">Cantidad:</Label>
+                          <Label className="text-sm text-white/70">Cantidad:</Label>
                           <Input
                             type="number"
                             min="1"
@@ -339,7 +339,7 @@ export function CreatePromotionDialog({ open, onOpenChange, onSuccess }: CreateP
                             onChange={(e) =>
                               updateQuantity(treatment.treatment_id, parseInt(e.target.value) || 1)
                             }
-                            className="w-20"
+                            className="w-20 backdrop-blur-xl bg-white/5 border-white/20 text-white"
                           />
                           <Button
                             type="button"
@@ -361,7 +361,7 @@ export function CreatePromotionDialog({ open, onOpenChange, onSuccess }: CreateP
           {/* Pricing */}
           <div className="space-y-4">
             <div>
-              <Label htmlFor="precioTotal">Precio Promocional (Público) *</Label>
+              <Label htmlFor="precioTotal" className="text-white/70">Precio Promocional (Público) *</Label>
               <Input
                 id="precioTotal"
                 type="number"
@@ -370,37 +370,37 @@ export function CreatePromotionDialog({ open, onOpenChange, onSuccess }: CreateP
                 value={precioTotal}
                 onChange={(e) => setPrecioTotal(e.target.value)}
                 placeholder="0.00"
-                className="mt-1"
+                className="mt-1 backdrop-blur-xl bg-white/5 border-white/20 text-white placeholder:text-white/40"
               />
             </div>
 
             {/* Calculations Summary */}
             {selectedTreatments.length > 0 && precioTotal && (
-              <Card className="bg-gradient-to-br from-purple-50 to-pink-50 border-purple-200">
+              <Card className="backdrop-blur-xl bg-gradient-to-br from-purple-500/10 via-pink-500/5 to-transparent border border-purple-400/30">
                 <CardContent className="p-4 space-y-2">
                   <div className="flex items-center gap-2 mb-3">
-                    <Calculator className="h-5 w-5 text-purple-600" />
-                    <h3 className="font-semibold text-purple-900">Resumen de Cálculos</h3>
+                    <Calculator className="h-5 w-5 text-purple-400" />
+                    <h3 className="font-semibold text-purple-300">Resumen de Cálculos</h3>
                   </div>
                   
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
-                      <p className="text-muted-foreground">Precio Normal Total:</p>
-                      <p className="font-semibold line-through">${precioNormalTotal.toFixed(2)}</p>
+                      <p className="text-white/50">Precio Normal Total:</p>
+                      <p className="font-semibold line-through text-white/70">${precioNormalTotal.toFixed(2)}</p>
                     </div>
                     <div>
-                      <p className="text-muted-foreground">Precio Promocional:</p>
-                      <p className="font-semibold text-green-600">${precioPromocional.toFixed(2)}</p>
+                      <p className="text-white/50">Precio Promocional:</p>
+                      <p className="font-semibold text-green-400">${precioPromocional.toFixed(2)}</p>
                     </div>
                     <div>
-                      <p className="text-muted-foreground">Descuento:</p>
-                      <Badge variant="secondary" className="font-semibold">
+                      <p className="text-white/50">Descuento:</p>
+                      <Badge variant="secondary" className="font-semibold backdrop-blur-xl bg-white/10 text-white border-white/20">
                         {descuentoPorcentaje.toFixed(1)}%
                       </Badge>
                     </div>
                     <div>
-                      <p className="text-muted-foreground">Costo Total:</p>
-                      <p className="font-semibold">${costoTotal.toFixed(2)}</p>
+                      <p className="text-white/50">Costo Total:</p>
+                      <p className="font-semibold text-white/90">${costoTotal.toFixed(2)}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -411,15 +411,15 @@ export function CreatePromotionDialog({ open, onOpenChange, onSuccess }: CreateP
           {/* Payment Method & Commission Calculator */}
           <div className="space-y-4">
             <div className="flex items-center gap-2 mb-2">
-              <CreditCard className="h-5 w-5 text-blue-600" />
-              <Label className="text-base font-semibold">Calculadora de Comisiones</Label>
+              <CreditCard className="h-5 w-5 text-blue-400" />
+              <Label className="text-base font-semibold text-white/90">Calculadora de Comisiones</Label>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="paymentMethod">Método de Pago</Label>
+                <Label htmlFor="paymentMethod" className="text-white/70">Método de Pago</Label>
                 <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                  <SelectTrigger id="paymentMethod" className="mt-1">
+                  <SelectTrigger id="paymentMethod" className="mt-1 backdrop-blur-xl bg-white/5 border-white/20 text-white">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -436,9 +436,9 @@ export function CreatePromotionDialog({ open, onOpenChange, onSuccess }: CreateP
               {paymentMethod === 'TDC' && (
                 <>
                   <div>
-                    <Label htmlFor="creditCard">Banco/Procesador</Label>
+                    <Label htmlFor="creditCard" className="text-white/70">Banco/Procesador</Label>
                     <Select value={creditCard} onValueChange={setCreditCard}>
-                      <SelectTrigger id="creditCard" className="mt-1">
+                      <SelectTrigger id="creditCard" className="mt-1 backdrop-blur-xl bg-white/5 border-white/20 text-white">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -452,9 +452,9 @@ export function CreatePromotionDialog({ open, onOpenChange, onSuccess }: CreateP
                   </div>
 
                   <div>
-                    <Label htmlFor="msi">Meses Sin Intereses (Opcional)</Label>
+                    <Label htmlFor="msi" className="text-white/70">Meses Sin Intereses (Opcional)</Label>
                     <Select value={msi} onValueChange={setMsi}>
-                      <SelectTrigger id="msi" className="mt-1">
+                      <SelectTrigger id="msi" className="mt-1 backdrop-blur-xl bg-white/5 border-white/20 text-white">
                         <SelectValue placeholder="Sin MSI" />
                       </SelectTrigger>
                       <SelectContent>
@@ -473,20 +473,20 @@ export function CreatePromotionDialog({ open, onOpenChange, onSuccess }: CreateP
 
             {/* Commission Summary */}
             {precioPromocional > 0 && (
-              <Card className="bg-blue-50 border-blue-200">
+              <Card className="backdrop-blur-xl bg-gradient-to-br from-blue-500/10 via-cyan-500/5 to-transparent border border-blue-400/30">
                 <CardContent className="p-4">
                   <div className="grid grid-cols-3 gap-4 text-sm">
                     <div>
-                      <p className="text-muted-foreground">Ganancia Base:</p>
-                      <p className="font-semibold text-lg">${gananciaBase.toFixed(2)}</p>
+                      <p className="text-white/50">Ganancia Base:</p>
+                      <p className="font-semibold text-lg text-white/90">${gananciaBase.toFixed(2)}</p>
                     </div>
                     <div>
-                      <p className="text-muted-foreground">Comisión ({commissionRate}%):</p>
-                      <p className="font-semibold text-lg text-orange-600">-${comision.toFixed(2)}</p>
+                      <p className="text-white/50">Comisión ({commissionRate}%):</p>
+                      <p className="font-semibold text-lg text-orange-400">-${comision.toFixed(2)}</p>
                     </div>
                     <div>
-                      <p className="text-muted-foreground">Ganancia Neta:</p>
-                      <p className={`font-bold text-xl ${gananciaNeta > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      <p className="text-white/50">Ganancia Neta:</p>
+                      <p className={`font-bold text-xl ${gananciaNeta > 0 ? 'text-green-400' : 'text-red-400'}`}>
                         ${gananciaNeta.toFixed(2)}
                       </p>
                     </div>
@@ -497,12 +497,13 @@ export function CreatePromotionDialog({ open, onOpenChange, onSuccess }: CreateP
           </div>
 
           {/* Action Buttons */}
-          <div className="flex justify-end gap-3 pt-4 border-t">
+          <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
             <Button
               type="button"
               variant="outline"
               onClick={() => handleOpenChange(false)}
               disabled={loading}
+              className="backdrop-blur-xl bg-white/5 border-white/20 text-white hover:bg-white/10"
             >
               Cancelar
             </Button>
@@ -510,7 +511,7 @@ export function CreatePromotionDialog({ open, onOpenChange, onSuccess }: CreateP
               type="button"
               onClick={handleSubmit}
               disabled={loading || selectedTreatments.length === 0 || !nombre || !precioTotal}
-              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+              className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
             >
               {loading ? (
                 <>

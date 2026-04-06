@@ -4,12 +4,9 @@ import { getAuthUser } from '@/lib/auth-server';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log(`🔥 GET /api/patients/${params.id} - Fetching patient...`)
-    
-    // Authenticate user
     const user = await getAuthUser();
     if (!user) {
       console.error('❌ Unauthorized: No user found');
@@ -18,10 +15,8 @@ export async function GET(
         { status: 401 }
       );
     }
-    console.log('✅ Authenticated user:', user.id);
-    
     const supabase = await createClient();
-    const { id } = params;
+    const { id } = await params;
 
     // Fetch patient with RLS (will automatically filter by user_id)
     const { data: patient, error } = await supabase
@@ -39,7 +34,6 @@ export async function GET(
     }
 
     // No transformation needed - Supabase fields are already in Spanish
-    console.log('✅ Patient fetched:', patient)
     return NextResponse.json(patient);
   } catch (error) {
     console.error('❌ API error:', error);
@@ -52,16 +46,11 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const body = await request.json();
-    const { id } = params;
-    
-    console.log(`🔥 PUT /api/patients/${id} - Updating patient...`)
-    console.log('🔥 Update data:', body)
-
-    // Authenticate user
+    const { id } = await params;
     const user = await getAuthUser();
     if (!user) {
       console.error('❌ Unauthorized: No user found');
@@ -100,9 +89,7 @@ export async function PUT(
       );
     }
 
-    console.log('✅ Patient updated successfully:', patient)
     return NextResponse.json(patient);
-
   } catch (error) {
     console.error('❌ API error:', error);
     return NextResponse.json(
@@ -114,12 +101,9 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log(`🔥 DELETE /api/patients/${params.id} - Deleting patient...`)
-    
-    // Authenticate user
     const user = await getAuthUser();
     if (!user) {
       console.error('❌ Unauthorized: No user found');
@@ -130,7 +114,7 @@ export async function DELETE(
     }
     
     const supabase = await createClient();
-    const { id } = params;
+    const { id } = await params;
 
     const { error } = await supabase
       .from('patients')
@@ -145,11 +129,7 @@ export async function DELETE(
       );
     }
 
-    console.log('✅ Patient deleted successfully')
-    return NextResponse.json({ 
-      message: 'Patient deleted successfully' 
-    });
-
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error('❌ API error:', error);
     return NextResponse.json(

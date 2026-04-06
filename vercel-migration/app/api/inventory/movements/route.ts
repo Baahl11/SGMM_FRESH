@@ -9,8 +9,6 @@ import { getAuthUser } from '@/lib/auth-server';
  */
 export async function GET(request: NextRequest) {
   try {
-    console.log('🔥 GET /api/inventory/movements - Fetching movements...');
-
     // Authenticate user
     const user = await getAuthUser();
     if (!user) {
@@ -67,8 +65,6 @@ export async function GET(request: NextRequest) {
         { status: 500 }
       );
     }
-
-    console.log(`✅ Found ${movements?.length || 0} inventory movements`);
     return NextResponse.json(movements || []);
   } catch (error) {
     console.error('❌ API error:', error);
@@ -93,9 +89,6 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { item_id, tipo, cantidad, motivo } = body;
-
-    console.log(`🔥 POST /api/inventory/movements - Creating ${tipo} movement for item ${item_id}...`);
-
     // Validate input
     if (!item_id || !tipo || cantidad === undefined) {
       return NextResponse.json(
@@ -189,10 +182,6 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-
-    console.log('✅ Inventory movement created successfully:', movement.id);
-    console.log(`   ${item.nombre}: ${cantidad_anterior} → ${cantidad_nueva}`);
-    
     return NextResponse.json({
       movement,
       item: {

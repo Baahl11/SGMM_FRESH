@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { motion } from 'framer-motion'
+import { trackPricingView } from '@/lib/analytics/funnel-events'
 
 const plans = [
   {
@@ -93,11 +94,12 @@ const plans = [
 export function PremiumPricing() {
   return (
     <section id="precios" className="bg-[#030614] py-28 text-white">
+      <motion.div onViewportEnter={trackPricingView} viewport={{ once: true, amount: 0.1 }} />
       <div className="mx-auto max-w-6xl px-6">
         <div className="text-center">
           <p className="text-sm uppercase tracking-[0.4em] text-white/50">Planes flexibles</p>
           <h2 className="mt-3 text-3xl font-semibold lg:text-4xl">Elige tu plan perfecto</h2>
-          <p className="mt-4 text-white/70">Precios oficiales de agendamedpro.com/pricing, sin inventar información.</p>
+          <p className="mt-4 text-white/70">Sin contratos. Cancela cuando quieras. Soporte en español incluido en todos los planes.</p>
         </div>
         <div className="mt-14 grid gap-6 md:grid-cols-2 xl:grid-cols-4">
           {plans.map((plan, index) => (

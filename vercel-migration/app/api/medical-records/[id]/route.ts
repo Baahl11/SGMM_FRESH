@@ -4,21 +4,19 @@ import { NextRequest, NextResponse } from 'next/server';
 // PUT: Actualizar una consulta médica
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const params = await context.params;
   try {
     const supabase = await createClient();
     
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      console.log('❌ [medical-records] PUT: No user authenticated');
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
     const recordId = params.id;
     const body = await request.json();
-    console.log(`✏️ [medical-records] PUT request for record: ${recordId}`);
-
     // Verificar que el registro existe y pertenece al usuario
     const { data: record, error: fetchError } = await supabase
       .from('medical_records')
@@ -27,7 +25,6 @@ export async function PUT(
       .single();
 
     if (fetchError || !record) {
-      console.log('❌ [medical-records] Record not found:', fetchError);
       return NextResponse.json({ error: 'Consulta no encontrada' }, { status: 404 });
     }
 
@@ -40,12 +37,8 @@ export async function PUT(
       .single();
 
     if (!patient) {
-      console.log('❌ [medical-records] Unauthorized access attempt');
       return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
     }
-
-    console.log('✅ [medical-records] Authorization verified, updating record...');
-
     // Actualizar el registro
     const { data: updatedRecord, error: updateError } = await supabase
       .from('medical_records')
@@ -74,8 +67,6 @@ export async function PUT(
       console.error('❌ [medical-records] Update error:', updateError);
       throw updateError;
     }
-
-    console.log('✅ [medical-records] Record updated successfully');
     return NextResponse.json(updatedRecord);
   } catch (error) {
     console.error('❌ [medical-records] Error updating record:', error);
@@ -89,20 +80,18 @@ export async function PUT(
 // DELETE: Eliminar una consulta médica
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const params = await context.params;
   try {
     const supabase = await createClient();
     
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      console.log('❌ [medical-records] DELETE: No user authenticated');
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
     const recordId = params.id;
-    console.log(`🔥 [medical-records] DELETE request for record: ${recordId}`);
-
     // Verificar que el registro existe y pertenece al usuario
     const { data: record, error: fetchError } = await supabase
       .from('medical_records')
@@ -111,7 +100,6 @@ export async function DELETE(
       .single();
 
     if (fetchError || !record) {
-      console.log('❌ [medical-records] Record not found:', fetchError);
       return NextResponse.json({ error: 'Consulta no encontrada' }, { status: 404 });
     }
 
@@ -124,12 +112,8 @@ export async function DELETE(
       .single();
 
     if (!patient) {
-      console.log('❌ [medical-records] Unauthorized access attempt');
       return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
     }
-
-    console.log('✅ [medical-records] Authorization verified, deleting record...');
-
     // Eliminar el registro
     const { error: deleteError } = await supabase
       .from('medical_records')
@@ -140,8 +124,6 @@ export async function DELETE(
       console.error('❌ [medical-records] Delete error:', deleteError);
       throw deleteError;
     }
-
-    console.log('✅ [medical-records] Record deleted successfully');
     return NextResponse.json({ message: 'Consulta eliminada exitosamente' });
   } catch (error) {
     console.error('❌ [medical-records] Error deleting record:', error);

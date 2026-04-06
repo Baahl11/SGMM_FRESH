@@ -32,10 +32,6 @@ export async function POST(
     const resolvedParams = await params;
     const { id: patientId } = resolvedParams;
     const body = await request.json();
-    
-    console.log(`🔥 [VERCEL-MULTI-TREATMENT] Creating multiple treatments for patient ${patientId}`);
-    console.log('🔥 [VERCEL-MULTI-TREATMENT] Body received:', JSON.stringify(body, null, 2));
-    
     const supabase = createClient();
 
     // 1. Verificar que el paciente existe
@@ -59,11 +55,6 @@ export async function POST(
     // 2. Validar datos de entrada
     // Frontend puede enviar "tratamientos" o "treatments"
     const treatments = body.tratamientos || body.treatments || [];
-    
-    console.log('🔥 [VERCEL-MULTI-TREATMENT] Extracted treatments:', treatments);
-    console.log('🔥 [VERCEL-MULTI-TREATMENT] Is array?', Array.isArray(treatments));
-    console.log('🔥 [VERCEL-MULTI-TREATMENT] Length:', treatments?.length);
-    
     if (!Array.isArray(treatments) || treatments.length === 0) {
       console.error('❌ [VERCEL-MULTI-TREATMENT] Validation FAILED - returning 400');
       return NextResponse.json(
@@ -85,9 +76,6 @@ export async function POST(
       notas: body.notas || '',
       nombre_promocion: body.nombre_promocion || ''
     };
-
-    console.log('🔥 [VERCEL-MULTI-TREATMENT] Shared data:', sharedData);
-
     // 4. Preparar registros para insertar
     const recordsToInsert = treatments.map((treatment: any) => {
       // Calcular valores
@@ -119,10 +107,6 @@ export async function POST(
         pendiente_facturar: true
       };
     });
-
-    console.log('🔥 [VERCEL-MULTI-TREATMENT] Records to insert:', recordsToInsert.length);
-    console.log('🔥 [VERCEL-MULTI-TREATMENT] First record sample:', recordsToInsert[0]);
-
     // 5. Insertar múltiples registros EN UNA SOLA LLAMADA (Supabase lo maneja atómicamente)
     const { data: createdRecords, error: insertError } = await supabase
       .from('records')
@@ -139,10 +123,6 @@ export async function POST(
         { status: 500 }
       );
     }
-
-    console.log(`✅ [VERCEL-MULTI-TREATMENT] Success! Created ${createdRecords?.length} records for patient ${patientId}`);
-    console.log('✅ [VERCEL-MULTI-TREATMENT] Created records:', createdRecords);
-
     // 6. TODO: Descontar inventario automáticamente (próximo paso)
     // Por ahora solo creamos los registros
 

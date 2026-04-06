@@ -53,14 +53,6 @@ export async function GET(request: Request) {
     const año = searchParams.get('año');
     const fecha_inicio = searchParams.get('fecha_inicio');
     const fecha_fin = searchParams.get('fecha_fin');
-
-    console.log('📊 [GET /api/gastos-variables/stats] Calculando estadísticas...', {
-      mes,
-      año,
-      fecha_inicio,
-      fecha_fin
-    });
-
     // Construir query base
     let query = supabase
       .from('variable_expenses')
@@ -193,13 +185,6 @@ export async function GET(request: Request) {
       },
       proveedores_frecuentes
     };
-
-    console.log('✅ [GET /api/gastos-variables/stats] Estadísticas calculadas:', {
-      total: stats.total,
-      count: stats.count,
-      categorias: stats.por_categoria.length
-    });
-
     return NextResponse.json(stats);
 
   } catch (error) {

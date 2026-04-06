@@ -1,32 +1,27 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { MessageSquare, Save, ExternalLink, CheckCircle, Sparkles, Settings, Zap, Phone, Globe, Code2, ShieldCheck } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { MessageSquare, ArrowRight, CheckCircle, ExternalLink, AlertCircle, ArrowLeft, Sparkles } from 'lucide-react';
 import { GlassPanel } from '@/components/ui/glass-panel';
 
-interface WhatsAppSettings {
-  whatsapp_phone: string;
-  whatsapp_enabled: boolean;
-  whatsapp_default_message: string;
-  whatsapp_config_level: 'basic' | 'intermediate' | 'advanced';
-}
-
-export default function WhatsAppConfigPage() {
-  const [settings, setSettings] = useState<WhatsAppSettings>({
-    whatsapp_phone: '',
-    whatsapp_enabled: false,
-    whatsapp_default_message: '¡Hola! Me contacto desde AgendaMedPro',
-    whatsapp_config_level: 'basic',
+export default function WhatsAppMetaSettings() {
+  const supabase = createClient();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [showWizard, setShowWizard] = useState(false);
+  const [currentStep, setCurrentStep] = useState(1);
+  const [testing, setTesting] = useState(false);
+  const [validated, setValidated] = useState(false);
+  const [settings, setSettings] = useState({
+    enabled: false,
+    phoneNumberId: '',
+    businessAccountId: '',
+    accessToken: ''
   });
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
+
+  const totalSteps = 4;
 
   useEffect(() => {
     loadSettings();
@@ -34,449 +29,558 @@ export default function WhatsAppConfigPage() {
 
   const loadSettings = async () => {
     try {
-      setIsLoading(true);
-      const response = await fetch('/api/user/whatsapp-settings');
-      if (response.ok) {
-        const data = await response.json();
-        setSettings(data);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('whatsapp_enabled, whatsapp_phone_number_id, whatsapp_business_account_id, whatsapp_access_token')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data) {
+        setSettings({
+          enabled: data.whatsapp_enabled || false,
+          phoneNumberId: data.whatsapp_phone_number_id || '',
+          businessAccountId: data.whatsapp_business_account_id || '',
+          accessToken: data.whatsapp_access_token || ''
+        });
+        
+        // Si no tiene configuración, mostrar wizard automáticamente
+        if (!data.whatsapp_enabled || !data.whatsapp_phone_number_id) {
+          setShowWizard(true);
+        }
+      } else {
+        setShowWizard(true);
       }
     } catch (error) {
       console.error('Error loading settings:', error);
       toast.error('Error al cargar configuración');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  const handleSaveBasic = async () => {
-    if (!settings.whatsapp_phone.trim()) {
-      toast.error('Por favor ingresa tu número de WhatsApp');
-      return;
-    }
-
-    const cleanPhone = settings.whatsapp_phone.replace(/\s+/g, '');
-    if (!/^\+\d{10,15}$/.test(cleanPhone)) {
-      toast.error('Formato inválido. Debe incluir código de país (ej: +52 55 1234 5678)');
-      return;
-    }
-
+  const handleSave = async () => {
+    setSaving(true);
     try {
-      setIsSaving(true);
       const response = await fetch('/api/user/whatsapp-settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...settings,
           whatsapp_enabled: true,
-          whatsapp_config_level: 'basic',
-        }),
+          whatsapp_provider: 'meta',
+          whatsapp_phone_number_id: settings.phoneNumberId,
+          whatsapp_business_account_id: settings.businessAccountId,
+          whatsapp_access_token: settings.accessToken
+        })
       });
 
-      if (response.ok) {
-        toast.success('✅ Configuración guardada correctamente');
-        loadSettings();
-      } else {
-        const data = await response.json();
-        toast.error(data.error || 'Error al guardar configuración');
-      }
+      if (!response.ok) throw new Error('Error al guardar');
+
+      toast.success('✅ Configuración guardada correctamente');
+      setShowWizard(false);
+      setValidated(false);
+      setCurrentStep(1);
+      loadSettings();
     } catch (error) {
       console.error('Error saving settings:', error);
       toast.error('Error al guardar configuración');
     } finally {
-      setIsSaving(false);
+      setSaving(false);
     }
   };
 
-  const handleTestWhatsApp = () => {
-    const cleanPhone = settings.whatsapp_phone.replace(/\D/g, '');
-    const encodedMessage = encodeURIComponent(settings.whatsapp_default_message || '¡Hola! Me contacto desde AgendaMedPro');
-    const url = `https://wa.me/${cleanPhone}?text=${encodedMessage}`;
-    window.open(url, '_blank');
-    toast.success('Se abrió WhatsApp en una nueva pestaña');
+  const testConnection = async () => {
+    if (!settings.phoneNumberId || !settings.accessToken) {
+      toast.error('Completa Phone Number ID y Access Token primero');
+      return;
+    }
+
+    setTesting(true);
+    try {
+      const response = await fetch('/api/whatsapp/validate-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone_number_id: settings.phoneNumberId,
+          access_token: settings.accessToken
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setValidated(true);
+        toast.success('✓ ¡Conexión exitosa! Ya puedes guardar.');
+      } else {
+        toast.error(`Error: ${result.error || 'No se pudo conectar'}`);
+      }
+    } catch (error) {
+      toast.error('Error al probar conexión');
+    } finally {
+      setTesting(false);
+    }
   };
 
-  const inputClass = 'h-12 w-full rounded-2xl border border-white/10 bg-white/5 px-4 text-sm text-white placeholder:text-white/60 focus-visible:border-emerald-400 focus-visible:ring-2 focus-visible:ring-emerald-400/30';
+  const canGoNext = () => {
+    switch (currentStep) {
+      case 1: return true;
+      case 2: return settings.phoneNumberId.length > 10;
+      case 3: return settings.accessToken.startsWith('EAA') && settings.accessToken.length > 50;
+      case 4: return validated;
+      default: return false;
+    }
+  };
 
-  if (isLoading) {
+  if (loading) {
     return (
-      <div className="flex h-96 items-center justify-center">
-        <div className="text-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-4"></div>
-          <p className="text-sm text-muted-foreground">Cargando configuración...</p>
-        </div>
-      </div>
+      <GlassPanel className="flex min-h-[320px] items-center justify-center border-white/10 bg-white/5 text-white">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-300"></div>
+      </GlassPanel>
     );
   }
 
-  return (
-    <div className="space-y-6 pb-16">
-      {/* Hero Section */}
-      <GlassPanel className="relative overflow-hidden border border-white/10 bg-gradient-to-br from-emerald-500/20 via-indigo-500/10 to-slate-900/60 p-6 md:p-8">
-        <div className="mb-6 flex items-center gap-3 text-white/80">
-          <div className="rounded-2xl bg-white/10 p-3">
-            <MessageSquare className="h-6 w-6" />
+  // WIZARD MODE
+  if (showWizard) {
+    return (
+      <div className="space-y-6 text-white">
+        {/* Header */}
+        <GlassPanel className="relative overflow-hidden border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-transparent p-6 sm:p-8">
+          <div className="pointer-events-none absolute inset-0 opacity-70">
+            <div className="absolute -top-32 right-0 h-72 w-72 rounded-full bg-emerald-400/25 blur-[150px]" />
+            <div className="absolute -bottom-32 left-0 h-72 w-72 rounded-full bg-green-500/20 blur-[140px]" />
           </div>
-          <span className="text-sm uppercase tracking-[0.3em] text-white/60">WhatsApp Business</span>
-        </div>
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-semibold text-white md:text-4xl mb-4">
-              Conecta WhatsApp con tu Consultorio
-            </h1>
-            <p className="text-base text-white/80 max-w-3xl">
-              Elige el método perfecto para tu consultorio. Desde links directos gratuitos hasta integraciones automáticas completas.
-            </p>
+          <div className="relative space-y-4">
+            <div className="inline-flex items-center gap-3 rounded-full border border-white/15 bg-white/10 px-5 py-1 text-xs font-semibold uppercase tracking-[0.35em] text-white/70">
+              <MessageSquare className="h-4 w-4" />
+              WhatsApp Setup
+            </div>
+            <div>
+              <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Configuración de WhatsApp</h1>
+              <p className="mt-2 text-sm text-white/70">
+                Tutorial paso a paso - Solo 5 minutos ⏱️
+              </p>
+            </div>
           </div>
-          {settings.whatsapp_enabled && settings.whatsapp_phone && (
-            <a
-              href="/dashboard/settings/whatsapp/test"
-              className="flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-2xl bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-400/30 text-yellow-100 text-sm font-medium transition-all"
-            >
-              <Sparkles className="h-4 w-4" />
-              Probar WhatsApp
-            </a>
-          )}
-        </div>
-      </GlassPanel>
+        </GlassPanel>
 
-      <Tabs defaultValue={settings.whatsapp_config_level || 'basic'} className="space-y-6">
-        <div className="flex items-center justify-center">
-          <TabsList className="grid w-full max-w-2xl grid-cols-3 bg-white/5 border border-white/10 p-1">
-            <TabsTrigger value="basic" className="data-[state=active]:bg-emerald-500/20">
-              <Zap className="h-4 w-4 mr-2" />
-              Básico
-            </TabsTrigger>
-            <TabsTrigger value="intermediate" className="data-[state=active]:bg-yellow-500/20">
-              <Sparkles className="h-4 w-4 mr-2" />
-              Intermedio
-            </TabsTrigger>
-            <TabsTrigger value="advanced" className="data-[state=active]:bg-purple-500/20">
-              <Settings className="h-4 w-4 mr-2" />
-              Avanzado
-            </TabsTrigger>
-          </TabsList>
-        </div>
-
-        {/* NIVEL 1: BÁSICO */}
-        <TabsContent value="basic" className="space-y-6">
-          <GlassPanel className="border border-emerald-400/20 bg-gradient-to-br from-emerald-500/10 to-transparent">
-            <div className="p-6 space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="rounded-2xl bg-emerald-500/20 p-3">
-                    <Phone className="h-8 w-8 text-emerald-200" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <h2 className="text-2xl font-semibold text-white">WhatsApp Link Directo</h2>
-                      <Badge className="bg-emerald-500/30 text-emerald-100 border-emerald-400/30">
-                        RECOMENDADO
-                      </Badge>
-                    </div>
-                    <p className="text-white/70">La forma más simple - Sin API ni configuraciones complejas</p>
-                  </div>
+        {/* Progress Bar */}
+        <GlassPanel className="border-white/10 bg-white/5 p-6">
+          <div className="flex items-center justify-between">
+            {[1, 2, 3, 4].map((step) => (
+              <div key={step} className="flex flex-1 items-center">
+                <div
+                  className={`flex h-10 w-10 items-center justify-center rounded-full border-2 ${
+                    step <= currentStep
+                      ? 'border-emerald-400 bg-emerald-400/20 text-emerald-300'
+                      : 'border-white/20 bg-white/5 text-white/40'
+                  }`}
+                >
+                  {step < currentStep ? (
+                    <CheckCircle className="h-5 w-5" />
+                  ) : (
+                    <span className="font-semibold">{step}</span>
+                  )}
                 </div>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="rounded-2xl bg-white/5 border border-white/10 p-5">
-                  <h3 className="font-semibold text-white mb-3 flex items-center gap-2">
-                    <CheckCircle className="h-5 w-5 text-emerald-400" />
-                    Ventajas
-                  </h3>
-                  <ul className="space-y-2 text-sm text-white/80">
-                    <li>✅ Sin configuración técnica</li>
-                    <li>✅ Funciona inmediatamente</li>
-                    <li>✅ Gratis para siempre</li>
-                    <li>✅ Los pacientes te escriben directamente</li>
-                    <li>✅ Sin límite de mensajes</li>
-                  </ul>
-                </div>
-
-                <div className="rounded-2xl bg-emerald-500/10 border border-emerald-400/20 p-5">
-                  <h3 className="font-semibold text-white mb-3">📋 Cómo Funciona:</h3>
-                  <ol className="space-y-1 text-sm text-white/80">
-                    <li>1. Guardas tu número aquí</li>
-                    <li>2. Los recordatorios incluyen botón de WhatsApp</li>
-                    <li>3. Pacientes hacen clic</li>
-                    <li>4. WhatsApp se abre automáticamente</li>
-                    <li>5. Recibes el mensaje directo</li>
-                  </ol>
-                </div>
-              </div>
-
-              <div className="space-y-4 rounded-2xl bg-white/5 border border-white/10 p-6">
-                <div>
-                  <Label htmlFor="phone" className="text-white">Tu Número de WhatsApp *</Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    placeholder="+52 55 1234 5678"
-                    value={settings.whatsapp_phone}
-                    onChange={(e) => setSettings({ ...settings, whatsapp_phone: e.target.value })}
-                    className={inputClass}
+                {step < 4 && (
+                  <div
+                    className={`h-1 flex-1 ${
+                      step < currentStep ? 'bg-emerald-400' : 'bg-white/10'
+                    }`}
                   />
-                  <p className="text-xs text-white/60 mt-2">
-                    Incluye código de país (ej: +52 para México, +1 para USA)
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="mt-2 flex justify-between px-2 text-xs text-white/60">
+            <span>Crear App</span>
+            <span>Phone ID</span>
+            <span>Token</span>
+            <span>Listo</span>
+          </div>
+        </GlassPanel>
+
+        {/* Step Content */}
+        <GlassPanel className="border-white/10 bg-white/5 p-6 sm:p-8">
+          {/* PASO 1 */}
+          {currentStep === 1 && (
+            <div className="space-y-6">
+              <div className="flex items-start gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-500/20 text-2xl">
+                  1️⃣
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-white">
+                    Crear tu App de WhatsApp en Meta
+                  </h2>
+                  <p className="mt-1 text-white/70">
+                    Primero necesitas crear una aplicación en Meta (Facebook)
                   </p>
                 </div>
-
-                <div>
-                  <Label htmlFor="message" className="text-white">Mensaje Predeterminado (Opcional)</Label>
-                  <Textarea
-                    id="message"
-                    placeholder="¡Hola! Me contacto desde AgendaMedPro"
-                    value={settings.whatsapp_default_message}
-                    onChange={(e) => setSettings({ ...settings, whatsapp_default_message: e.target.value })}
-                    rows={3}
-                    className={inputClass + ' resize-none'}
-                  />
-                  <p className="text-xs text-white/60 mt-2">
-                    Este mensaje aparecerá pre-escrito cuando tus pacientes te contacten
-                  </p>
-                </div>
-
-                <div className="flex gap-3 pt-2">
-                  <Button 
-                    onClick={handleSaveBasic} 
-                    disabled={isSaving}
-                    className="aura-cta"
-                  >
-                    <Save className="h-4 w-4 mr-2" />
-                    {isSaving ? 'Guardando...' : 'Guardar Configuración'}
-                  </Button>
-                  <Button 
-                    onClick={handleTestWhatsApp} 
-                    variant="ghost"
-                    disabled={!settings.whatsapp_phone}
-                    className="rounded-2xl border border-white/20 bg-white/5 text-white hover:bg-white/10"
-                  >
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    Probar Link
-                  </Button>
-                </div>
               </div>
 
-              {settings.whatsapp_phone && (
-                <div className="rounded-2xl bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-400/20 p-6">
-                  <h3 className="font-semibold text-white mb-3">👁️ Vista Previa:</h3>
-                  <p className="text-sm text-white/70 mb-4">Así verán tus pacientes el botón en los recordatorios:</p>
-                  <Button className="bg-emerald-600 hover:bg-emerald-700 text-white">
-                    <MessageSquare className="h-4 w-4 mr-2" />
-                    Contactar por WhatsApp
-                  </Button>
-                </div>
-              )}
-            </div>
-          </GlassPanel>
-        </TabsContent>
-
-        {/* NIVEL 2: INTERMEDIO */}
-        <TabsContent value="intermediate" className="space-y-6">
-          <GlassPanel className="border border-yellow-400/20 bg-gradient-to-br from-yellow-500/10 to-transparent">
-            <div className="p-6 space-y-6">
-              <div className="flex items-center gap-4">
-                <div className="rounded-2xl bg-yellow-500/20 p-3">
-                  <Globe className="h-8 w-8 text-yellow-200" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-semibold text-white mb-1">WhatsApp Business API Guiado</h2>
-                  <p className="text-white/70">Mensajes automáticos con configuración paso a paso</p>
-                </div>
-              </div>
-
-              <div className="grid md:grid-cols-3 gap-4">
-                <div className="rounded-2xl bg-white/5 border border-white/10 p-5">
-                  <div className="text-3xl font-bold text-white mb-2">~$50</div>
-                  <p className="text-white/60 text-sm">USD/mes</p>
-                </div>
-                <div className="rounded-2xl bg-white/5 border border-white/10 p-5">
-                  <div className="text-3xl font-bold text-white mb-2">2-3</div>
-                  <p className="text-white/60 text-sm">días para activar</p>
-                </div>
-                <div className="rounded-2xl bg-white/5 border border-white/10 p-5">
-                  <div className="text-3xl font-bold text-white mb-2">50-200</div>
-                  <p className="text-white/60 text-sm">citas/día ideal</p>
-                </div>
-              </div>
-
-              <div className="rounded-2xl bg-white/5 border border-white/10 p-6 space-y-4">
-                <h3 className="font-semibold text-white">✨ Características Premium:</h3>
-                <div className="grid md:grid-cols-2 gap-3 text-sm text-white/80">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-emerald-400" />
-                    Recordatorios automáticos por WhatsApp
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-emerald-400" />
-                    Confirmaciones automáticas
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-emerald-400" />
-                    Número Business verificado
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-emerald-400" />
-                    Mensajes con logo personalizado
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-emerald-400" />
-                    Estadísticas de mensajes
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-emerald-400" />
-                    Respuestas automáticas
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-2xl bg-gradient-to-br from-blue-500/10 to-indigo-500/10 border border-blue-400/20 p-6">
-                <h3 className="font-semibold text-white mb-3 flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-yellow-400" />
-                  Proveedores Recomendados
-                </h3>
-                <div className="grid md:grid-cols-3 gap-4">
-                  <a 
-                    href="https://www.360dialog.com/" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="rounded-2xl bg-white/5 border border-white/10 p-4 hover:bg-white/10 transition-all group"
-                  >
-                    <div className="font-semibold text-white mb-2 group-hover:text-emerald-400 transition-colors">
-                      360Dialog ⭐
+              <div className="space-y-4 rounded-xl border border-blue-400/30 bg-blue-500/10 p-6">
+                <h3 className="font-semibold text-white">📋 Pasos a seguir:</h3>
+                
+                <div className="space-y-3">
+                  <div className="flex gap-3">
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/20 text-xs font-bold">
+                      1
                     </div>
-                    <p className="text-xs text-white/60 mb-2">Setup más rápido</p>
-                    <p className="text-sm font-bold text-emerald-400">$49/mes</p>
-                  </a>
-
-                  <a 
-                    href="https://www.twilio.com/whatsapp" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="rounded-2xl bg-white/5 border border-white/10 p-4 hover:bg-white/10 transition-all group"
-                  >
-                    <div className="font-semibold text-white mb-2 group-hover:text-emerald-400 transition-colors">
-                      Twilio
+                    <div>
+                      <p className="text-white">Ve a Meta for Developers</p>
+                      <a
+                        href="https://developers.facebook.com/apps/create/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-1 inline-flex items-center gap-1 text-sm text-blue-300 hover:text-blue-200"
+                      >
+                        Abrir Meta Developers
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
                     </div>
-                    <p className="text-xs text-white/60 mb-2">Más conocido</p>
-                    <p className="text-sm font-bold text-emerald-400">$0.005/msg</p>
-                  </a>
+                  </div>
 
-                  <a 
-                    href="https://www.messagebird.com/" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="rounded-2xl bg-white/5 border border-white/10 p-4 hover:bg-white/10 transition-all group"
-                  >
-                    <div className="font-semibold text-white mb-2 group-hover:text-emerald-400 transition-colors">
-                      MessageBird
+                  <div className="flex gap-3">
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/20 text-xs font-bold">
+                      2
                     </div>
-                    <p className="text-xs text-white/60 mb-2">Alternativa</p>
-                    <p className="text-sm font-bold text-emerald-400">Variable</p>
-                  </a>
-                </div>
-              </div>
+                    <p className="text-white">
+                      Haz clic en <strong className="text-emerald-300">"Create App"</strong> (botón verde)
+                    </p>
+                  </div>
 
-              <div className="rounded-2xl bg-gradient-to-r from-orange-500/10 to-yellow-500/10 border border-orange-400/20 p-6">
-                <h3 className="font-semibold text-white mb-2">🚧 Asistente Guiado - En Desarrollo</h3>
-                <p className="text-sm text-white/70 mb-4">
-                  Estamos creando un asistente paso a paso que te guiará en la configuración completa. 
-                  Por ahora, puedes usar el nivel Básico (gratis) o contactar directamente a los proveedores arriba.
-                </p>
-                <Button disabled variant="ghost" className="rounded-2xl border border-white/20 bg-white/5">
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  Próximamente
-                </Button>
-              </div>
-            </div>
-          </GlassPanel>
-        </TabsContent>
+                  <div className="flex gap-3">
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/20 text-xs font-bold">
+                      3
+                    </div>
+                    <p className="text-white">
+                      Selecciona <strong className="text-emerald-300">"Business"</strong> como tipo de app
+                    </p>
+                  </div>
 
-        {/* NIVEL 3: AVANZADO */}
-        <TabsContent value="advanced" className="space-y-6">
-          <GlassPanel className="border border-purple-400/20 bg-gradient-to-br from-purple-500/10 to-transparent">
-            <div className="p-6 space-y-6">
-              <div className="flex items-center gap-4">
-                <div className="rounded-2xl bg-purple-500/20 p-3">
-                  <Code2 className="h-8 w-8 text-purple-200" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-semibold text-white mb-1">Configuración Manual de API</h2>
-                  <p className="text-white/70">Para usuarios con experiencia técnica</p>
-                </div>
-              </div>
+                  <div className="flex gap-3">
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/20 text-xs font-bold">
+                      4
+                    </div>
+                    <div>
+                      <p className="text-white">Dale un nombre, ejemplo:</p>
+                      <code className="mt-1 block rounded bg-black/30 px-3 py-1 text-sm text-emerald-300">
+                        Mi Consultorio WhatsApp
+                      </code>
+                    </div>
+                  </div>
 
-              <div className="rounded-2xl bg-orange-500/10 border border-orange-400/20 p-5">
-                <div className="flex items-start gap-3">
-                  <ShieldCheck className="h-6 w-6 text-orange-400 flex-shrink-0 mt-1" />
-                  <div>
-                    <h3 className="font-semibold text-white mb-2">⚠️ Advertencia</h3>
-                    <p className="text-sm text-white/80">
-                      Esta opción requiere conocimientos técnicos sobre APIs, webhooks y configuración de servidores. 
-                      Solo recomendada si ya tienes experiencia previa con WhatsApp Business API.
+                  <div className="flex gap-3">
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/20 text-xs font-bold">
+                      5
+                    </div>
+                    <p className="text-white">
+                      Agrega el producto <strong className="text-emerald-300">"WhatsApp"</strong>
                     </p>
                   </div>
                 </div>
               </div>
+            </div>
+          )}
 
-              <div className="rounded-2xl bg-white/5 border border-white/10 p-6 space-y-4">
-                <h3 className="font-semibold text-white">Usa esta opción solo si:</h3>
-                <div className="grid gap-3 text-sm text-white/80">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-purple-400" />
-                    Ya tienes cuenta en un proveedor de WhatsApp Business API
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-purple-400" />
-                    Conoces webhooks y cómo configurarlos
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-purple-400" />
-                    Necesitas configuración personalizada avanzada
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-purple-400" />
-                    Tienes equipo técnico disponible para soporte
-                  </div>
+          {/* PASO 2 */}
+          {currentStep === 2 && (
+            <div className="space-y-6">
+              <div className="flex items-start gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/20 text-2xl">
+                  2️⃣
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-white">
+                    Copiar tu Phone Number ID
+                  </h2>
+                  <p className="mt-1 text-white/70">
+                    Este es el identificador de tu número de WhatsApp
+                  </p>
                 </div>
               </div>
 
-              <div className="rounded-2xl bg-gradient-to-br from-purple-500/10 to-indigo-500/10 border border-purple-400/20 p-6">
-                <h3 className="font-semibold text-white mb-3">🔧 Acceso a Configuración Completa</h3>
-                <p className="text-sm text-white/80 mb-4">
-                  La configuración manual de WhatsApp Business API te permite ingresar tus credenciales directamente 
-                  y configurar webhooks, plantillas de mensajes y más.
-                </p>
-                <Button asChild className="aura-cta">
-                  <a href="/dashboard/settings/whatsapp-api">
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    Ir a Configuración Avanzada
-                  </a>
-                </Button>
+              <div className="space-y-4 rounded-xl border border-emerald-400/30 bg-emerald-500/10 p-6">
+                <h3 className="font-semibold text-white">📋 Dónde encontrarlo:</h3>
+                
+                <div className="space-y-3">
+                  <div className="flex gap-3">
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/20 text-xs font-bold">
+                      1
+                    </div>
+                    <p className="text-white">
+                      En tu app de Meta, ve a <strong className="text-emerald-300">WhatsApp → API Setup</strong>
+                    </p>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/20 text-xs font-bold">
+                      2
+                    </div>
+                    <p className="text-white">
+                      Busca "Phone number ID" (número largo de ~15 dígitos)
+                    </p>
+                  </div>
+                </div>
+
+                <div className="rounded-lg bg-black/30 p-3">
+                  <code className="text-sm text-emerald-300">123456789012345</code>
+                </div>
               </div>
 
-              <div className="rounded-2xl bg-blue-500/10 border border-blue-400/20 p-5">
-                <h3 className="font-semibold text-white mb-2">💡 ¿Necesitas ayuda?</h3>
-                <p className="text-sm text-white/80 mb-4">
-                  Si no estás seguro de cuál opción elegir, te recomendamos comenzar con el <strong>Nivel Básico</strong>. 
-                  Es gratis, funciona inmediatamente, y cubre las necesidades del 95% de los consultorios médicos.
-                </p>
-                <Button 
-                  variant="ghost" 
-                  className="rounded-2xl border border-white/20 bg-white/5 text-white hover:bg-white/10"
-                  onClick={() => {
-                    const basicTab = document.querySelector('[value="basic"]') as HTMLElement;
-                    basicTab?.click();
-                  }}
-                >
-                  <Zap className="h-4 w-4 mr-2" />
-                  Ver Opción Básica
-                </Button>
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">
+                  📱 Pega aquí tu Phone Number ID
+                </label>
+                <input
+                  type="text"
+                  value={settings.phoneNumberId}
+                  onChange={(e) => setSettings({ ...settings, phoneNumberId: e.target.value })}
+                  placeholder="123456789012345"
+                  className="w-full rounded-xl border border-white/20 bg-white/5 px-4 py-3 font-mono text-white placeholder:text-white/40 focus:border-emerald-400 focus:outline-none"
+                />
+                {settings.phoneNumberId && settings.phoneNumberId.length < 10 && (
+                  <p className="mt-2 text-sm text-red-300">
+                    ⚠️ El Phone Number ID suele tener más de 10 dígitos
+                  </p>
+                )}
               </div>
             </div>
-          </GlassPanel>
-        </TabsContent>
-      </Tabs>
+          )}
+
+          {/* PASO 3 */}
+          {currentStep === 3 && (
+            <div className="space-y-6">
+              <div className="flex items-start gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-500/20 text-2xl">
+                  3️⃣
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-white">
+                    Generar Access Token Permanente
+                  </h2>
+                  <p className="mt-1 text-white/70">
+                    Este token permite enviar mensajes de WhatsApp
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-4 rounded-xl border border-purple-400/30 bg-purple-500/10 p-6">
+                <h3 className="font-semibold text-white">🔑 Cómo obtener el token:</h3>
+                
+                <div className="space-y-3">
+                  <div className="flex gap-3">
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/20 text-xs font-bold">
+                      1
+                    </div>
+                    <p className="text-white">
+                      En <strong className="text-purple-300">WhatsApp → API Setup</strong>
+                    </p>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/20 text-xs font-bold">
+                      2
+                    </div>
+                    <div>
+                      <p className="text-white mb-2">
+                        ⚠️ <strong>IMPORTANTE:</strong> Necesitas uno PERMANENTE:
+                      </p>
+                      <ul className="space-y-1 text-sm text-white/80 ml-4">
+                        <li>• Ve a <strong>App Settings → System Users</strong></li>
+                        <li>• Crea un System User</li>
+                        <li>• Dale permisos <strong>whatsapp_business_messaging</strong></li>
+                        <li>• Genera token → <strong>"Never expires"</strong></li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-lg bg-black/30 p-3">
+                  <p className="text-xs text-white/60 mb-1">Empieza con "EAA":</p>
+                  <code className="text-xs text-purple-300 break-all">
+                    EAAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+                  </code>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">
+                  🔑 Pega aquí tu Access Token Permanente
+                </label>
+                <textarea
+                  value={settings.accessToken}
+                  onChange={(e) => setSettings({ ...settings, accessToken: e.target.value })}
+                  placeholder="EAAxxxxxxxxxxxxxxxxxxxxxx (pega tu token completo)"
+                  rows={4}
+                  className="w-full rounded-xl border border-white/20 bg-white/5 px-4 py-3 font-mono text-sm text-white placeholder:text-white/40 focus:border-purple-400 focus:outline-none resize-none"
+                />
+                {settings.accessToken && !settings.accessToken.startsWith('EAA') && (
+                  <p className="mt-2 text-sm text-red-300">
+                    ⚠️ El Access Token debe empezar con "EAA"
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* PASO 4 */}
+          {currentStep === 4 && (
+            <div className="space-y-6">
+              <div className="flex items-start gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/20 text-2xl">
+                  ✅
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-white">
+                    Probar Conexión
+                  </h2>
+                  <p className="mt-1 text-white/70">
+                    Vamos a verificar que todo funcione correctamente
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-white/20 bg-white/5 p-6 space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <p className="text-xs text-white/60 mb-1">Phone Number ID</p>
+                    <code className="block rounded bg-black/30 px-3 py-2 text-sm text-emerald-300 truncate">
+                      {settings.phoneNumberId}
+                    </code>
+                  </div>
+                  <div>
+                    <p className="text-xs text-white/60 mb-1">Access Token</p>
+                    <code className="block rounded bg-black/30 px-3 py-2 text-sm text-purple-300 truncate">
+                      {settings.accessToken.substring(0, 20)}...
+                    </code>
+                  </div>
+                </div>
+
+                <button
+                  onClick={testConnection}
+                  disabled={testing || validated}
+                  className="w-full rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-3 font-semibold text-white transition hover:from-blue-600 hover:to-blue-700 disabled:opacity-50"
+                >
+                  {testing ? '🔄 Probando conexión...' : validated ? '✓ Conexión exitosa' : '🧪 Probar Conexión con Meta'}
+                </button>
+
+                {validated && (
+                  <div className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 p-4">
+                    <div className="flex items-center gap-3">
+                      <CheckCircle className="h-6 w-6 text-emerald-300" />
+                      <div>
+                        <p className="font-semibold text-emerald-300">¡Perfecto!</p>
+                        <p className="text-sm text-emerald-200">
+                          Tu configuración es correcta. Ya puedes guardar.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {validated && (
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-6 py-4 text-lg font-semibold text-white transition hover:from-emerald-600 hover:to-emerald-700 disabled:opacity-50"
+                >
+                  {saving ? 'Guardando...' : '💾 Guardar y Activar WhatsApp'}
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Navigation */}
+          <div className="mt-8 flex justify-between gap-4">
+            <button
+              onClick={() => setCurrentStep(Math.max(1, currentStep - 1))}
+              disabled={currentStep === 1}
+              className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-6 py-3 font-semibold text-white transition hover:bg-white/10 disabled:opacity-30"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Anterior
+            </button>
+
+            {currentStep < totalSteps && (
+              <button
+                onClick={() => setCurrentStep(Math.min(totalSteps, currentStep + 1))}
+                disabled={!canGoNext()}
+                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-6 py-3 font-semibold text-white transition hover:from-emerald-600 hover:to-emerald-700 disabled:opacity-30"
+              >
+                Siguiente
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        </GlassPanel>
+      </div>
+    );
+  }
+
+  // NORMAL MODE (configurado)
+  return (
+    <div className="space-y-6 text-white">
+      <GlassPanel className="relative overflow-hidden border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-transparent p-6 sm:p-8">
+        <div className="pointer-events-none absolute inset-0 opacity-70">
+          <div className="absolute -top-32 right-0 h-72 w-72 rounded-full bg-emerald-400/25 blur-[150px]" />
+          <div className="absolute -bottom-32 left-0 h-72 w-72 rounded-full bg-green-500/20 blur-[140px]" />
+        </div>
+        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-4">
+            <div className="inline-flex items-center gap-3 rounded-full border border-white/15 bg-white/10 px-5 py-1 text-xs font-semibold uppercase tracking-[0.35em] text-white/70">
+              <MessageSquare className="h-4 w-4" />
+              WhatsApp
+            </div>
+            <div>
+              <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">WhatsApp Cloud API</h1>
+              <p className="mt-2 text-sm text-white/70">
+                API oficial de Meta conectada. BYOK Model.
+              </p>
+            </div>
+          </div>
+          <div className="grid gap-3 text-white/80">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p className="text-xs uppercase tracking-[0.35em] text-white/50">Estado</p>
+              <p className="text-lg font-semibold text-white">{settings.enabled ? '✅ Activo' : '⏸️ Pausado'}</p>
+              <p className="text-xs text-white/60">BYOK Model</p>
+            </div>
+          </div>
+        </div>
+      </GlassPanel>
+
+      <GlassPanel className="border-white/10 bg-white/5 p-6">
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-white">Configuración Actual</h3>
+          
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <p className="text-xs text-white/60 mb-1">Phone Number ID</p>
+              <code className="block rounded bg-black/30 px-3 py-2 text-sm text-emerald-300 truncate">
+                {settings.phoneNumberId}
+              </code>
+            </div>
+            <div>
+              <p className="text-xs text-white/60 mb-1">Access Token</p>
+              <code className="block rounded bg-black/30 px-3 py-2 text-sm text-purple-300 truncate">
+                {settings.accessToken ? settings.accessToken.substring(0, 20) + '...' : 'No configurado'}
+              </code>
+            </div>
+          </div>
+
+          <button
+            onClick={() => setShowWizard(true)}
+            className="w-full rounded-xl border border-white/20 bg-white/5 px-6 py-3 font-semibold text-white transition hover:bg-white/10"
+          >
+            🔧 Reconfigurar WhatsApp
+          </button>
+        </div>
+      </GlassPanel>
     </div>
   );
 }

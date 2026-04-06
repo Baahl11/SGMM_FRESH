@@ -96,30 +96,12 @@ export async function POST(request: Request) {
       process.env.NEXT_PUBLIC_SITE_URL ||
       process.env.SITE_URL ||
       'http://localhost:3000';
-
-    console.log('[Addons] Purchase request', {
-      userId: user.id,
-      addonType: addon_type,
-      quantity,
-      existingQuantity,
-      desiredQuantity,
-      hasStripeSubscription,
-      hasStripeCustomer,
-      subscriptionId: subscription.id,
-    });
-
     if (!hasStripeCustomer) {
       console.error('[Addons] Unable to determine Stripe customer for user', user.id);
       return NextResponse.json({ error: 'No se pudo obtener el cliente de Stripe' }, { status: 400 });
     }
 
     if (!hasStripeSubscription) {
-      console.log('[Addons] Creating add-on subscription via Checkout (no existing subscription)', {
-        userId: user.id,
-        addonType: addon_type,
-        quantity,
-      });
-
       const successUrl = new URL('/dashboard/settings/addons?status=success', origin).toString();
       const cancelUrl = new URL('/dashboard/settings/addons?status=cancel', origin).toString();
 

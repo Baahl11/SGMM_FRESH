@@ -3,16 +3,17 @@ import { createClient } from '@/lib/supabase/server';
 import { getAuthUser } from '@/lib/auth-server';
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 /**
  * POST /api/whatsapp/templates/[id]/approve
  * Manually mark template as approved (after Meta approval)
  */
-export async function POST(request: Request, { params }: RouteParams) {
+export async function POST(request: Request, context: RouteParams) {
+  const params = await context.params;
   try {
     const user = await getAuthUser();
     if (!user) {

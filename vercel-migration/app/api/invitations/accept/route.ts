@@ -9,35 +9,25 @@ import type { AcceptInvitationInput } from '@/lib/types/invitations';
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('🎯 POST /api/invitations/accept - Starting');
     const supabase = await createClient();
     const body: AcceptInvitationInput = await request.json();
-    console.log('📥 Request body:', { token: body.token, hasPassword: !!body.password });
-
     // Validate required fields
     if (!body.token || !body.password) {
-      console.log('❌ Missing required fields');
       return NextResponse.json({ error: 'Token y contraseña son requeridos' }, { status: 400 });
     }
 
     // Validate password strength
     if (body.password.length < 8) {
-      console.log('❌ Password too short');
       return NextResponse.json({ error: 'La contraseña debe tener al menos 8 caracteres' }, { status: 400 });
     }
 
     // Find and validate invitation
-    console.log('🔍 Looking for invitation with token:', body.token);
     const { data: invitation, error: invError } = await supabase
       .from('invitations')
       .select('*')
       .eq('token', body.token)
       .single();
-
-    console.log('📊 Invitation query result:', { invitation, invError });
-
     if (invError || !invitation) {
-      console.log('❌ Invitation not found');
       return NextResponse.json({ error: 'Invitación no encontrada' }, { status: 404 });
     }
 
@@ -59,7 +49,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Create user with Supabase Auth
-    console.log('👤 Creating user account for:', invitation.email);
     const { data: authData, error: signUpError } = await supabase.auth.signUp({
       email: invitation.email,
       password: body.password,
@@ -71,13 +60,6 @@ export async function POST(request: NextRequest) {
         emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard`,
       },
     });
-
-    console.log('📊 SignUp result:', { 
-      hasUser: !!authData?.user, 
-      userId: authData?.user?.id,
-      error: signUpError 
-    });
-
     if (signUpError) {
       console.error('❌ Error creating user:', signUpError);
       
@@ -94,7 +76,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Update invitation status (use admin client to bypass RLS)
-    console.log('✅ Updating invitation status to accepted');
     const { error: updateError } = await supabaseAdmin
       .from('invitations')
       .update({ 
@@ -108,7 +89,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Create user profile (use admin client to bypass RLS)
-    console.log('👤 Creating user profile');
     const { error: profileError } = await supabaseAdmin
       .from('user_profiles')
       .insert({
@@ -126,10 +106,7 @@ export async function POST(request: NextRequest) {
         console.error('⚠️ Unexpected profile error, but continuing');
       }
     } else {
-      console.log('✅ User profile created successfully');
     }
-
-    console.log('✅ Account creation completed successfully');
     return NextResponse.json({ 
       success: true,
       message: '¡Cuenta creada exitosamente!',

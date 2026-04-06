@@ -16,9 +16,6 @@ export async function POST(
   try {
     const { provider } = await params;
     const body = await request.json();
-
-    console.log(`[Webhook ${provider}] Received:`, JSON.stringify(body, null, 2));
-
     // Create service role client (bypasses RLS)
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -120,11 +117,6 @@ export async function POST(
         { status: 500 }
       );
     }
-
-    console.log(
-      `[Webhook ${provider}] Updated message ${message.id} to status: ${status}`
-    );
-
     return NextResponse.json({ received: true, updated: true });
   } catch (error: any) {
     console.error(`[Webhook] Error:`, error);

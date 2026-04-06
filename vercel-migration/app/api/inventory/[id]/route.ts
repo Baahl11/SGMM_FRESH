@@ -38,23 +38,13 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log('📝 [Inventory PUT] Starting update...');
-    
     const user = await getAuthUser();
     if (!user) {
-      console.log('❌ [Inventory PUT] No user found');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    console.log('✅ [Inventory PUT] User authenticated:', user.id);
-
     const { id } = await params;
-    console.log('📝 [Inventory PUT] Item ID:', id);
-    
     const supabase = await createClient()
     const body = await request.json()
-    console.log('📝 [Inventory PUT] Request body:', body);
-
     // Build update object with only provided fields
     const updateData: any = {
       updated_at: new Date().toISOString()
@@ -68,9 +58,6 @@ export async function PUT(
     if (body.precio_unitario !== undefined) updateData.precio_unitario = body.precio_unitario;
     // Note: categoria field doesn't exist in inventory_items table
     if (body.activo !== undefined) updateData.activo = body.activo;
-
-    console.log('📝 [Inventory PUT] Update data:', updateData);
-
     const { data, error} = await supabase
       .from('inventory_items')
       .update(updateData)
@@ -83,8 +70,6 @@ export async function PUT(
       console.error('❌ [Inventory PUT] Supabase error:', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
-
-    console.log('✅ [Inventory PUT] Item updated successfully:', data);
     return NextResponse.json(data)
   } catch (error) {
     console.error('❌ [Inventory PUT] Unexpected error:', error)

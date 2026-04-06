@@ -22,8 +22,6 @@ function AcceptInvitationContent() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    console.log('🔍 Team Accept - Token from URL:', token);
-    
     if (!token) {
       console.error('❌ No token found in URL');
       setStatus('invalid');
@@ -36,18 +34,12 @@ function AcceptInvitationContent() {
   const acceptInvitation = async () => {
     try {
       const supabase = createClient();
-
-      console.log('🔍 Looking for invitation with token:', token?.substring(0, 10) + '...');
-
       // First, fetch the invitation to see who it's for
       const { data: invite, error: fetchError } = await supabase
         .from('team_members')
         .select('*')
         .eq('invitation_token', token)
         .single();
-
-      console.log('📊 Invitation query result:', { invite, fetchError });
-
       if (fetchError || !invite) {
         console.error('❌ Invitation not found:', fetchError);
         setStatus('invalid');

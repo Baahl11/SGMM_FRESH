@@ -5,8 +5,9 @@ import { createClient } from "@/lib/supabase/server";
 // Update an existing exception
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const params = await context.params;
   try {
     const supabase = await createClient();
     const { id } = params;
@@ -130,8 +131,9 @@ export async function PATCH(
 // Delete an exception (soft delete by setting activo=false, or hard delete)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const params = await context.params;
   try {
     const supabase = await createClient();
     const { id } = params;

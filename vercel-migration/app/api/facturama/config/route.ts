@@ -198,13 +198,6 @@ export async function PUT(request: Request) {
       console.error('[PUT /api/facturama/config] JSON parse error:', parseError);
       return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
     }
-
-    console.log('[PUT /api/facturama/config] Testing with:', {
-      api_user: body.api_user,
-      has_password: !!body.api_password,
-      is_sandbox: body.is_sandbox,
-    });
-
     const { api_user, api_password, is_sandbox } = body;
 
     if (!api_user || !api_password) {
@@ -222,12 +215,9 @@ export async function PUT(request: Request) {
       api_password_tag: null,
       is_sandbox: is_sandbox !== false, // Default to sandbox
     });
-
-    console.log('[PUT /api/facturama/config] Testing connection...');
     const result = await facturamaClient.testConnection();
 
     if (result.success) {
-      console.log('[PUT /api/facturama/config] Connection successful');
       return NextResponse.json({ success: true, message: 'Conexión exitosa con Facturama' });
     } else {
       console.error('[PUT /api/facturama/config] Connection failed:', result.error);

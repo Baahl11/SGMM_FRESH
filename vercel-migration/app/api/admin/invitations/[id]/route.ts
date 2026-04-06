@@ -6,11 +6,12 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { Resend } from 'resend';
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 // Helper to check if user is admin
@@ -30,7 +31,8 @@ async function isAdmin(supabase: any, userId: string): Promise<boolean> {
 }
 
 // PATCH /api/admin/invitations/[id] - Resend or cancel
-export async function PATCH(request: NextRequest, { params }: RouteParams) {
+export async function PATCH(request: NextRequest, context: RouteParams) {
+  const params = await context.params;
   try {
     const supabase = await createClient();
     
@@ -83,8 +85,36 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         return NextResponse.json({ error: 'Error al reenviar invitación' }, { status: 500 });
       }
 
-      // TODO: Send email again
-      const signupUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/signup/${invitation.token}`;
+      // Send email again
+      const signupUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://agendamedpro.com'}/signup/${invitation.token}`;
+
+      if (process.env.RESEND_API_KEY) {
+        try {
+          const resend = new Resend(process.env.RESEND_API_KEY);
+          await resend.emails.send({
+            from: 'AgendaMedPro <invitaciones@agendamedpro.com>',
+            to: invitation.email,
+            subject: '🔔 Recordatorio: Tu Invitación a AgendaMedPro',
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h1 style="color: #10b981;">¡Hola ${invitation.name}!</h1>
+                <p>Te recordamos que tienes una invitación pendiente para unirte a <strong>AgendaMedPro</strong>.</p>
+                <p>Tu plan: <strong>${invitation.plan_type || 'Premium'}</strong></p>
+                <div style="text-align: center; margin: 30px 0;">
+                  <a href="${signupUrl}" style="background-color: #10b981; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold;">
+                    Crear mi Cuenta
+                  </a>
+                </div>
+                <p style="color: #666; font-size: 14px;">No pierdas esta oportunidad. El enlace expira pronto.</p>
+                <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+                <p style="color: #999; font-size: 12px;">AgendaMedPro - Gestión Médica Profesional</p>
+              </div>
+            `
+          });
+        } catch (emailError) {
+          console.error('Error resending invitation email:', emailError);
+        }
+      }
 
       return NextResponse.json({ 
         invitation: updated,
@@ -122,7 +152,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 }
 
 // DELETE /api/admin/invitations/[id] - Delete invitation
-export async function DELETE(request: NextRequest, { params }: RouteParams) {
+export async function DELETE(request: NextRequest, context: RouteParams) {
+  const params = await context.params;
   try {
     const supabase = await createClient();
     

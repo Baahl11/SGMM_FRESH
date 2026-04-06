@@ -109,35 +109,36 @@ export default function GastoFijoModal({ isOpen, onClose, onSuccess, gasto }: Ga
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg backdrop-blur-xl bg-gradient-to-br from-gray-900/95 via-purple-900/90 to-gray-900/95 border border-white/20">
         <DialogHeader>
-          <DialogTitle>
+          <DialogTitle className="text-2xl font-bold text-white/90">
             {isEditing ? 'Editar Gasto Fijo' : 'Nuevo Gasto Fijo'}
           </DialogTitle>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
-              <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-red-800">{error}</p>
+            <div className="backdrop-blur-xl bg-red-500/10 border border-red-400/30 rounded-lg p-3 flex items-start gap-2">
+              <AlertCircle className="h-5 w-5 text-red-300 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-red-200">{error}</p>
             </div>
           )}
           
           <div>
-            <Label htmlFor="concepto">Concepto *</Label>
+            <Label htmlFor="concepto" className="text-white/70">Concepto *</Label>
             <Input
               id="concepto"
               value={formData.concepto}
               onChange={(e) => setFormData({ ...formData, concepto: e.target.value })}
               placeholder="Ej: Renta del consultorio"
+              className="backdrop-blur-xl bg-white/5 border-white/20 text-white placeholder:text-white/40"
               required
             />
           </div>
           
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="monto">Monto (MXN) *</Label>
+              <Label htmlFor="monto" className="text-white/70">Monto (MXN) *</Label>
               <Input
                 id="monto"
                 type="number"
@@ -145,17 +146,18 @@ export default function GastoFijoModal({ isOpen, onClose, onSuccess, gasto }: Ga
                 min="0"
                 value={formData.monto}
                 onChange={(e) => setFormData({ ...formData, monto: parseFloat(e.target.value) || 0 })}
+                className="backdrop-blur-xl bg-white/5 border-white/20 text-white"
                 required
               />
             </div>
             
             <div>
-              <Label htmlFor="frecuencia">Frecuencia *</Label>
+              <Label htmlFor="frecuencia" className="text-white/70">Frecuencia *</Label>
               <Select 
                 value={formData.frecuencia} 
                 onValueChange={(value) => setFormData({ ...formData, frecuencia: value })}
               >
-                <SelectTrigger>
+                <SelectTrigger className="backdrop-blur-xl bg-white/5 border-white/20 text-white">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -168,23 +170,25 @@ export default function GastoFijoModal({ isOpen, onClose, onSuccess, gasto }: Ga
           </div>
           
           <div>
-            <Label htmlFor="fecha_inicio">Fecha de Inicio</Label>
+            <Label htmlFor="fecha_inicio" className="text-white/70">Fecha de Inicio</Label>
             <Input
               id="fecha_inicio"
               type="date"
               value={formData.fecha_inicio}
               onChange={(e) => setFormData({ ...formData, fecha_inicio: e.target.value })}
+              className="backdrop-blur-xl bg-white/5 border-white/20 text-white"
             />
           </div>
           
           <div>
-            <Label htmlFor="notas">Notas (opcional)</Label>
+            <Label htmlFor="notas" className="text-white/70">Notas (opcional)</Label>
             <Textarea
               id="notas"
               value={formData.notas}
               onChange={(e) => setFormData({ ...formData, notas: e.target.value })}
               placeholder="Información adicional sobre este gasto..."
               rows={3}
+              className="backdrop-blur-xl bg-white/5 border-white/20 text-white placeholder:text-white/40"
             />
           </div>
           
@@ -194,18 +198,28 @@ export default function GastoFijoModal({ isOpen, onClose, onSuccess, gasto }: Ga
               id="activo"
               checked={formData.activo}
               onChange={(e) => setFormData({ ...formData, activo: e.target.checked })}
-              className="h-4 w-4 rounded border-gray-300"
+              className="h-4 w-4 rounded border-white/20 bg-white/5 text-purple-500"
             />
-            <Label htmlFor="activo" className="cursor-pointer">
+            <Label htmlFor="activo" className="cursor-pointer text-white/70">
               Gasto activo (se incluye en cálculos)
             </Label>
           </div>
           
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={onClose} 
+              disabled={saving}
+              className="backdrop-blur-xl bg-white/5 border-white/20 text-white hover:bg-white/10"
+            >
               Cancelar
             </Button>
-            <Button type="submit" disabled={saving}>
+            <Button 
+              type="submit" 
+              disabled={saving}
+              className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
+            >
               {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {saving ? 'Guardando...' : isEditing ? 'Actualizar' : 'Crear Gasto'}
             </Button>

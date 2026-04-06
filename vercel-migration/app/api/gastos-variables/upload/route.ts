@@ -37,9 +37,6 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       );
     }
-
-    console.log('📤 [POST /api/gastos-variables/upload] Usuario:', user.id);
-
     // Parsear form data
     const formData = await request.formData();
     const file = formData.get('file') as File;
@@ -51,14 +48,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    console.log('📄 [POST /api/gastos-variables/upload] Archivo recibido:', {
-      name: file.name,
-      type: file.type,
-      size: file.size,
-      gasto_id
-    });
-
     // Validar tipo de archivo
     const allowedTypes = [
       'application/pdf',
@@ -93,9 +82,6 @@ export async function POST(request: NextRequest) {
     const fileExt = file.name.split('.').pop();
     const fileName = `${timestamp}_${randomString}.${fileExt}`;
     const filePath = `${user.id}/${fileName}`;
-
-    console.log('💾 [POST /api/gastos-variables/upload] Subiendo a:', filePath);
-
     // Convertir File a ArrayBuffer
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
@@ -128,16 +114,10 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-
-    console.log('✅ [POST /api/gastos-variables/upload] Archivo subido:', uploadData.path);
-
     // Obtener URL pública
     const { data: { publicUrl } } = supabase.storage
       .from('gastos-facturas')
       .getPublicUrl(filePath);
-
-    console.log('🔗 [POST /api/gastos-variables/upload] URL pública:', publicUrl);
-
     // Si se proporcionó gasto_id, actualizar el registro
     if (gasto_id) {
       const { error: updateError } = await supabase
@@ -154,7 +134,6 @@ export async function POST(request: NextRequest) {
         // No retornamos error aquí porque el archivo ya se subió exitosamente
         console.warn('⚠️  El archivo se subió pero no se pudo vincular al gasto');
       } else {
-        console.log('✅ [POST /api/gastos-variables/upload] Gasto actualizado con factura');
       }
     }
 
@@ -205,9 +184,6 @@ export async function DELETE(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    console.log('🗑️  [DELETE /api/gastos-variables/upload] Eliminando:', path);
-
     // Verificar que el path pertenece al usuario
     if (!path.startsWith(user.id + '/')) {
       return NextResponse.json(
@@ -228,9 +204,6 @@ export async function DELETE(request: NextRequest) {
         { status: 500 }
       );
     }
-
-    console.log('✅ [DELETE /api/gastos-variables/upload] Archivo eliminado');
-
     return NextResponse.json({ 
       message: 'Archivo eliminado exitosamente',
       path 

@@ -38,7 +38,6 @@ export default function ImportDataPage() {
 
     // Aquí parsearías el archivo para preview
     // Por ahora solo mostramos el nombre
-    console.log('Archivo seleccionado:', selectedFile.name);
   };
 
   const handleImport = async () => {

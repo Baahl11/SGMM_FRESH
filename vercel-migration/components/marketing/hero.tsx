@@ -2,12 +2,14 @@
 
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { ArrowRight, CircleDollarSign } from 'lucide-react'
+import { ArrowRight, MessageCircle } from 'lucide-react'
+import { trackSignupIntent, trackWhatsAppDemoClick } from '@/lib/analytics/funnel-events'
+import { WHATSAPP_DEMO_URL } from '@/lib/marketing/constants'
 
 const stats = [
-  { label: 'No-shows eliminados', value: '-78%' },
-  { label: 'Inventario siempre exacto', value: '100%' },
-  { label: 'Ganancia del doctor', value: '97%' },
+  { label: 'Reducción en inasistencias', value: '-78%' },
+  { label: 'Aumento en facturación anual', value: '+120%' },
+  { label: 'Más citas mensuales', value: '+35%' },
 ]
 
 const heroDeposits = [
@@ -56,27 +58,26 @@ export function MarketingHero() {
           <div>
             <p className="text-base font-semibold uppercase tracking-[0.4em] text-emerald-200/80">AgendaMedPro</p>
             <h1 className="mt-3 text-4xl font-semibold leading-tight text-white sm:text-5xl lg:text-[58px] lg:leading-[62px]">
-              Cobra anticipos online, elimina no-shows y automatiza tu inventario médico.
+              Reduce inasistencias, organiza tu clínica y aumenta tus ingresos.
             </h1>
             <p className="mt-6 text-lg text-white/80 lg:text-xl">
-              Tus pacientes reservan y pagan desde el primer momento. Tú te quedas con el 97%, nosotros el 3%. Mientras tanto, 
-              el sistema descuenta automáticamente tu stock de medicamentos, envía recordatorios por WhatsApp y llena huecos desde 
-              la lista de espera. Cero llamadas, cero dobles citas, cero sorpresas.
+              Agenda de citas, recordatorios por WhatsApp, inventario automático y facturación en un solo sistema para consultorios y clínicas en México. Tus pacientes reservan y pagan online; tú te quedas con el 97%.
             </p>
           </div>
           <div className="flex flex-col gap-4 sm:flex-row">
-            <Link href="/auth/signup" className="aura-cta aura-cta--primary">
-              Comenzar prueba gratis
+            <Link href="/auth/signup" className="aura-cta aura-cta--primary" onClick={trackSignupIntent}>
+              Prueba gratis 7 días
               <ArrowRight className="h-5 w-5 transition-transform" />
             </Link>
-            <Link
-              href="https://agendamedpro.com/pricing"
+            <a
+              href={WHATSAPP_DEMO_URL}
               className="aura-cta"
               rel="noreferrer"
               target="_blank"
+              onClick={trackWhatsAppDemoClick}
             >
-              <CircleDollarSign className="h-5 w-5" /> Precios
-            </Link>
+              <MessageCircle className="h-5 w-5" /> Agendar demo por WhatsApp
+            </a>
           </div>
           <div className="grid gap-4 sm:grid-cols-3">
             {stats.map((item) => (

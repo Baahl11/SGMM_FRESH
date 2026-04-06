@@ -190,9 +190,6 @@ export async function GET(request: NextRequest) {
 
     // Use service role client to bypass RLS
     const supabase = supabaseAdmin;
-
-    console.log('🔄 Starting WhatsApp reminders cron job...');
-
     // Get all enabled configurations
     const { data: configs, error: configError } = await supabase
       .from('messaging_config')
@@ -206,20 +203,14 @@ export async function GET(request: NextRequest) {
     }
 
     if (!configs || configs.length === 0) {
-      console.log('No enabled configurations found');
       return NextResponse.json({ message: 'No configs enabled', sent: 0 });
     }
-
-    console.log(`Found ${configs.length} enabled configuration(s)`);
-
     let totalSent = 0;
     let totalFailed = 0;
 
     // Process each user's configuration
     for (const config of configs as MessagingConfig[]) {
       try {
-        console.log(`Processing user: ${config.user_id}`);
-
         // Check daily limit
         const today = new Date().toISOString().split('T')[0];
         const { count: todayCount } = await supabase
@@ -230,13 +221,10 @@ export async function GET(request: NextRequest) {
           .lte('created_at', `${today}T23:59:59`);
 
         if (todayCount && todayCount >= config.daily_message_limit) {
-          console.log(`User ${config.user_id} reached daily limit (${config.daily_message_limit})`);
           continue;
         }
 
         const remainingLimit = config.daily_message_limit - (todayCount || 0);
-        console.log(`Daily limit remaining: ${remainingLimit}`);
-
         // Calculate time windows
         const now = new Date();
         const in24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
@@ -270,17 +258,12 @@ export async function GET(request: NextRequest) {
         }
 
         if (!appointments || appointments.length === 0) {
-          console.log(`No appointments found for user ${config.user_id}`);
           continue;
         }
-
-        console.log(`Found ${appointments.length} appointment(s) for user ${config.user_id}`);
-
         // Process each appointment
         for (const apt of appointments) {
           const patient = apt.patients as any;
           if (!patient || !patient.phone) {
-            console.log(`Skipping appointment ${apt.id}: no patient phone`);
             continue;
           }
 
@@ -293,7 +276,6 @@ export async function GET(request: NextRequest) {
             .limit(1);
 
           if (existingMessages && existingMessages.length > 0) {
-            console.log(`Already sent reminder for appointment ${apt.id}`);
             continue;
           }
 
@@ -318,13 +300,11 @@ export async function GET(request: NextRequest) {
           }
 
           if (!shouldSend) {
-            console.log(`Appointment ${apt.id} not in reminder window`);
             continue;
           }
 
           // Check daily limit again
           if (totalSent >= remainingLimit) {
-            console.log(`Reached daily limit for user ${config.user_id}`);
             break;
           }
 
@@ -336,9 +316,6 @@ export async function GET(request: NextRequest) {
             apt.scheduled_time,
             config
           );
-
-          console.log(`Sending ${reminderType} reminder for appointment ${apt.id}`);
-
           // Send message
           const result = await sendWhatsAppMessage(patient.phone, message, config);
 
@@ -357,10 +334,8 @@ export async function GET(request: NextRequest) {
 
           if (result.success) {
             totalSent++;
-            console.log(`✅ Message sent successfully (ID: ${result.messageId})`);
           } else {
             totalFailed++;
-            console.log(`❌ Message failed: ${result.error}`);
           }
 
           // Small delay between messages
@@ -371,9 +346,6 @@ export async function GET(request: NextRequest) {
         totalFailed++;
       }
     }
-
-    console.log(`✅ Cron job completed. Sent: ${totalSent}, Failed: ${totalFailed}`);
-
     return NextResponse.json({
       success: true,
       sent: totalSent,

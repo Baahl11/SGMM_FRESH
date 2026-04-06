@@ -221,6 +221,13 @@ function SignInContent() {
           </form>
 
           <div className="text-center mt-6 space-y-3">
+            {/* Forgot password */}
+            <a
+              href="/auth/forgot-password"
+              className="block text-sm text-white/60 hover:text-white transition-colors"
+            >
+              ¿Olvidaste tu contraseña?
+            </a>
             {/* Link para crear cuenta nueva */}
             <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-4">
               <p className="text-white/80 text-sm mb-2">

@@ -96,7 +96,7 @@ export default function SignupPage() {
 
             <div className="mt-6 text-center">
               <Link
-                href="/auth/login"
+                href="/auth/signin"
                 className="aura-cta aura-cta--ghost w-full justify-center text-sm"
               >
                 ¿Ya tienes cuenta? Inicia sesión aquí

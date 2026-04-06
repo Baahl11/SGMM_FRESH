@@ -4,8 +4,9 @@ import { NextResponse } from 'next/server';
 // GET /api/forms/[id]/submissions - Obtener todas las respuestas de un formulario
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const params = await context.params;
   try {
     const supabase = await createClient();
 

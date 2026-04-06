@@ -28,9 +28,6 @@ export async function GET(request: NextRequest) {
       console.error('❌ No user found');
       return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
     }
-
-    console.log('📋 GET /api/team/members - User:', user.id, user.email);
-
     // Get team members where user is the owner
     const { data: members, error: membersError } = await supabase
       .from('team_members')
@@ -51,17 +48,8 @@ export async function GET(request: NextRequest) {
         code: membersError.code
       }, { status: 500 });
     }
-
-    console.log('✅ Found members:', members?.length || 0);
-    
     // Log each member's status for debugging
     members?.forEach(m => {
-      console.log('Member:', {
-        email: m.member_email,
-        status: m.status,
-        member_user_id: m.member_user_id,
-        accepted_at: m.accepted_at
-      });
     });
 
     // Get subscription limits
@@ -79,15 +67,6 @@ export async function GET(request: NextRequest) {
     const total_members = members?.length || 0;
     const active_members = members?.filter(m => m.status === 'active').length || 0;
     const pending_invitations = members?.filter(m => m.status === 'pending').length || 0;
-
-    console.log('✅ Team stats:', {
-      total_members,
-      active_members,
-      pending_invitations,
-      max_allowed,
-      plan: subscription?.plan_tier
-    });
-
     return NextResponse.json({
       members: members || [],
       stats: {
@@ -130,9 +109,6 @@ export async function POST(request: NextRequest) {
     if (!role || !['admin', 'doctor', 'receptionist', 'viewer'].includes(role)) {
       return NextResponse.json({ error: 'Rol inválido' }, { status: 400 });
     }
-
-    console.log('📧 Inviting team member:', { email, role, owner: user.id });
-
     // Check subscription limits
     const { data: subscription } = await supabase
       .from('subscriptions')
@@ -198,9 +174,6 @@ export async function POST(request: NextRequest) {
       console.error('❌ Error creating team member:', insertError);
       return NextResponse.json({ error: 'Error al crear invitación' }, { status: 500 });
     }
-
-    console.log('✅ Team member invitation created:', newMember.id);
-
     // Send invitation email
     const invitationUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://agendamedpro.com'}/team/accept?token=${invitation_token}`;
     
@@ -230,8 +203,6 @@ export async function POST(request: NextRequest) {
 
       // Try SMTP first if configured
       if (emailConfig && emailConfig.smtp_host && emailConfig.smtp_user && emailConfig.smtp_password) {
-        console.log('📧 Using SMTP configuration for invitation email');
-        
         const smtpConfig = {
           smtp_host: emailConfig.smtp_host,
           smtp_port: emailConfig.smtp_port,
@@ -260,7 +231,6 @@ export async function POST(request: NextRequest) {
         emailProvider = result.provider;
       } else {
         // Fallback to SendGrid from env (if available)
-        console.log('📧 Using SendGrid/default email service for invitation');
         result = await emailService.sendCustomEmail(
           email,
           emailTemplate.subject,
@@ -271,7 +241,6 @@ export async function POST(request: NextRequest) {
       }
 
       emailSent = true;
-      console.log(`✅ Invitation email sent to ${email} via ${emailProvider}`);
     } catch (emailError: any) {
       console.error('❌ Error sending invitation email:', emailError);
       console.error('Stack:', emailError.stack);

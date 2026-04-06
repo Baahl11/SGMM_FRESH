@@ -4,8 +4,9 @@ import { NextResponse } from 'next/server';
 // GET /api/forms/[id] - Obtener un formulario específico
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const params = await context.params;
   try {
     const supabase = await createClient();
 
@@ -66,8 +67,9 @@ export async function GET(
 // PUT /api/forms/[id] - Actualizar formulario
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const params = await context.params;
   try {
     const supabase = await createClient();
 
@@ -127,8 +129,9 @@ export async function PUT(
 // DELETE /api/forms/[id] - Eliminar formulario
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const params = await context.params;
   try {
     const supabase = await createClient();
 

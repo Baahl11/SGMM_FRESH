@@ -3,16 +3,17 @@ import { createClient } from '@/lib/supabase/server';
 import { getAuthUser } from '@/lib/auth-server';
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 /**
  * GET /api/whatsapp/templates/[id]
  * Get single template by ID
  */
-export async function GET(request: Request, { params }: RouteParams) {
+export async function GET(request: Request, context: RouteParams) {
+  const params = await context.params;
   try {
     const user = await getAuthUser();
     if (!user) {
@@ -49,7 +50,8 @@ export async function GET(request: Request, { params }: RouteParams) {
  * PUT /api/whatsapp/templates/[id]
  * Update template (only if status is 'draft' or 'rejected')
  */
-export async function PUT(request: Request, { params }: RouteParams) {
+export async function PUT(request: Request, context: RouteParams) {
+  const params = await context.params;
   try {
     const user = await getAuthUser();
     if (!user) {
@@ -191,7 +193,8 @@ export async function PUT(request: Request, { params }: RouteParams) {
  * DELETE /api/whatsapp/templates/[id]
  * Delete template (only if not approved)
  */
-export async function DELETE(request: Request, { params }: RouteParams) {
+export async function DELETE(request: Request, context: RouteParams) {
+  const params = await context.params;
   try {
     const user = await getAuthUser();
     if (!user) {

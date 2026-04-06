@@ -378,9 +378,6 @@ export default function DashboardPage() {
     try {
       setLoading(true);
       setError(null);
-      
-      console.log('🔄 Loading dashboard data...');
-      
       // Cargar datos básicos
       const [patientsResponse, treatmentsResponse, recordsResponse] = await Promise.all([
         fetch('/api/patients').then(r => r.json()).catch(() => []),
@@ -391,13 +388,6 @@ export default function DashboardPage() {
       const patients = Array.isArray(patientsResponse) ? patientsResponse : [];
       const treatments = Array.isArray(treatmentsResponse) ? treatmentsResponse : [];
       const records = Array.isArray(recordsResponse) ? recordsResponse : [];
-
-      console.log('🔍 Dashboard data loaded:', {
-        patientsCount: patients.length,
-        treatmentsCount: treatments.length,
-        recordsCount: records.length,
-      });
-
       // Calcular estadísticas financieras
       const totalRevenue = records
         .filter((r: any) => r.monto_pagado > 0)

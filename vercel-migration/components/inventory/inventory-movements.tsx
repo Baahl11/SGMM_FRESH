@@ -190,14 +190,14 @@ export function InventoryMovements({ itemId, className }: InventoryMovementsProp
   };
 
   return (
-    <Card className={className}>
+    <Card className={`backdrop-blur-xl bg-gradient-to-br from-white/10 via-white/5 to-transparent border border-white/20 ${className}`}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <div className="space-y-1">
-          <CardTitle className="flex items-center gap-2 text-xl font-semibold">
-            <History className="h-5 w-5 text-blue-600" />
+          <CardTitle className="flex items-center gap-2 text-xl font-semibold text-white/90">
+            <History className="h-5 w-5 text-blue-400" />
             Historial de Movimientos
           </CardTitle>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-white/70">
             Traza completa de entradas, salidas y ajustes asociados a este item.
           </p>
         </div>
@@ -238,12 +238,12 @@ export function InventoryMovements({ itemId, className }: InventoryMovementsProp
       <CardContent className="space-y-6">
         <div className="grid gap-4 md:grid-cols-4">
           <div className="space-y-2">
-            <Label htmlFor="tipo">Tipo de movimiento</Label>
+            <Label htmlFor="tipo" className="text-white/70">Tipo de movimiento</Label>
             <Select
               value={tipoFilter}
               onValueChange={(value: TipoFilter) => setTipoFilter(value)}
             >
-              <SelectTrigger id="tipo">
+              <SelectTrigger id="tipo" className="backdrop-blur-xl bg-white/5 border-white/20 text-white">
                 <SelectValue placeholder="Todos" />
               </SelectTrigger>
               <SelectContent>
@@ -256,12 +256,12 @@ export function InventoryMovements({ itemId, className }: InventoryMovementsProp
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="periodo">Periodo</Label>
+            <Label htmlFor="periodo" className="text-white/70">Periodo</Label>
             <Select
               value={rangeFilter}
               onValueChange={(value: RangeFilter) => setRangeFilter(value)}
             >
-              <SelectTrigger id="periodo">
+              <SelectTrigger id="periodo" className="backdrop-blur-xl bg-white/5 border-white/20 text-white">
                 <SelectValue placeholder="Últimos 90 días" />
               </SelectTrigger>
               <SelectContent>
@@ -274,51 +274,51 @@ export function InventoryMovements({ itemId, className }: InventoryMovementsProp
           </div>
 
           <div className="space-y-2 md:col-span-2">
-            <Label htmlFor="search">Buscar por motivo</Label>
+            <Label htmlFor="search" className="text-white/70">Buscar por motivo</Label>
             <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
               <Input
                 id="search"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Ej: tratamiento botox, compra proveedor, ajuste manual..."
-                className="pl-9"
+                className="pl-9 backdrop-blur-xl bg-white/5 border-white/20 text-white placeholder:text-white/40"
               />
             </div>
           </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-4">
-            <p className="text-sm text-emerald-600">Entradas</p>
-            <p className="text-2xl font-semibold text-emerald-700">
+          <div className="rounded-lg backdrop-blur-xl bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border border-emerald-400/30 p-4">
+            <p className="text-sm text-emerald-400">Entradas</p>
+            <p className="text-2xl font-semibold text-emerald-300">
               {totals.entradas.toLocaleString("es-MX", { maximumFractionDigits: 2 })}
             </p>
           </div>
-          <div className="rounded-lg border border-rose-100 bg-rose-50 p-4">
-            <p className="text-sm text-rose-600">Salidas</p>
-            <p className="text-2xl font-semibold text-rose-700">
+          <div className="rounded-lg backdrop-blur-xl bg-gradient-to-br from-rose-500/10 via-rose-500/5 to-transparent border border-rose-400/30 p-4">
+            <p className="text-sm text-rose-400">Salidas</p>
+            <p className="text-2xl font-semibold text-rose-300">
               {totals.salidas.toLocaleString("es-MX", { maximumFractionDigits: 2 })}
             </p>
           </div>
-          <div className="rounded-lg border border-amber-100 bg-amber-50 p-4">
-            <p className="text-sm text-amber-600">Ajustes</p>
-            <p className="text-2xl font-semibold text-amber-700">
+          <div className="rounded-lg backdrop-blur-xl bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent border border-amber-400/30 p-4">
+            <p className="text-sm text-amber-400">Ajustes</p>
+            <p className="text-2xl font-semibold text-amber-300">
               {totals.ajustes.toLocaleString("es-MX", { maximumFractionDigits: 2 })}
             </p>
           </div>
         </div>
 
-        <div className="rounded-lg border border-gray-200">
+        <div className="rounded-lg border border-white/20 backdrop-blur-xl bg-white/5">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[160px]">Fecha</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead className="text-right">Cantidad</TableHead>
-                <TableHead className="text-right">Stock</TableHead>
-                <TableHead>Motivo</TableHead>
-                <TableHead className="text-right">Record</TableHead>
+                <TableHead className="w-[160px] text-white/70">Fecha</TableHead>
+                <TableHead className="text-white/70">Tipo</TableHead>
+                <TableHead className="text-right text-white/70">Cantidad</TableHead>
+                <TableHead className="text-right text-white/70">Stock</TableHead>
+                <TableHead className="text-white/70">Motivo</TableHead>
+                <TableHead className="text-right text-white/70">Record</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -335,7 +335,7 @@ export function InventoryMovements({ itemId, className }: InventoryMovementsProp
 
               {!loading && movements.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="py-8 text-center text-sm text-gray-500">
+                  <TableCell colSpan={6} className="py-8 text-center text-sm text-white/50">
                     No se encontraron movimientos con los filtros seleccionados.
                   </TableCell>
                 </TableRow>
@@ -343,21 +343,21 @@ export function InventoryMovements({ itemId, className }: InventoryMovementsProp
 
               {!loading &&
                 movements.map((movement) => (
-                  <TableRow key={movement.id} className="hover:bg-gray-50">
+                  <TableRow key={movement.id} className="hover:bg-white/5">
                     <TableCell>
-                      <div className="font-medium text-gray-900">
+                      <div className="font-medium text-white/90">
                         {formatMovementDate(movement.created_at)}
                       </div>
                     </TableCell>
                     <TableCell className="align-middle">
                       {getTipoBadge(movement.tipo)}
                     </TableCell>
-                    <TableCell className="text-right font-medium text-gray-900">
+                    <TableCell className="text-right font-medium text-white/90">
                       {movement.cantidad?.toLocaleString("es-MX", {
                         maximumFractionDigits: 2,
                       })}
                     </TableCell>
-                    <TableCell className="text-right text-sm text-gray-600">
+                    <TableCell className="text-right text-sm text-white/70">
                       {movement.cantidad_anterior !== null && movement.cantidad_nueva !== null ? (
                         <span>
                           {movement.cantidad_anterior.toLocaleString("es-MX", {
@@ -372,10 +372,10 @@ export function InventoryMovements({ itemId, className }: InventoryMovementsProp
                         "—"
                       )}
                     </TableCell>
-                    <TableCell className="text-sm text-gray-600">
+                    <TableCell className="text-sm text-white/70">
                       {movement.motivo || "Sin motivo especificado"}
                     </TableCell>
-                    <TableCell className="text-right text-xs text-blue-600">
+                    <TableCell className="text-right text-xs text-blue-400">
                       {movement.related_record_id ? `#${movement.related_record_id.slice(0, 8)}` : "—"}
                     </TableCell>
                   </TableRow>

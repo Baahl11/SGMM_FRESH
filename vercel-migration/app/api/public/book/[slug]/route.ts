@@ -23,9 +23,9 @@ import { validateBooking } from '@/lib/calendar-utils'
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
-  const { slug } = params
+  const { slug } = await params
 
   try {
     const body = await request.json()
@@ -170,15 +170,6 @@ export async function POST(
       }).catch(err => {
         console.warn('Failed to send notification:', err);
       });
-
-      console.log('✅ Booking created and notifications sent:', {
-        bookingId: booking.id,
-        clinic: profile.name,
-        patient: body.patient_name,
-        date: body.booking_date,
-        time: body.booking_time,
-        status: booking.status,
-      });
     } catch (notificationError) {
       // Don't fail the booking if notification fails
       console.error('Notification error:', notificationError);
@@ -219,8 +210,9 @@ export async function POST(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { slug: string } }
+  context: { params: Promise<{ slug: string }> }
 ) {
+  const params = await context.params;
   const { searchParams } = new URL(request.url)
   const cancellationToken = searchParams.get('token')
 
@@ -290,7 +282,29 @@ export async function DELETE(
       )
     }
 
-    // TODO: Send cancellation notification to clinic
+    // Send cancellation notification to clinic
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://agendamedpro.com'}/api/notifications/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: booking.clinic_user_id,
+          type: 'booking_cancelled',
+          channels: ['email'],
+          data: {
+            patient_name: booking.patient_name,
+            patient_phone: booking.patient_phone,
+            date: booking.booking_date,
+            time: booking.booking_time,
+            service: booking.service_name,
+            cancelled_by: 'patient'
+          }
+        })
+      });
+    } catch (notifError) {
+      // Log but don't fail the cancellation
+      console.error('Error sending cancellation notification:', notifError);
+    }
 
     return NextResponse.json({
       success: true,

@@ -26,16 +26,16 @@
   ],
   "crons": [
     {
-      "path": "/api/cron/reminders",
-      "schedule": "0 9 * * *"
-    },
-    {
-      "path": "/api/cron/whatsapp-reminders",
+      "path": "/api/agents/reminders/cron",
       "schedule": "0 * * * *"
     },
     {
       "path": "/api/cron/trial-reminders",
       "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/cron/onboarding-drip",
+      "schedule": "0 9 * * *"
     },
     {
       "path": "/api/cron/messaging-worker",

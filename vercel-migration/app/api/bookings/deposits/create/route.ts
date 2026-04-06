@@ -31,12 +31,8 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { booking_id, amount, patient_email, patient_name } = body;
-
-    console.log('💳 Creating deposit payment:', { booking_id, amount, patient_email, patient_name });
-
     // Validaciones
     if (!booking_id || !amount || !patient_email || !patient_name) {
-      console.log('❌ Missing required fields');
       return NextResponse.json(
         { error: 'booking_id, amount, patient_email, and patient_name are required' },
         { status: 400 }
@@ -44,7 +40,6 @@ export async function POST(request: NextRequest) {
     }
 
     if (amount <= 0) {
-      console.log('❌ Invalid amount:', amount);
       return NextResponse.json(
         { error: 'Amount must be greater than 0' },
         { status: 400 }
@@ -59,18 +54,12 @@ export async function POST(request: NextRequest) {
     );
 
     // 1. Verificar que la reserva existe y obtener datos
-    console.log('🔍 Looking for booking:', booking_id);
     const { data: booking, error: bookingError } = await supabase
       .from('public_bookings')
       .select('*')
       .eq('id', booking_id)
       .single();
-
-    console.log('📋 Booking found:', booking);
-    console.log('❌ Booking error:', bookingError);
-
     if (bookingError || !booking) {
-      console.log('❌ Booking not found');
       return NextResponse.json(
         { error: 'Booking not found', details: bookingError?.message },
         { status: 404 }
@@ -162,16 +151,10 @@ export async function POST(request: NextRequest) {
       }
 
       netAmount = amount - platformFeeAmount;
-
-      console.log(`💰 Using Stripe Connect - Platform fee: $${platformFeeAmount} MXN (${feeSettings.fee_percentage}%)`);
-      console.log(`💰 Net to doctor: $${netAmount} MXN`);
     } else {
-      console.log('⚠️ No Connected Account or not enabled - Using legacy centralized payment');
     }
 
     // 4. Crear Stripe Checkout Session (con o sin Connect)
-    console.log('🔐 Creating Stripe Checkout Session...');
-    
     const sessionParams: any = {
       payment_method_types: ['card'],
       mode: 'payment',
@@ -232,11 +215,7 @@ export async function POST(request: NextRequest) {
     }
 
     const session = await stripe.checkout.sessions.create(sessionParams);
-
-    console.log('✅ Stripe session created:', session.id);
-
     // 5. Crear registro de depósito en la base de datos
-    console.log('💾 Creating deposit record in database...');
     const { data: deposit, error: depositError } = await supabase
       .from('booking_deposits')
       .insert({
@@ -264,10 +243,6 @@ export async function POST(request: NextRequest) {
       })
       .select()
       .single();
-
-    console.log('📝 Deposit record created:', deposit);
-    console.log('❌ Deposit error:', depositError);
-
     if (depositError) {
       console.error('❌❌❌ Error creating deposit record:', depositError);
       // Intentar cancelar la sesión de Stripe

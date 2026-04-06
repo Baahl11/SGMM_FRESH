@@ -8,15 +8,11 @@ export async function GET(request: NextRequest) {
     
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      console.log('❌ [patient-photos] No user authenticated');
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
     const searchParams = request.nextUrl.searchParams;
     const patient_id = searchParams.get('patient_id');
-
-    console.log(`🔥 [patient-photos] GET request for patient: ${patient_id}`);
-
     if (!patient_id) {
       return NextResponse.json({ error: 'patient_id es requerido' }, { status: 400 });
     }
@@ -30,7 +26,6 @@ export async function GET(request: NextRequest) {
       .single();
 
     if (!patient) {
-      console.log(`❌ [patient-photos] Patient ${patient_id} not found or unauthorized`);
       return NextResponse.json({ error: 'Paciente no encontrado' }, { status: 404 });
     }
 
@@ -46,8 +41,6 @@ export async function GET(request: NextRequest) {
       console.error('❌ [patient-photos] Error fetching photos:', error);
       throw error;
     }
-
-    console.log(`✅ [patient-photos] Found ${photos?.length || 0} photos`);
     return NextResponse.json({ photos: photos || [] });
   } catch (error) {
     console.error('❌ [patient-photos] Error fetching patient photos:', error);
@@ -65,18 +58,13 @@ export async function POST(request: NextRequest) {
     
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      console.log('❌ [patient-photos] POST: No user authenticated');
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
     const body = await request.json();
     const { patient_id, url, descripcion, categoria } = body;
-
-    console.log('🔥 [patient-photos] POST request:', { patient_id, url, categoria, user_id: user.id });
-
     // Validaciones
     if (!patient_id || !url) {
-      console.log('❌ [patient-photos] Missing required fields');
       return NextResponse.json(
         { error: 'Faltan campos requeridos: patient_id, url' },
         { status: 400 }
@@ -95,9 +83,6 @@ export async function POST(request: NextRequest) {
       console.error('❌ [patient-photos] Patient verification failed:', patientError);
       return NextResponse.json({ error: 'Paciente no encontrado' }, { status: 404 });
     }
-
-    console.log('✅ [patient-photos] Patient verified, creating photo record...');
-
     // Crear registro de foto
     const { data: photo, error } = await supabase
       .from('patient_photos')
@@ -115,8 +100,6 @@ export async function POST(request: NextRequest) {
       console.error('❌ [patient-photos] Database insert error:', error);
       throw error;
     }
-
-    console.log('✅ [patient-photos] Photo created successfully:', photo.id);
     return NextResponse.json(photo, { status: 201 });
   } catch (error) {
     console.error('❌ [patient-photos] Error creating patient photo:', error);
@@ -134,17 +117,12 @@ export async function DELETE(request: NextRequest) {
     
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      console.log('❌ [patient-photos] DELETE: No user authenticated');
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
     const searchParams = request.nextUrl.searchParams;
     const photo_id = searchParams.get('id');
-
-    console.log(`🔥 [patient-photos] DELETE request for photo: ${photo_id}`);
-
     if (!photo_id) {
-      console.log('❌ [patient-photos] Missing photo_id');
       return NextResponse.json({ error: 'id es requerido' }, { status: 400 });
     }
 
@@ -157,12 +135,8 @@ export async function DELETE(request: NextRequest) {
       .single();
 
     if (fetchError || !photo) {
-      console.log('❌ [patient-photos] Photo not found or unauthorized:', fetchError);
       return NextResponse.json({ error: 'Foto no encontrada' }, { status: 404 });
     }
-
-    console.log('✅ [patient-photos] Photo found, deleting from storage...');
-
     // Extraer el path del archivo desde la URL
     const urlParts = photo.url.split('/patient-photos/');
     if (urlParts.length === 2) {
@@ -176,7 +150,6 @@ export async function DELETE(request: NextRequest) {
       if (storageError) {
         console.warn('⚠️ [patient-photos] Storage delete warning:', storageError);
       } else {
-        console.log('✅ [patient-photos] File deleted from storage');
       }
     }
 
@@ -191,8 +164,6 @@ export async function DELETE(request: NextRequest) {
       console.error('❌ [patient-photos] Database delete error:', deleteError);
       throw deleteError;
     }
-
-    console.log('✅ [patient-photos] Photo deleted successfully from database');
     return NextResponse.json({ message: 'Foto eliminada exitosamente' });
   } catch (error) {
     console.error('❌ [patient-photos] Error deleting patient photo:', error);

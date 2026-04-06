@@ -136,8 +136,6 @@ export default function TreatmentsPage() {
     setLoading(true);
     setError(""); // Limpiar errores previos
     try {
-      console.log("🏥 Loading treatments...");
-      
       // Build query params
       const params = new URLSearchParams();
       if (selectedCategory && selectedCategory !== 'all') {
@@ -158,7 +156,6 @@ export default function TreatmentsPage() {
       
       if (Array.isArray(data)) {
         setTreatments(data)
-        console.log("✅ Treatments loaded:", data.length);
       } else {
         console.error('Expected array, got:', data)
         setTreatments([])
@@ -200,7 +197,6 @@ export default function TreatmentsPage() {
     }
     
     try {
-      console.log("🗑️ Deleting treatment...", treatmentId);
       const response = await fetch(`/api/treatments/${treatmentId}`, {
         method: 'DELETE'
       });
@@ -211,7 +207,6 @@ export default function TreatmentsPage() {
       
       // Actualizar la lista de tratamientos
       setTreatments(treatments.filter(t => t.id !== treatmentId));
-      console.log("✅ Treatment deleted:", treatmentId);
       alert("Tratamiento eliminado exitosamente");
     } catch (error) {
       console.error("❌ Error deleting treatment:", error);

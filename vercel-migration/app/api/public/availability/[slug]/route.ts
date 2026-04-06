@@ -9,9 +9,9 @@ import { es } from 'date-fns/locale'
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
-  const { slug } = params
+  const { slug } = await params
   const { searchParams } = new URL(request.url)
   const dateParam = searchParams.get('date') // Format: YYYY-MM-DD
   const serviceId = searchParams.get('service') // Optional: specific service
@@ -71,7 +71,8 @@ export async function GET(
 
     // 3. Check if requested date is within booking window
     const now = new Date()
-    const minDate = addDays(now, 0)
+    now.setHours(0, 0, 0, 0) // Set to start of day for fair comparison
+    const minDate = now
     const maxDate = addDays(now, settings.max_advance_days || 60)
 
     if (requestedDate < minDate || requestedDate > maxDate) {

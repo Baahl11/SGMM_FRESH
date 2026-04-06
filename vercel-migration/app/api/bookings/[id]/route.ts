@@ -3,9 +3,10 @@ import { createClient } from '@/lib/supabase/server';
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params;
     const supabase = await createClient();
     
     const { data: { user } } = await supabase.auth.getUser();
@@ -17,6 +18,8 @@ export async function PATCH(
     const body = await request.json();
     const { status, clinic_notes } = body;
 
+    console.log('[PATCH /api/bookings/[id]]', { bookingId, status, clinic_notes });
+
     // Verify booking belongs to this clinic
     const { data: booking, error: fetchError } = await supabase
       .from('public_bookings')
@@ -26,6 +29,7 @@ export async function PATCH(
       .single();
 
     if (fetchError || !booking) {
+      console.error('[PATCH /api/bookings/[id]] Booking not found:', fetchError);
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
     }
 
@@ -71,8 +75,6 @@ export async function PATCH(
               send_whatsapp: true,
             }),
           }).catch(err => console.warn('Notification failed:', err));
-
-          console.log(`✅ Notification sent: ${eventType} for booking ${bookingId}`);
         }
       } catch (notificationError) {
         console.error('Notification error:', notificationError);
@@ -89,9 +91,10 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params;
     const supabase = await createClient();
     
     const { data: { user } } = await supabase.auth.getUser();

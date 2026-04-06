@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Users, Building2, Calendar, ArrowLeft, Clock, CalendarX, Globe, Mail, FileText, UserPlus, MessageSquare, MapPin, Receipt, Plus, CreditCard, Upload } from 'lucide-react'
+import { Users, Building2, Calendar, ArrowLeft, Clock, CalendarX, Globe, Mail, FileText, UserPlus, MessageSquare, MapPin, Receipt, Plus, CreditCard, Upload, CalendarSync, CalendarCog } from 'lucide-react'
 import AppLayout from '@/components/layout/app-layout'
 import { GlassPanel } from '@/components/ui/glass-panel'
 
@@ -103,6 +103,18 @@ const sections = [
     href: '/dashboard/settings/forms',
     icon: FileText,
     description: 'Formularios de admisión'
+  },
+  {
+    name: 'Agenda',
+    href: '/dashboard/settings/agenda',
+    icon: CalendarCog,
+    description: 'Buffer, lista de espera y más'
+  },
+  {
+    name: 'Google Calendar',
+    href: '/dashboard/settings/google-calendar',
+    icon: CalendarSync,
+    description: 'Sincroniza con tu calendario'
   }
 ]
 

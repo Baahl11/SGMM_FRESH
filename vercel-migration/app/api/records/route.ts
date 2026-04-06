@@ -59,8 +59,6 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('🔥 POST /api/records - Creating new record...');
-
     // Authenticate user
     const user = await getAuthUser();
     if (!user) {
@@ -97,9 +95,6 @@ export async function POST(request: NextRequest) {
       console.error('❌ Error creating record:', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
-
-    console.log('✅ Record created:', record.id);
-
     // 🔥 AUTOMATIC INVENTORY DEDUCTION
     // Process inventory deduction for this treatment
     const inventoryResult = await processInventoryDeduction(
@@ -142,8 +137,6 @@ async function processInventoryDeduction(
   };
 
   try {
-    console.log(`🔄 Processing inventory deduction for treatment ${treatmentId}...`);
-
     // 1. Get patient name for motivo
     const { data: patient } = await supabase
       .from('patients')
@@ -186,13 +179,9 @@ async function processInventoryDeduction(
     }
 
     if (!treatmentItems || treatmentItems.length === 0) {
-      console.log('ℹ️ No inventory items configured for this treatment');
       result.success = true; // Not an error, just no items to process
       return result;
     }
-
-    console.log(`📦 Found ${treatmentItems.length} inventory items to process`);
-
     // 4. Process each inventory item
     for (const item of treatmentItems) {
       const inventoryItem = item.inventory_items;
@@ -236,9 +225,6 @@ async function processInventoryDeduction(
         result.warnings.push(`Error al registrar movimiento de ${inventoryItem.nombre}`);
         continue;
       }
-
-      console.log(`✅ Deducted ${cantidadRequerida} of "${inventoryItem.nombre}": ${stockAnterior} → ${stockNuevo}`);
-      
       // Warn if stock is low or negative
       if (stockNuevo < 0) {
         result.warnings.push(`⚠️ Stock NEGATIVO de "${inventoryItem.nombre}": ${stockNuevo}`);
@@ -248,8 +234,6 @@ async function processInventoryDeduction(
     }
 
     result.success = true;
-    console.log(`✅ Inventory deduction completed: ${result.items_processed} items processed`);
-
   } catch (error) {
     console.error('❌ Error in processInventoryDeduction:', error);
     result.warnings.push('Error general al procesar inventario');

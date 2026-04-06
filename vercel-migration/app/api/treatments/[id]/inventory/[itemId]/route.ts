@@ -8,14 +8,12 @@ import { getAuthUser } from '@/lib/auth-server';
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string; itemId: string } }
+  context: { params: Promise<{ id: string; itemId: string }> }
 ) {
+  const params = await context.params;
   try {
     const treatmentId = params.id;
     const treatmentInventoryItemId = params.itemId;
-
-    console.log(`🔥 DELETE /api/treatments/${treatmentId}/inventory/${treatmentInventoryItemId}...`);
-
     // Authenticate user
     const user = await getAuthUser();
     if (!user) {
@@ -39,8 +37,6 @@ export async function DELETE(
         { status: 500 }
       );
     }
-
-    console.log('✅ Treatment inventory item deleted successfully');
     return NextResponse.json({
       message: 'Treatment inventory item deleted successfully'
     });
@@ -60,16 +56,14 @@ export async function DELETE(
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string; itemId: string } }
+  context: { params: Promise<{ id: string; itemId: string }> }
 ) {
+  const params = await context.params;
   try {
     const treatmentId = params.id;
     const treatmentInventoryItemId = params.itemId;
     const body = await request.json();
     const { cantidad_requerida } = body;
-
-    console.log(`🔥 PUT /api/treatments/${treatmentId}/inventory/${treatmentInventoryItemId}...`);
-
     // Validate input
     if (!cantidad_requerida || cantidad_requerida <= 0) {
       return NextResponse.json(
@@ -125,8 +119,6 @@ export async function PUT(
         { status: 404 }
       );
     }
-
-    console.log('✅ Treatment inventory item updated successfully');
     return NextResponse.json(updatedItem);
   } catch (error) {
     console.error('❌ API error:', error);

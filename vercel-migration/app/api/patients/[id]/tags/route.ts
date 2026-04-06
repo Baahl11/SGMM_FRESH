@@ -5,10 +5,11 @@ import { NextRequest, NextResponse } from 'next/server'
 // GET /api/patients/[id]/tags - Get all tags for a patient
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createClient()
+    const { id } = await params
     
     const { data: assignments, error } = await supabase
       .from('patient_tag_assignments')
@@ -16,7 +17,7 @@ export async function GET(
         *,
         tag:patient_tags(*)
       `)
-      .eq('patient_id', params.id)
+      .eq('patient_id', id)
     
     if (error) throw error
     
@@ -36,10 +37,11 @@ export async function GET(
 // POST /api/patients/[id]/tags - Assign tag to patient
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createClient()
+    const { id } = await params
     
     // Check authentication
     const { data: { user } } = await supabase.auth.getUser()
@@ -63,7 +65,7 @@ export async function POST(
     const { data: patient, error: patientError } = await supabase
       .from('patients')
       .select('id')
-      .eq('id', params.id)
+      .eq('id', id)
       .single()
     
     if (patientError || !patient) {
@@ -91,7 +93,7 @@ export async function POST(
     const { data: assignment, error: assignError } = await supabase
       .from('patient_tag_assignments')
       .insert({
-        patient_id: params.id,
+        patient_id: id,
         tag_id: tagId,
         assigned_by: user.id
       })
@@ -124,10 +126,11 @@ export async function POST(
 // DELETE /api/patients/[id]/tags?tagId=xxx - Remove tag from patient
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createClient()
+    const { id } = await params
     
     // Check authentication
     const { data: { user } } = await supabase.auth.getUser()
@@ -151,7 +154,7 @@ export async function DELETE(
     const { error } = await supabase
       .from('patient_tag_assignments')
       .delete()
-      .eq('patient_id', params.id)
+      .eq('patient_id', id)
       .eq('tag_id', tagId)
     
     if (error) throw error

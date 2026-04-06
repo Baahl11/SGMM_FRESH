@@ -241,9 +241,6 @@ export default function EditTreatmentPage() {
       inventory_item_id: selectedItemId, // UUID string, no parseInt!
       cantidad_requerida: parseFloat(cantidad),
     };
-
-    console.log('📦 Adding inventory item:', payload);
-
     try {
       const response = await fetch(`/api/treatments/${treatmentId}/inventory`, {
         method: "POST",

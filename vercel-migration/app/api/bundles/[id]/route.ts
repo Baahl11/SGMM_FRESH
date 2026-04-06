@@ -1,19 +1,79 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/supabase/server';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(
+  request: NextRequest, 
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    console.log('🔥 API: Updating bundle', params.id);
+    const { id } = await params;
+    const supabase = await createClient();
     
-    const body = await request.json();
-    const { nombre, descripcion, precio_total, tratamientos } = body;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-    if (!nombre || !precio_total || !tratamientos?.length) {
+    const { data: bundle, error } = await supabase
+      .from('bundles')
+      .select(`
+        *,
+        bundle_treatments (
+          id,
+          cantidad,
+          precio_individual,
+          treatment:treatments (
+            id,
+            nombre,
+            precio
+          )
+        )
+      `)
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .single();
+
+    if (error) {
+      console.error('Error fetching bundle:', error);
+      return NextResponse.json({ error: 'Bundle not found' }, { status: 404 });
+    }
+
+    // Format response
+    const formattedBundle = {
+      ...bundle,
+      tratamientos: bundle.bundle_treatments?.map((bt: any) => ({
+        id: bt.treatment?.id,
+        nombre: bt.treatment?.nombre,
+        precio: bt.precio_individual || bt.treatment?.precio,
+        cantidad: bt.cantidad
+      })).filter((t: any) => t.id) || []
+    };
+
+    return NextResponse.json(formattedBundle);
+
+  } catch (error) {
+    console.error('Unexpected error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+export async function PUT(
+  request: NextRequest, 
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const supabase = await createClient();
+    
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { nombre, descripcion, precio_total, tratamientos, descuento_porcentaje, activo } = body;
+
+    if (!nombre || precio_total === undefined) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
@@ -22,84 +82,78 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       .from('bundles')
       .update({
         nombre,
-        descripcion,
-        precio_total
+        descripcion: descripcion || null,
+        precio_total,
+        descuento_porcentaje: descuento_porcentaje || 0,
+        activo: activo !== undefined ? activo : true
       })
-      .eq('id', params.id)
+      .eq('id', id)
+      .eq('user_id', user.id)
       .select()
       .single();
 
     if (bundleError) {
-      console.error('❌ Error updating bundle:', bundleError);
+      console.error('Error updating bundle:', bundleError);
       return NextResponse.json({ error: 'Error updating bundle' }, { status: 500 });
     }
 
-    // Delete existing relationships
-    const { error: deleteError } = await supabase
+    // Delete existing treatments and re-add
+    await supabase
       .from('bundle_treatments')
       .delete()
-      .eq('bundle_id', params.id);
+      .eq('bundle_id', id);
 
-    if (deleteError) {
-      console.error('❌ Error deleting old relationships:', deleteError);
-      return NextResponse.json({ error: 'Error updating bundle relationships' }, { status: 500 });
+    // Add treatments if provided
+    if (tratamientos && tratamientos.length > 0) {
+      const bundleTreatments = tratamientos.map((t: any) => ({
+        bundle_id: id,
+        treatment_id: t.id,
+        cantidad: t.cantidad || 1,
+        precio_individual: t.precio || null
+      }));
+
+      await supabase
+        .from('bundle_treatments')
+        .insert(bundleTreatments);
     }
 
-    // Create new relationships
-    const bundleTreatments = tratamientos.map((treatment: any) => ({
-      bundle_id: params.id,
-      treatment_id: treatment.id
-    }));
-
-    const { error: relationError } = await supabase
-      .from('bundle_treatments')
-      .insert(bundleTreatments);
-
-    if (relationError) {
-      console.error('❌ Error creating new relationships:', relationError);
-      return NextResponse.json({ error: 'Error updating bundle relationships' }, { status: 500 });
-    }
-
-    console.log('✅ Bundle updated successfully:', params.id);
     return NextResponse.json(bundle);
 
   } catch (error) {
-    console.error('❌ API Error:', error);
+    console.error('Unexpected error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(
+  request: NextRequest, 
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    console.log('🔥 API: Deleting bundle', params.id);
-
-    // Delete relationships first
-    const { error: relationError } = await supabase
-      .from('bundle_treatments')
-      .delete()
-      .eq('bundle_id', params.id);
-
-    if (relationError) {
-      console.error('❌ Error deleting relationships:', relationError);
-      return NextResponse.json({ error: 'Error deleting bundle relationships' }, { status: 500 });
+    const { id } = await params;
+    const supabase = await createClient();
+    
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Delete the bundle
-    const { error: bundleError } = await supabase
+    // Bundle treatments will be deleted by CASCADE
+    const { error } = await supabase
       .from('bundles')
       .delete()
-      .eq('id', params.id);
+      .eq('id', id)
+      .eq('user_id', user.id);
 
-    if (bundleError) {
-      console.error('❌ Error deleting bundle:', bundleError);
+    if (error) {
+      console.error('Error deleting bundle:', error);
       return NextResponse.json({ error: 'Error deleting bundle' }, { status: 500 });
     }
 
-    console.log('✅ Bundle deleted successfully:', params.id);
     return NextResponse.json({ success: true });
 
   } catch (error) {
-    console.error('❌ API Error:', error);
+    console.error('Unexpected error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

@@ -76,6 +76,9 @@ export default function WelcomePage() {
         return
       }
 
+      // Fire welcome email (idempotent — does nothing if already sent)
+      fetch('/api/email/welcome', { method: 'POST' }).catch(() => {})
+
       // Obtener subscripción para calcular días restantes
       const { data: subscription } = await supabase
         .from('subscriptions')

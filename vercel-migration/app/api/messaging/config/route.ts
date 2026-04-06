@@ -8,11 +8,7 @@ import { NextResponse } from 'next/server';
  */
 export async function GET() {
   try {
-    console.log('[Messaging Config API] GET request initiated');
-    
     const user = await getAuthUser();
-    console.log('[Messaging Config API] Auth user:', { hasUser: !!user, userId: user?.id });
-    
     if (!user) {
       console.error('[Messaging Config API] No authenticated user found');
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
@@ -25,33 +21,17 @@ export async function GET() {
       data: { session },
       error: sessionError
     } = await supabase.auth.getSession();
-
-    console.log('[Messaging Config API] Session check:', { 
-      hasSession: !!session, 
-      sessionUserId: session?.user?.id,
-      sessionError: sessionError 
-    });
-
     if (!session) {
       console.error('[Messaging Config API] No active session found');
       return NextResponse.json({ error: 'No autorizado - sesión inválida' }, { status: 401 });
     }
 
     // Get user's messaging config
-    console.log('[Messaging Config API] Fetching config for user:', session.user.id);
-    
     const { data: config, error } = await supabase
       .from('messaging_config')
       .select('*')
       .eq('user_id', session.user.id)
       .single();
-
-    console.log('[Messaging Config API] Query result:', {
-      hasConfig: !!config,
-      errorCode: error?.code,
-      errorMessage: error?.message,
-    });
-
     if (error && error.code !== 'PGRST116') {
       // PGRST116 = no rows found (not an error, just no config yet)
       console.error('[Messaging Config API] Database error:', error);
@@ -62,11 +42,8 @@ export async function GET() {
     }
 
     if (!config) {
-      console.log('[Messaging Config API] No config found, returning null');
       return NextResponse.json({ config: null }, { status: 200 });
     }
-
-    console.log('[Messaging Config API] Config found, returning data');
     return NextResponse.json({ config });
   } catch (error) {
     console.error('[Messaging Config API] Unexpected error:', error);

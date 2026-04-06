@@ -32,20 +32,12 @@ export async function GET(request: NextRequest) {
         { status: 401 }
       );
     }
-
-    console.log('[Messaging Worker] Starting job processing...');
     const startTime = Date.now();
 
     // Run the worker
     const result = await runMessagingWorker();
 
     const duration = Date.now() - startTime;
-
-    console.log(
-      `[Messaging Worker] Completed in ${duration}ms`,
-      JSON.stringify(result, null, 2)
-    );
-
     return NextResponse.json({
       success: true,
       result,
