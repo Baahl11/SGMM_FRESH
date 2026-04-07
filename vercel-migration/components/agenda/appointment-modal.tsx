@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,16 +11,12 @@ import { Badge } from "@/components/ui/badge";
 import { Search, User, Plus, Calendar, Clock, Phone, AlertCircle, Loader2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
-// Skeleton Loader Component
-function SkeletonLoader() {
-  return (
-    <div className="animate-pulse space-y-4">
-      <div className="h-10 bg-white/10 rounded-2xl border border-white/10"></div>
-      <div className="h-10 bg-white/10 rounded-2xl border border-white/10"></div>
-      <div className="h-10 bg-white/10 rounded-2xl border border-white/10"></div>
-    </div>
-  );
-}
+// ─── Module-level cache (survives modal open/close, resets on page reload) ────
+let _patients:         Patient[]         | null = null;
+let _treatments:       Treatment[]       | null = null;
+let _doctors:          Doctor[]          | null = null;
+let _consultorios:     Consultorio[]     | null = null;
+let _appointmentTypes: AppointmentType[] | null = null;
 
 // Estilos reutilizables
 const inputClass = 'w-full rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-white placeholder:text-white/40 focus:border-white/40 focus:outline-none focus:ring-2 focus:ring-white/20';
@@ -143,17 +139,28 @@ export default function AppointmentModal({
 
   useEffect(() => {
     if (isOpen) {
-      setLoadingData(true);
-      Promise.all([
-        loadPatients(),
-        loadTreatments(),
-        loadDoctors(),
-        loadConsultorios(),
-        loadAppointmentTypes()
-      ]).finally(() => {
+      // Use cached data if available — no loading flash
+      if (_patients && _treatments && _doctors && _consultorios && _appointmentTypes) {
+        setPatients(_patients);
+        setTreatments(_treatments);
+        setDoctors(_doctors);
+        setConsultorios(_consultorios);
+        setAppointmentTypes(_appointmentTypes);
         setLoadingData(false);
         initializeForm();
-      });
+      } else {
+        setLoadingData(true);
+        Promise.all([
+          loadPatients(),
+          loadTreatments(),
+          loadDoctors(),
+          loadConsultorios(),
+          loadAppointmentTypes()
+        ]).finally(() => {
+          setLoadingData(false);
+          initializeForm();
+        });
+      }
     }
   }, [isOpen, selectedSlot, selectedAppointment]);
 
@@ -163,13 +170,10 @@ export default function AppointmentModal({
       if (response.ok) {
         const patientsData = await response.json();
         const safeData = Array.isArray(patientsData) ? patientsData : [];
+        _patients = safeData;
         setPatients(safeData);
-      } else {
-        setPatients([]);
-      }
-    } catch (err) {
-      setPatients([]);
-    }
+      } else { setPatients([]); }
+    } catch { setPatients([]); }
   };
 
   const loadTreatments = async () => {
@@ -178,61 +182,46 @@ export default function AppointmentModal({
       if (response.ok) {
         const treatmentsData = await response.json();
         const safeData = Array.isArray(treatmentsData) ? treatmentsData : [];
+        _treatments = safeData;
         setTreatments(safeData);
-      } else {
-        setTreatments([]);
-      }
-    } catch (err) {
-      setTreatments([]);
-    }
+      } else { setTreatments([]); }
+    } catch { setTreatments([]); }
   };
 
-  // 🆕 Load doctors
   const loadDoctors = async () => {
     try {
       const response = await fetch('/api/doctors');
       if (response.ok) {
         const data = await response.json();
         const safeData = Array.isArray(data) ? data.filter((d: Doctor) => d.activo !== false) : [];
+        _doctors = safeData;
         setDoctors(safeData);
-      } else {
-        setDoctors([]);
-      }
-    } catch (err) {
-      setDoctors([]);
-    }
+      } else { setDoctors([]); }
+    } catch { setDoctors([]); }
   };
 
-  // 🆕 Load consultorios
   const loadConsultorios = async () => {
     try {
       const response = await fetch('/api/consultorios');
       if (response.ok) {
         const data = await response.json();
         const safeData = Array.isArray(data) ? data.filter((c: Consultorio) => c.activo !== false) : [];
+        _consultorios = safeData;
         setConsultorios(safeData);
-      } else {
-        setConsultorios([]);
-      }
-    } catch (err) {
-      setConsultorios([]);
-    }
+      } else { setConsultorios([]); }
+    } catch { setConsultorios([]); }
   };
 
-  // 🆕 Load appointment types
   const loadAppointmentTypes = async () => {
     try {
       const response = await fetch('/api/appointment-types');
       if (response.ok) {
         const data = await response.json();
         const safeData = Array.isArray(data) ? data.filter((t: AppointmentType) => t.activo !== false) : [];
+        _appointmentTypes = safeData;
         setAppointmentTypes(safeData);
-      } else {
-        setAppointmentTypes([]);
-      }
-    } catch (err) {
-      setAppointmentTypes([]);
-    }
+      } else { setAppointmentTypes([]); }
+    } catch { setAppointmentTypes([]); }
   };
 
   const initializeForm = () => {
@@ -533,46 +522,43 @@ export default function AppointmentModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 relative z-10">
+        {/* Overlay spinner shown only on first-ever load, no layout jump */}
+        {loadingData && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center rounded-lg bg-slate-900/60 backdrop-blur-sm">
+            <Loader2 className="h-7 w-7 animate-spin text-purple-300" />
+          </div>
+        )}
+
+        <div className="space-y-5 relative z-10">
           {error && (
-            <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-3 backdrop-blur-sm">
-              <p className="text-red-300 text-sm">{error}</p>
+            <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-3">
+              <p className="text-sm text-red-300">{error}</p>
             </div>
           )}
 
-          {/* Loading Skeleton */}
-          {loadingData ? (
-            <SkeletonLoader />
-          ) : (
-            <>
-              {/* Conflict Alerts */}
-              {validating && (
-                <Alert className="border-blue-400/30 bg-blue-500/10 backdrop-blur-sm">
-                  <Loader2 className="h-4 w-4 animate-spin text-blue-300" />
-                  <AlertDescription className="text-blue-100">
-                    Validando disponibilidad...
-                  </AlertDescription>
-                </Alert>
-              )}
-              
-              {(conflicts.doctorBusy || conflicts.consultorioBusy || conflicts.patientDuplicate || conflicts.doctorNotWorking || conflicts.outsideWorkingHours || conflicts.doctorException) && !validating && (
-                <Alert className={`backdrop-blur-sm ${conflicts.doctorNotWorking || conflicts.outsideWorkingHours || conflicts.doctorException ? 'border-red-400/30 bg-red-500/10' : 'border-amber-400/30 bg-amber-500/10'}`}>
-                  <AlertCircle className={`h-4 w-4 ${conflicts.doctorNotWorking || conflicts.outsideWorkingHours || conflicts.doctorException ? 'text-red-300' : 'text-amber-300'}`} />
-                  <AlertDescription className={conflicts.doctorNotWorking || conflicts.outsideWorkingHours || conflicts.doctorException ? 'text-red-100' : 'text-amber-100'}>
-                    <div className="font-medium mb-1">
-                      {conflicts.doctorNotWorking || conflicts.outsideWorkingHours || conflicts.doctorException ? '❌ No disponible:' : '⚠️ Conflictos detectados:'}
-                    </div>
-                    <ul className="list-disc list-inside text-sm space-y-1">
-                      {conflicts.doctorNotWorking && <li>{conflicts.message || 'El doctor no trabaja este día'}</li>}
-                      {conflicts.outsideWorkingHours && <li>{conflicts.message || 'Fuera del horario de trabajo'}</li>}
-                      {conflicts.doctorException && <li>{conflicts.message || 'El doctor no está disponible en esta fecha'}</li>}
-                      {conflicts.doctorBusy && <li>El doctor ya tiene una cita en este horario</li>}
-                      {conflicts.consultorioBusy && <li>El consultorio está ocupado en este horario</li>}
-                      {conflicts.patientDuplicate && <li>El paciente ya tiene una cita en este horario</li>}
-                    </ul>
-                  </AlertDescription>
-                </Alert>
-              )}
+          {/* Conflict/validation area — fixed min-height so it never shifts other fields */}
+          <div className="min-h-[44px]">
+            {validating ? (
+              <Alert className="border-blue-400/30 bg-blue-500/10">
+                <Loader2 className="h-4 w-4 animate-spin text-blue-300" />
+                <AlertDescription className="text-blue-100">Validando disponibilidad...</AlertDescription>
+              </Alert>
+            ) : (conflicts.doctorBusy || conflicts.consultorioBusy || conflicts.patientDuplicate || conflicts.doctorNotWorking || conflicts.outsideWorkingHours || conflicts.doctorException) ? (
+              <Alert className={`${conflicts.doctorNotWorking || conflicts.outsideWorkingHours || conflicts.doctorException ? 'border-red-400/30 bg-red-500/10' : 'border-amber-400/30 bg-amber-500/10'}`}>
+                <AlertCircle className={`h-4 w-4 ${conflicts.doctorNotWorking || conflicts.outsideWorkingHours || conflicts.doctorException ? 'text-red-300' : 'text-amber-300'}`} />
+                <AlertDescription className={conflicts.doctorNotWorking || conflicts.outsideWorkingHours || conflicts.doctorException ? 'text-red-100' : 'text-amber-100'}>
+                  <ul className="list-disc list-inside text-sm space-y-1">
+                    {conflicts.doctorNotWorking && <li>{conflicts.message || 'El doctor no trabaja este día'}</li>}
+                    {conflicts.outsideWorkingHours && <li>{conflicts.message || 'Fuera del horario de trabajo'}</li>}
+                    {conflicts.doctorException && <li>{conflicts.message || 'El doctor no está disponible en esta fecha'}</li>}
+                    {conflicts.doctorBusy && <li>El doctor ya tiene una cita en este horario</li>}
+                    {conflicts.consultorioBusy && <li>El consultorio está ocupado en este horario</li>}
+                    {conflicts.patientDuplicate && <li>El paciente ya tiene una cita en este horario</li>}
+                  </ul>
+                </AlertDescription>
+              </Alert>
+            ) : null}
+          </div>
 
           {/* Date and Time */}
           <div className="grid grid-cols-2 gap-4">
@@ -598,101 +584,85 @@ export default function AppointmentModal({
             </div>
           </div>
 
-          {/* Patient Selection */}
+          {/* Patient Selection — fixed height container eliminates layout shift */}
           <div>
             <Label className={labelClass}>Paciente</Label>
-            {selectedPatient ? (
-              <div className="flex items-center justify-between p-3 bg-blue-500/10 border border-blue-400/30 rounded-2xl backdrop-blur-sm">
-                <div className="flex items-center gap-3">
-                  <User className="h-5 w-5 text-blue-300" />
-                  <div>
-                    <div className="font-medium text-white">{selectedPatient.nombre}</div>
-                    <div className="text-sm text-blue-200 flex items-center gap-1">
-                      <Phone className="h-3 w-3" />
-                      {selectedPatient.telefono}
+            <div className="min-h-[56px]">
+              {selectedPatient ? (
+                <div className="flex items-center justify-between rounded-2xl border border-blue-400/30 bg-blue-500/10 p-3">
+                  <div className="flex items-center gap-3">
+                    <User className="h-5 w-5 text-blue-300" />
+                    <div>
+                      <div className="font-medium text-white">{selectedPatient.nombre}</div>
+                      <div className="flex items-center gap-1 text-sm text-blue-200">
+                        <Phone className="h-3 w-3" />
+                        {selectedPatient.telefono}
+                      </div>
                     </div>
-                  </div>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSelectedPatient(null)}
-                  className="border-white/20 bg-white/5 text-white hover:bg-white/10"
-                >
-                  Cambiar
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-white/40" />
-                    <Input
-                      placeholder="Buscar paciente por nombre o teléfono..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className={`${inputClass} pl-10`}
-                    />
                   </div>
                   <Button
                     variant="outline"
-                    onClick={() => setShowNewPatientForm(!showNewPatientForm)}
-                    className="flex items-center gap-2 border-white/20 bg-white/5 text-white hover:bg-white/10 rounded-2xl"
+                    size="sm"
+                    onClick={() => setSelectedPatient(null)}
+                    className="border-white/20 bg-white/5 text-white hover:bg-white/10"
                   >
-                    <Plus className="h-4 w-4" />
-                    Nuevo
+                    Cambiar
                   </Button>
                 </div>
-
-                {showNewPatientForm ? (
-                  <div className="p-4 bg-green-500/10 border border-green-400/30 rounded-2xl space-y-3 backdrop-blur-sm">
-                    <h4 className="font-medium text-green-200">Nuevo Paciente</h4>
-                    <div className="grid grid-cols-1 gap-3">
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
                       <Input
-                        placeholder="Nombre completo"
-                        value={formData.newPatientName}
-                        onChange={(e) => setFormData(prev => ({ ...prev, newPatientName: e.target.value }))}
-                        className={inputClass}
-                      />
-                      <Input
-                        placeholder="Teléfono"
-                        value={formData.newPatientPhone}
-                        onChange={(e) => setFormData(prev => ({ ...prev, newPatientPhone: e.target.value }))}
-                        className={inputClass}
-                      />
-                      <Input
-                        placeholder="Email (opcional)"
-                        type="email"
-                        value={formData.newPatientEmail}
-                        onChange={(e) => setFormData(prev => ({ ...prev, newPatientEmail: e.target.value }))}
-                        className={inputClass}
+                        placeholder="Buscar paciente por nombre o teléfono..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className={`${inputClass} pl-10`}
                       />
                     </div>
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowNewPatientForm(!showNewPatientForm)}
+                      className="flex shrink-0 items-center gap-2 rounded-2xl border-white/20 bg-white/5 text-white hover:bg-white/10"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Nuevo
+                    </Button>
                   </div>
-                ) : (
-                  <div className="max-h-48 overflow-y-auto space-y-2">
-                    {filteredPatients.map((patient) => (
-                      <div
-                        key={patient.id}
-                        onClick={() => setSelectedPatient(patient)}
-                        className="p-3 border border-white/15 bg-white/5 rounded-2xl cursor-pointer hover:bg-white/10 hover:border-white/30 transition-all backdrop-blur-sm"
-                      >
-                        <div className="font-medium text-white">{patient.nombre}</div>
-                        <div className="text-sm text-white/60 flex items-center gap-1">
-                          <Phone className="h-3 w-3" />
-                          {patient.telefono}
-                        </div>
+
+                  {/* Fixed-height list — no layout jump when items load */}
+                  <div className="h-36 overflow-y-auto space-y-1.5">
+                    {showNewPatientForm ? (
+                      <div className="rounded-2xl border border-green-400/30 bg-green-500/10 p-3 space-y-2">
+                        <h4 className="text-sm font-medium text-green-200">Nuevo Paciente</h4>
+                        <Input placeholder="Nombre completo" value={formData.newPatientName} onChange={(e) => setFormData(prev => ({ ...prev, newPatientName: e.target.value }))} className={inputClass} />
+                        <Input placeholder="Teléfono" value={formData.newPatientPhone} onChange={(e) => setFormData(prev => ({ ...prev, newPatientPhone: e.target.value }))} className={inputClass} />
+                        <Input placeholder="Email (opcional)" type="email" value={formData.newPatientEmail} onChange={(e) => setFormData(prev => ({ ...prev, newPatientEmail: e.target.value }))} className={inputClass} />
                       </div>
-                    ))}
-                    {filteredPatients.length === 0 && searchTerm && (
-                      <p className="text-center text-white/60 py-4">
-                        No se encontraron pacientes. ¿Quieres crear uno nuevo?
+                    ) : filteredPatients.length > 0 ? (
+                      filteredPatients.map((patient) => (
+                        <div
+                          key={patient.id}
+                          onClick={() => setSelectedPatient(patient)}
+                          className="flex cursor-pointer items-center gap-3 rounded-xl border border-white/15 bg-white/5 px-3 py-2 transition hover:border-white/30 hover:bg-white/10"
+                        >
+                          <User className="h-4 w-4 shrink-0 text-white/40" />
+                          <div className="min-w-0">
+                            <div className="truncate font-medium text-white text-sm">{patient.nombre}</div>
+                            <div className="text-xs text-white/50">{patient.telefono}</div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="py-4 text-center text-sm text-white/50">
+                        {searchTerm ? 'No se encontraron pacientes' : 'Escribe para buscar un paciente'}
                       </p>
                     )}
                   </div>
-                )}
-              </div>
-            )}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* 🆕 Doctor Selection */}
@@ -896,39 +866,32 @@ export default function AppointmentModal({
           </div>
 
           {/* Actions */}
-          <div className="flex items-center justify-between pt-4 border-t border-white/10">
+          <div className="flex items-center justify-between border-t border-white/10 pt-4">
             <div>
               {selectedAppointment && (
                 <Button
                   variant="destructive"
                   onClick={handleDelete}
                   disabled={loading}
-                  className="bg-red-500/20 border-red-500/30 text-red-300 hover:bg-red-500/30 rounded-2xl"
+                  className="rounded-2xl bg-red-500/20 border-red-500/30 text-red-300 hover:bg-red-500/30"
                 >
                   🗑️ Eliminar Cita
                 </Button>
               )}
             </div>
-            
             <div className="flex items-center gap-3">
-              <Button 
-                variant="outline" 
-                onClick={onClose}
-                className="border-white/20 bg-white/5 text-white hover:bg-white/10 rounded-2xl"
-              >
+              <Button variant="outline" onClick={onClose} className="rounded-2xl border-white/20 bg-white/5 text-white hover:bg-white/10">
                 Cancelar
               </Button>
-              <Button 
-                onClick={handleSave} 
-                disabled={loading || (conflicts.doctorBusy || conflicts.consultorioBusy || conflicts.patientDuplicate || conflicts.doctorNotWorking || conflicts.outsideWorkingHours || conflicts.doctorException || false)}
-                className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white rounded-2xl disabled:opacity-50"
+              <Button
+                onClick={handleSave}
+                disabled={loading || !!(conflicts.doctorBusy || conflicts.consultorioBusy || conflicts.patientDuplicate || conflicts.doctorNotWorking || conflicts.outsideWorkingHours || conflicts.doctorException)}
+                className="rounded-2xl bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white disabled:opacity-50"
               >
                 {loading ? "Guardando..." : selectedAppointment ? "Actualizar" : "Crear Cita"}
               </Button>
             </div>
           </div>
-            </>
-          )}
         </div>
       </DialogContent>
     </Dialog>
