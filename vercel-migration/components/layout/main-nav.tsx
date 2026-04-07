@@ -20,7 +20,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { User, LogOut, Settings, MessageSquare, Menu } from "lucide-react";
+import { User, LogOut, Settings, MessageSquare, Menu, ChevronDown } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 
 const LogoMark = ({ className = "h-10 w-10" }: { className?: string }) => (
@@ -109,87 +109,59 @@ export function MainNav() {
     router.push('/auth/signin');
   };
 
-  const routes: Array<{
-    href: string;
+  const topRoutes: Array<{ href: string; label: string; active: boolean }> = [
+    { href: "/dashboard", label: "Dashboard", active: pathname === "/dashboard" },
+    { href: "/agenda",    label: "Agenda",    active: pathname === "/agenda" },
+    { href: "/patients",  label: "Pacientes", active: pathname === "/patients" || pathname?.startsWith("/patients/") },
+  ];
+
+  const groups: Array<{
     label: string;
     active: boolean;
-    highlight?: boolean;
+    items: Array<{ href: string; label: string; active: boolean }>;
   }> = [
     {
-      href: "/dashboard",
-      label: "Dashboard",
-      active: pathname === "/dashboard",
+      label: "Clínica",
+      active: ["/treatments", "/dashboard/bookings", "/inventory", "/promociones"].some(p => pathname?.startsWith(p)),
+      items: [
+        { href: "/treatments",        label: "Tratamientos", active: pathname?.startsWith("/treatments") },
+        { href: "/dashboard/bookings",label: "Reservas",     active: pathname?.startsWith("/dashboard/bookings") },
+        { href: "/inventory",         label: "Inventario",   active: pathname === "/inventory" },
+        { href: "/promociones",       label: "Promociones",  active: pathname?.startsWith("/promociones") },
+      ],
     },
     {
-      href: "/agenda",
-      label: "Agenda",
-      active: pathname === "/agenda",
+      label: "Comunicación",
+      active: ["/messaging", "/leads"].some(p => pathname?.startsWith(p)),
+      items: [
+        { href: "/messaging", label: "Mensajería", active: pathname?.startsWith("/messaging") },
+        { href: "/leads",     label: "Leads",      active: pathname?.startsWith("/leads") },
+      ],
     },
     {
-      href: "/dashboard/bookings",
-      label: "Reservas",
-      active: pathname === "/dashboard/bookings",
+      label: "Formularios",
+      active: ["/intake-forms", "/nps", "/documents"].some(p => pathname?.startsWith(p)),
+      items: [
+        { href: "/intake-forms", label: "Intake",      active: pathname?.startsWith("/intake-forms") },
+        { href: "/nps",          label: "NPS",         active: pathname?.startsWith("/nps") },
+        { href: "/documents",    label: "Documentos",  active: pathname?.startsWith("/documents") },
+      ],
     },
     {
-      href: "/patients",
-      label: "Pacientes",
-      active: pathname === "/patients" || pathname?.startsWith("/patients/"),
+      label: "Análisis",
+      active: ["/ai", "/gastos-fijos", "/reports"].some(p => pathname?.startsWith(p)),
+      items: [
+        { href: "/ai",          label: "IA Recomendaciones", active: pathname?.startsWith("/ai") },
+        { href: "/gastos-fijos",label: "Gastos Fijos",       active: pathname === "/gastos-fijos" },
+        { href: "/reports",     label: "Reportes",           active: pathname === "/reports" },
+      ],
     },
-    {
-      href: "/treatments",
-      label: "Tratamientos",
-      active: pathname === "/treatments" || pathname?.startsWith("/treatments/"),
-    },
-    {
-      href: "/promociones",
-      label: "Promociones",
-      active: pathname === "/promociones" || pathname?.startsWith("/promociones/"),
-    },
-    {
-      href: "/inventory",
-      label: "Inventario",
-      active: pathname === "/inventory",
-    },
-    {
-      href: "/messaging",
-      label: "Mensajería",
-      active: pathname === "/messaging" || pathname?.startsWith("/messaging/"),
-    },
-    {
-      href: "/leads",
-      label: "Leads",
-      active: pathname === "/leads" || pathname?.startsWith("/leads/"),
-    },
-    {
-      href: "/intake-forms",
-      label: "Intake",
-      active: pathname === "/intake-forms" || pathname?.startsWith("/intake-forms/"),
-    },
-    {
-      href: "/nps",
-      label: "NPS",
-      active: pathname === "/nps" || pathname?.startsWith("/nps/"),
-    },
-    {
-      href: "/documents",
-      label: "Documentos",
-      active: pathname === "/documents" || pathname?.startsWith("/documents/"),
-    },
-    {
-      href: "/ai",
-      label: "IA",
-      active: pathname === "/ai" || pathname?.startsWith("/ai/"),
-    },
-    {
-      href: "/gastos-fijos",
-      label: "Gastos Fijos",
-      active: pathname === "/gastos-fijos",
-    },
-    {
-      href: "/reports",
-      label: "Reportes",
-      active: pathname === "/reports",
-    },
+  ];
+
+  // Flat list for mobile sheet
+  const allRoutes = [
+    ...topRoutes,
+    ...groups.flatMap(g => g.items),
   ];
 
   return (
@@ -212,39 +184,75 @@ export function MainNav() {
         </Link>
       </div>
 
-      {/* Navigation Links */}
-      <div className="hidden min-w-0 flex-1 items-center space-x-2 overflow-x-auto rounded-full border border-white/10 bg-white/5 px-2 py-1 lg:flex xl:space-x-4">
-        {routes.map((route) => {
-          const isInventory = route.href === "/inventory";
-          const showLowStock = isInventory && (lowStockCount || 0) > 0;
-          const badgeValue = showLowStock
-            ? lowStockCount && lowStockCount > 9
-              ? "9+"
-              : String(lowStockCount)
-            : null;
+      {/* Navigation Links — Desktop */}
+      <div className="hidden min-w-0 flex-1 items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-1 lg:flex">
+        {/* Top-level links */}
+        {topRoutes.map((route) => (
+          <Link
+            key={route.href}
+            href={route.href}
+            className={cn(
+              "flex items-center rounded-full px-4 py-1.5 text-sm font-medium transition whitespace-nowrap",
+              route.active
+                ? "bg-white text-slate-900 shadow-lg"
+                : "text-white/70 hover:bg-white/10 hover:text-white"
+            )}
+          >
+            {route.label}
+          </Link>
+        ))}
 
-          return (
-            <Link
-              key={route.href}
-              href={route.href}
-              className={cn(
-                "flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium transition",
-                route.active
-                  ? "bg-white text-slate-900 shadow-lg"
-                  : route.highlight
-                  ? "bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-white border border-blue-500/30 hover:from-blue-500/30 hover:to-purple-500/30"
-                  : "text-white/70 hover:bg-white/10 hover:text-white"
-              )}
+        {/* Divider */}
+        <div className="mx-1 h-5 w-px bg-white/10" />
+
+        {/* Grouped dropdowns */}
+        {groups.map((group) => (
+          <DropdownMenu key={group.label}>
+            <DropdownMenuTrigger asChild>
+              <button
+                className={cn(
+                  "flex items-center gap-1 rounded-full px-4 py-1.5 text-sm font-medium transition whitespace-nowrap outline-none",
+                  group.active
+                    ? "bg-white text-slate-900 shadow-lg"
+                    : "text-white/70 hover:bg-white/10 hover:text-white"
+                )}
+              >
+                {group.label}
+                <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="start"
+              className="min-w-[160px] border border-white/10 bg-[#0d1526]/95 backdrop-blur text-white"
             >
-              <span>{route.label}</span>
-              {badgeValue && (
-                <span className="inline-flex min-w-[20px] items-center justify-center rounded-full bg-rose-500/90 px-1.5 py-0.5 text-xs font-semibold text-white">
-                  {badgeValue}
-                </span>
-              )}
-            </Link>
-          );
-        })}
+              {group.items.map((item) => (
+                <DropdownMenuItem key={item.href} asChild>
+                  <Link
+                    href={item.href}
+                    className={cn(
+                      "flex w-full items-center px-3 py-2 text-sm transition",
+                      item.active
+                        ? "text-emerald-300 font-medium"
+                        : "text-white/80 hover:text-white"
+                    )}
+                  >
+                    {item.label}
+                  </Link>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ))}
+
+        {/* Inventory badge (special case) */}
+        {(lowStockCount || 0) > 0 && (
+          <Link
+            href="/inventory"
+            className="ml-1 flex items-center gap-1.5 rounded-full border border-rose-500/40 bg-rose-500/10 px-3 py-1 text-xs font-semibold text-rose-300 hover:bg-rose-500/20 transition"
+          >
+            ⚠ {lowStockCount} bajo stock
+          </Link>
+        )}
       </div>
 
       {/* Mobile Menu Button */}
@@ -274,15 +282,7 @@ export function MainNav() {
               </SheetTitle>
             </SheetHeader>
             <div className="mt-6 flex flex-col space-y-2">
-              {routes.map((route) => {
-                const isInventory = route.href === "/inventory";
-                const showLowStock = isInventory && (lowStockCount || 0) > 0;
-                const badgeValue = showLowStock
-                  ? lowStockCount && lowStockCount > 9
-                    ? "9+"
-                    : String(lowStockCount)
-                  : null;
-
+              {allRoutes.map((route) => {
                 return (
                   <Link
                     key={route.href}
@@ -296,11 +296,6 @@ export function MainNav() {
                     )}
                   >
                     <span>{route.label}</span>
-                    {badgeValue && (
-                      <span className="inline-flex min-w-[24px] items-center justify-center rounded-full bg-rose-500/90 px-2 py-1 text-xs font-semibold text-white">
-                        {badgeValue}
-                      </span>
-                    )}
                   </Link>
                 );
               })}
