@@ -49,3 +49,12 @@ public/fallback-*.js
 
 .vercel
 create-stripe-products-live.ps1
+
+# MCP server artifacts
+mcp-server/node_modules/
+mcp-server/dist/
+
+# Local-only env/analysis files
+stripe-new-prices.env
+temp_google_env.txt
+system-analysis.txt
