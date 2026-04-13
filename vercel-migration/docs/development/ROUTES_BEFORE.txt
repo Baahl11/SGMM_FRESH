@@ -1,0 +1,43 @@
+# vercel-migration route inventory (baseline)
+
+[Pages]
+app/page.tsx
+app/layout.tsx
+app/globals.css
+app/dashboard/page.tsx
+app/dashboard/page-backup.tsx
+app/patients/page.tsx
+app/patients/new/page.tsx
+app/patients/[id]/page.tsx
+app/patients/[id]/edit/page.tsx
+app/agenda/page.tsx
+app/treatments/page.tsx
+app/bundles/page.tsx
+app/inventory/page.tsx
+app/gastos-fijos/page.tsx
+app/messaging/page.tsx
+app/reports/page.tsx
+app/medical/page.tsx
+
+[API Routes]
+app/api/auth/[...nextauth]/route.ts
+app/api/patients/route.ts
+app/api/patients/[id]/route.ts
+app/api/treatments/route.ts
+app/api/treatments/[id]/route.ts
+app/api/appointments/route.ts
+app/api/appointments/[id]/route.ts
+app/api/records/route.ts
+app/api/records/[id]/route.ts
+app/api/records/with-names/route.ts
+app/api/records/patient/[id]/route.ts
+app/api/gastos-fijos/route.ts
+app/api/gastos-fijos/[id]/route.ts
+app/api/inventory/route.ts
+app/api/inventory/[id]/route.ts
+app/api/bundles/route.ts
+app/api/bundles/[id]/route.ts
+
+[Notes]
+- Detected lib/appApi.ts present in this project; per SGMM_VERCEL_MIGRATION.md and recovery plan, this should be deprecated here (Supabase-only).
+- See RECUPERAR_SISTEMA_ORIGINAL_PLAN.md for the step-by-step restoration process.
