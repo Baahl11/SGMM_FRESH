@@ -379,14 +379,14 @@ export default function TreatmentsPage() {
                   return (
                     <GlassPanel key={treatment.id} className="space-y-5 border-white/10 p-5 text-white">
                       <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-start gap-3 min-w-0">
                           <div className="rounded-2xl border border-white/20 bg-gradient-to-br from-emerald-400/30 to-green-500/20 p-3">
                             <Stethoscope className="h-5 w-5" />
                           </div>
-                          <div>
-                            <h3 className="text-lg font-semibold leading-tight">{treatment.nombre}</h3>
+                          <div className="min-w-0">
+                            <h3 className="text-lg font-semibold leading-tight break-words">{treatment.nombre}</h3>
                             {treatment.descripcion && (
-                              <p className="text-sm text-white/60 line-clamp-2">{treatment.descripcion}</p>
+                              <p className="text-sm text-white/60 line-clamp-2 break-words">{treatment.descripcion}</p>
                             )}
                           </div>
                         </div>

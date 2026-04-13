@@ -209,13 +209,13 @@ export function TagsDisplay({ tags, className }: TagsDisplayProps) {
         <span
           key={tag}
           className={cn(
-            'inline-flex items-center gap-1 px-2 py-0.5 rounded-full',
+            'inline-flex items-center gap-1 px-2 py-0.5 rounded-full max-w-full min-w-0',
             'bg-muted text-muted-foreground text-xs font-medium',
             'border'
           )}
         >
           <Tag className="w-2.5 h-2.5" />
-          <span>{tag}</span>
+          <span className="min-w-0 break-words whitespace-normal">{tag}</span>
         </span>
       ))}
     </div>

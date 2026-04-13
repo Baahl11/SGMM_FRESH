@@ -75,6 +75,8 @@ interface SelectedConsumible {
   precio_unitario: number;
 }
 
+const normalizeId = (value: string | number) => String(value);
+
 export default function NewTreatmentPage() {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
@@ -134,11 +136,15 @@ export default function NewTreatmentPage() {
   const fetchInventoryItems = async () => {
     try {
       const response = await fetch("/api/inventory");
-      if (!response.ok) throw new Error("Error al cargar inventario");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Error al cargar inventario");
+      }
       const data = await response.json();
-      setInventoryItems(data);
+      setInventoryItems(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Error fetching inventory:", err);
+      toast.error("Error al cargar inventario");
     } finally {
       setLoadingInventory(false);
     }
@@ -146,35 +152,39 @@ export default function NewTreatmentPage() {
 
   const handleAddConsumible = () => {
     if (!selectedItemId || !cantidad) {
-      alert("Selecciona un consumible y cantidad");
+      toast.error("Selecciona un consumible y cantidad");
       return;
     }
 
-    const item = inventoryItems.find(i => i.id === selectedItemId);
-    if (!item) return;
+    const normalizedSelectedId = normalizeId(selectedItemId);
+    const item = inventoryItems.find(i => normalizeId(i.id) === normalizedSelectedId);
+    if (!item) {
+      toast.error("Consumible no encontrado. Recarga la pagina.");
+      return;
+    }
 
-    const cantidadNum = parseFloat(cantidad);
+    const cantidadNum = parseFloat(cantidad.replace(',', '.'));
     if (cantidadNum <= 0) {
-      alert("La cantidad debe ser mayor a 0");
+      toast.error("La cantidad debe ser mayor a 0");
       return;
     }
 
     // Check if already added
-    if (selectedConsumibles.some(c => c.inventory_item_id === selectedItemId)) {
-      alert("Este consumible ya está en la lista");
+    if (selectedConsumibles.some(c => normalizeId(c.inventory_item_id) === normalizedSelectedId)) {
+      toast.error("Este consumible ya esta en la lista");
       return;
     }
 
-    setSelectedConsumibles([
-      ...selectedConsumibles,
+    setSelectedConsumibles(prev => ([
+      ...prev,
       {
-        inventory_item_id: item.id,
+        inventory_item_id: normalizeId(item.id),
         cantidad_requerida: cantidadNum,
         nombre: item.nombre,
         stock_actual: item.stock_actual,
         precio_unitario: item.precio_unitario,
       },
-    ]);
+    ]));
 
     // Reset modal
     setSelectedItemId("");
@@ -183,7 +193,8 @@ export default function NewTreatmentPage() {
   };
 
   const handleRemoveConsumible = (itemId: string) => {
-    setSelectedConsumibles(selectedConsumibles.filter(c => c.inventory_item_id !== itemId));
+    const normalizedId = normalizeId(itemId);
+    setSelectedConsumibles(prev => prev.filter(c => normalizeId(c.inventory_item_id) !== normalizedId));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -257,6 +268,9 @@ export default function NewTreatmentPage() {
   const costoNum = parseFloat(costoUnitario) || 0;
   const ganancia = precioNum - costoNum;
   const margen = precioNum > 0 ? (ganancia / precioNum) * 100 : 0;
+  const availableItems = inventoryItems.filter(
+    item => !selectedConsumibles.some(s => normalizeId(s.inventory_item_id) === normalizeId(item.id))
+  );
 
   return (
     <AppLayout>
@@ -435,7 +449,7 @@ export default function NewTreatmentPage() {
             <Button 
               size="sm" 
               onClick={() => setShowAddModal(true)}
-              disabled={loadingInventory || inventoryItems.filter(item => !selectedConsumibles.some(s => s.inventory_item_id === item.id)).length === 0}
+              disabled={loadingInventory || availableItems.length === 0}
               type="button"
             >
               <Plus className="mr-2 h-4 w-4" />
@@ -502,9 +516,7 @@ export default function NewTreatmentPage() {
                     style={{ colorScheme: 'dark' }}
                   >
                     <option value="" style={{ backgroundColor: '#1a1a2e', color: 'white' }}>Seleccionar...</option>
-                    {inventoryItems
-                      .filter(item => !selectedConsumibles.some(s => s.inventory_item_id === item.id))
-                      .map((item) => (
+                    {availableItems.map((item) => (
                         <option key={item.id} value={item.id} style={{ backgroundColor: '#1a1a2e', color: 'white' }}>
                           {item.nombre} (Stock: {item.stock_actual})
                         </option>
