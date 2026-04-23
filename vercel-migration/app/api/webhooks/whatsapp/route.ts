@@ -24,7 +24,12 @@ export async function GET(request: NextRequest) {
   const challenge = searchParams.get('hub.challenge');
 
   // Verificar token (debe coincidir con el que configuraste en Meta)
-  const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || 'agendamedpro_verify_2026';
+  const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN;
+
+  if (!VERIFY_TOKEN) {
+    console.error('[WEBHOOK] WHATSAPP_VERIFY_TOKEN not configured');
+    return NextResponse.json({ error: 'Verification failed' }, { status: 403 });
+  }
 
   if (mode === 'subscribe' && token === VERIFY_TOKEN) {
     console.log('[WEBHOOK] ✅ Webhook verificado');
@@ -40,7 +45,27 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    // Verify X-Hub-Signature-256 to authenticate Meta payloads
+    const appSecret = process.env.WHATSAPP_APP_SECRET;
+    const rawBody = await request.text();
+    if (appSecret) {
+      const signature = request.headers.get('x-hub-signature-256');
+      if (!signature) {
+        return NextResponse.json({ error: 'Missing signature' }, { status: 401 });
+      }
+      const encoder = new TextEncoder();
+      const key = await crypto.subtle.importKey(
+        'raw', encoder.encode(appSecret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+      );
+      const sigBuffer = await crypto.subtle.sign('HMAC', key, encoder.encode(rawBody));
+      const computed = 'sha256=' + Array.from(new Uint8Array(sigBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+      if (computed !== signature) {
+        console.error('[WEBHOOK] ❌ Invalid signature');
+        return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+      }
+    }
+
+    const body = JSON.parse(rawBody);
     console.log('[WEBHOOK] 📨 Mensaje recibido:', JSON.stringify(body, null, 2));
 
     // Verificar que sea un mensaje de texto

@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(
@@ -7,7 +7,7 @@ export async function GET(
 ) {
   const params = await context.params;
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     const { data, error } = await supabase
       .from('records')
       .select(`
@@ -45,7 +45,7 @@ export async function PUT(
 ) {
   const params = await context.params;
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     const body = await request.json()
 
     const { data, error } = await supabase
@@ -95,7 +95,7 @@ export async function DELETE(
 ) {
   const params = await context.params;
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     
     const { error } = await supabase
       .from('records')

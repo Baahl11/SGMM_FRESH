@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient, supabaseAdmin } from '@/lib/supabase';
-import { createClient as createServerClient } from '@/lib/supabase/server';
+import { supabaseAdmin } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/server';
 
 export async function GET(
   request: NextRequest,
@@ -8,9 +8,8 @@ export async function GET(
 ) {
   const params = await context.params;
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { id } = params;
-
     const { data: appointment, error } = await supabase
       .from('appointments')
       .select(`
@@ -78,7 +77,7 @@ export async function PUT(
                                    status === 'cancelled' ? 'cancelada' : 'programada');
     const finalNotes = notas || notes;
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const updateData: any = {
       updated_at: new Date().toISOString()
@@ -173,7 +172,7 @@ export async function DELETE(
   const params = await context.params;
   try {
     const { id } = params;
-    const supabase = await createServerClient();
+    const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

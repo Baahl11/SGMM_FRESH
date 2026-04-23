@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
@@ -32,7 +32,7 @@ export async function POST(
     const resolvedParams = await params;
     const { id: patientId } = resolvedParams;
     const body = await request.json();
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // 1. Verificar que el paciente existe
     const { data: patient, error: patientError } = await supabase

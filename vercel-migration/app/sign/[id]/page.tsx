@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { CheckCircle, AlertCircle, RotateCcw } from 'lucide-react'
+import DOMPurify from 'isomorphic-dompurify'
 
 interface DocTemplate {
   id: string
@@ -217,7 +218,7 @@ export default function SignDocumentPage() {
                 <h1 className="text-xl font-bold text-white mb-4">{doc!.title}</h1>
                 <div
                   className="prose prose-invert prose-sm max-w-none text-slate-300"
-                  dangerouslySetInnerHTML={{ __html: doc!.content }}
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(doc!.content) }}
                 />
               </div>
 

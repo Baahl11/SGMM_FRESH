@@ -55,6 +55,7 @@ export async function POST(request: NextRequest) {
       case 'customer.subscription.created':
       case 'customer.subscription.updated':
         await handleSubscriptionUpdate(event.data.object as Stripe.Subscription)
+        await handleSubscriptionItemsUpdate(event.data.object as Stripe.Subscription)
         break
 
       case 'customer.subscription.deleted':
@@ -86,11 +87,7 @@ export async function POST(request: NextRequest) {
         await handleApplicationFeeCreated(event.data.object as Stripe.ApplicationFee)
         break
 
-      // Add-on events
-      case 'customer.subscription.updated':
-        // Handle subscription item changes (add-ons added/removed)
-        await handleSubscriptionItemsUpdate(event.data.object as Stripe.Subscription)
-        break
+      // Add-on events handled above in customer.subscription.updated
 
       default:
         console.log(`Unhandled event type: ${event.type}`)

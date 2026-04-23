@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`
+            'Authorization': `Bearer ${process.env.CRON_SECRET}`
           },
           body: JSON.stringify({
             type: '24h',
@@ -68,7 +68,7 @@ export async function GET(req: NextRequest) {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`
+            'Authorization': `Bearer ${process.env.CRON_SECRET}`
           },
           body: JSON.stringify({
             type: '2h',

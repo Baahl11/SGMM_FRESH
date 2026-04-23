@@ -25,7 +25,22 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(__dirname),
   env: {
     NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'http://localhost:3000',
-    NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET || 'sgmm-dev-secret-key-2025',
+    NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
+  },
+  // Security headers
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          { key: 'X-XSS-Protection', value: '1; mode=block' },
+          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+        ],
+      },
+    ]
   },
   // Redirects
   async redirects() {

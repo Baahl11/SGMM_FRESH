@@ -37,19 +37,50 @@ export async function POST(req: NextRequest) {
     );
 
     const token = authHeader.replace('Bearer ', '');
-    const { data: { user } } = await supabase.auth.getUser(token);
+    const cronSecret = process.env.CRON_SECRET;
+    const isCronCall = cronSecret && token === cronSecret;
 
-    if (!user) {
-      return NextResponse.json(
-        { error: 'No autorizado' },
-        { status: 401 }
-      );
+    let userId: string | null = null;
+
+    if (!isCronCall) {
+      // Validar JWT de usuario
+      const { data: { user } } = await supabase.auth.getUser(token);
+      if (!user) {
+        return NextResponse.json(
+          { error: 'No autorizado' },
+          { status: 401 }
+        );
+      }
+      userId = user.id;
     }
 
+    // Si es llamada del cron, procesar TODOS los usuarios con WhatsApp activo
+    if (isCronCall && !appointmentId) {
+      const { data: profiles } = await supabase
+        .from('user_profiles')
+        .select('user_id, whatsapp_phone_number_id, whatsapp_access_token')
+        .eq('whatsapp_enabled', true)
+        .not('whatsapp_phone_number_id', 'is', null)
+        .not('whatsapp_access_token', 'is', null);
+
+      if (!profiles || profiles.length === 0) {
+        return NextResponse.json({ success: true, type, totalProcessed: 0, sent: 0, failed: 0, results: [] });
+      }
+
+      const allResults: any[] = [];
+      for (const p of profiles) {
+        const res = await processUserReminders(supabase, p.user_id, p, type, force, null);
+        allResults.push(...res);
+      }
+      const sent = allResults.filter(r => r.success).length;
+      return NextResponse.json({ success: true, type, totalProcessed: allResults.length, sent, failed: allResults.length - sent, results: allResults });
+    }
+
+    // Modo usuario individual
     const { data: profile, error: profileError } = await supabase
       .from('user_profiles')
       .select('whatsapp_enabled, whatsapp_phone_number_id, whatsapp_access_token')
-      .eq('user_id', user.id)
+      .eq('user_id', userId!)
       .maybeSingle();
 
     if (profileError) {
@@ -66,8 +97,37 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const results: any[] = [];
-    let appointmentsToProcess: any[] = [];
+    const results = await processUserReminders(supabase, userId!, profile, type, force, appointmentId || null);
+    const successCount = results.filter((r: any) => r.success).length;
+
+    return NextResponse.json({
+      success: true,
+      type,
+      totalProcessed: results.length,
+      sent: successCount,
+      failed: results.length - successCount,
+      results
+    });
+
+  } catch (error: any) {
+    console.error('[Reminders] Error general:', error);
+    return NextResponse.json(
+      { error: error.message || 'Error al enviar recordatorios' },
+      { status: 500 }
+    );
+  }
+}
+
+async function processUserReminders(
+  supabase: any,
+  userId: string,
+  profile: { whatsapp_phone_number_id: string; whatsapp_access_token: string },
+  type: string,
+  force: boolean,
+  appointmentId: string | null
+): Promise<any[]> {
+  const results: any[] = [];
+  let appointmentsToProcess: any[] = [];
 
     // Si se especificó una cita, procesar solo esa
     if (appointmentId) {
@@ -85,14 +145,11 @@ export async function POST(req: NextRequest) {
           user:users(name)
         `)
         .eq('id', appointmentId)
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .single();
 
       if (!appointment) {
-        return NextResponse.json(
-          { error: 'Cita no encontrada' },
-          { status: 404 }
-        );
+        return results;
       }
 
       appointmentsToProcess = [appointment];
@@ -125,7 +182,7 @@ export async function POST(req: NextRequest) {
           doctor:doctors(nombre),
           user:users(name)
         `)
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .in('estado', ['programada', 'confirmada'])
         .gte('fecha_hora', startTime.toISOString())
         .lte('fecha_hora', endTime.toISOString());
@@ -218,7 +275,7 @@ _Recordatorio automático de AgendaMedPro_`;
           await supabase
             .from('whatsapp_messages')
             .insert({
-              user_id: user.id,
+              user_id: userId,
               to_number: patient.telefono,
               message: message,
               status: 'sent',
@@ -259,25 +316,7 @@ _Recordatorio automático de AgendaMedPro_`;
       }
     }
 
-    const successCount = results.filter(r => r.success).length;
-    const failureCount = results.filter(r => !r.success).length;
-
-    return NextResponse.json({
-      success: true,
-      type,
-      totalProcessed: results.length,
-      sent: successCount,
-      failed: failureCount,
-      results
-    });
-
-  } catch (error: any) {
-    console.error('[Reminders] Error general:', error);
-    return NextResponse.json(
-      { error: error.message || 'Error al enviar recordatorios' },
-      { status: 500 }
-    );
-  }
+  return results;
 }
 
 async function sendMetaWhatsAppMessage(
