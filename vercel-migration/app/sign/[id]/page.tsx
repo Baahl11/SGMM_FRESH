@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { CheckCircle, AlertCircle, RotateCcw } from 'lucide-react'
-import DOMPurify from 'isomorphic-dompurify'
 
 interface DocTemplate {
   id: string
@@ -128,6 +127,7 @@ export default function SignDocumentPage() {
   const appointmentId = searchParams.get('apt') ?? undefined
 
   const [doc, setDoc] = useState<DocTemplate | null>(null)
+  const [sanitizedContent, setSanitizedContent] = useState('')
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [agreed, setAgreed] = useState(false)
@@ -145,6 +145,13 @@ export default function SignDocumentPage() {
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false))
   }, [id])
+
+  useEffect(() => {
+    if (!doc?.content) return
+    import('dompurify').then(({ default: DOMPurify }) => {
+      setSanitizedContent(DOMPurify.sanitize(doc.content))
+    })
+  }, [doc])
 
   async function handleSign() {
     const errs: Record<string, string> = {}
@@ -218,7 +225,7 @@ export default function SignDocumentPage() {
                 <h1 className="text-xl font-bold text-white mb-4">{doc!.title}</h1>
                 <div
                   className="prose prose-invert prose-sm max-w-none text-slate-300"
-                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(doc!.content) }}
+                  dangerouslySetInnerHTML={{ __html: sanitizedContent }}
                 />
               </div>
 
