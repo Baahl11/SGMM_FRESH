@@ -66,12 +66,17 @@ async function getValidAccessToken(userId: string): Promise<string | null> {
 
 // Convert appointment to Google Calendar event
 function appointmentToGoogleEvent(appointment: any) {
-  const startTime = new Date(`${appointment.date}T${appointment.time}`);
-  const endTime = new Date(startTime.getTime() + (appointment.duration || 30) * 60 * 1000);
+  const startTime = new Date(appointment.fecha_hora);
+  const durationMinutes = Number(appointment.duracion_minutos) || 30;
+  const endTime = new Date(startTime.getTime() + durationMinutes * 60 * 1000);
+
+  const patientName = appointment.patient_name || 'Paciente';
+  const appointmentType = appointment.appointment_type_name || 'Cita';
+  const notes = appointment.notas || appointment.notes || 'Sin notas';
 
   return {
-    summary: `${appointment.patient_name || 'Paciente'} - ${appointment.appointment_type || 'Cita'}`,
-    description: `Paciente: ${appointment.patient_name || 'N/A'}\nTeléfono: ${appointment.patient_phone || 'N/A'}\nNotas: ${appointment.notes || 'Sin notas'}`,
+    summary: `${patientName} - ${appointmentType}`,
+    description: `Paciente: ${patientName}\nTeléfono: ${appointment.patient_phone || 'N/A'}\nNotas: ${notes}`,
     start: {
       dateTime: startTime.toISOString(),
       timeZone: 'America/Mexico_City'
@@ -118,13 +123,18 @@ export async function POST(request: NextRequest) {
     let appointmentsQuery = supabase
       .from('appointments')
       .select(`
-        id, date, time, duration, status, notes,
-        patients (id, name, phone),
-        appointment_types (name)
+        id,
+        fecha_hora,
+        duracion_minutos,
+        estado,
+        notas,
+        patient_id,
+        patient:patients(id, nombre, apellido, telefono),
+        appointment_type:appointment_types!appointments_appointment_type_id_fkey(nombre, duracion_minutos)
       `)
       .eq('user_id', user.id)
-      .in('status', ['scheduled', 'confirmed'])
-      .gte('date', new Date().toISOString().split('T')[0]);
+      .in('estado', ['programada', 'confirmada'])
+      .gte('fecha_hora', new Date().toISOString());
 
     if (tokenConfig?.last_sync_at) {
       appointmentsQuery = appointmentsQuery.gt('updated_at', tokenConfig.last_sync_at);
@@ -143,14 +153,20 @@ export async function POST(request: NextRequest) {
     // Process each appointment
     for (const apt of appointments || []) {
       // Handle joined data - Supabase returns single object or null for singular relations
-      const patient = Array.isArray(apt.patients) ? apt.patients[0] : apt.patients;
-      const appointmentType = Array.isArray(apt.appointment_types) ? apt.appointment_types[0] : apt.appointment_types;
-      
+      const patient = Array.isArray(apt.patient) ? apt.patient[0] : apt.patient;
+      const appointmentType = Array.isArray(apt.appointment_type) ? apt.appointment_type[0] : apt.appointment_type;
+
+      const patientName = patient?.nombre || patient?.apellido
+        ? `${patient?.nombre || ''} ${patient?.apellido || ''}`.trim()
+        : undefined;
+
       const appointment = {
         ...apt,
-        patient_name: patient?.name,
-        patient_phone: patient?.phone,
-        appointment_type: appointmentType?.name
+        patient_name: patientName,
+        patient_phone: patient?.telefono,
+        appointment_type_name: appointmentType?.nombre,
+        duracion_minutos: appointmentType?.duracion_minutos || apt.duracion_minutos,
+        notas: apt.notas
       };
 
       const googleEvent = appointmentToGoogleEvent(appointment);

@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
-import whatsappService from '@/lib/whatsapp-service';
 import { addHours, format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -44,6 +43,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: 'No autorizado' },
         { status: 401 }
+      );
+    }
+
+    const { data: profile, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('whatsapp_enabled, whatsapp_phone_number_id, whatsapp_access_token')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (profileError) {
+      return NextResponse.json(
+        { error: 'Error al cargar configuración de WhatsApp' },
+        { status: 500 }
+      );
+    }
+
+    if (!profile?.whatsapp_enabled || !profile.whatsapp_phone_number_id || !profile.whatsapp_access_token) {
+      return NextResponse.json(
+        { error: 'WhatsApp no configurado para este usuario' },
+        { status: 400 }
       );
     }
 
@@ -171,7 +190,9 @@ _Recordatorio automático de AgendaMedPro_`;
         }
 
         // Enviar mensaje
-        const result = await whatsappService.sendMessage(
+        const result = await sendMetaWhatsAppMessage(
+          profile.whatsapp_phone_number_id,
+          profile.whatsapp_access_token,
           patient.telefono,
           message
         );
@@ -210,7 +231,7 @@ _Recordatorio automático de AgendaMedPro_`;
             appointmentId: appointment.id,
             patientName,
             success: true,
-            messageSid: result.messageSid
+            messageSid: result.messageId
           });
 
           console.log(`[Reminders] ✅ Enviado a ${patientName} (${patient.telefono})`);
@@ -256,5 +277,54 @@ _Recordatorio automático de AgendaMedPro_`;
       { error: error.message || 'Error al enviar recordatorios' },
       { status: 500 }
     );
+  }
+}
+
+async function sendMetaWhatsAppMessage(
+  phoneNumberId: string,
+  accessToken: string,
+  to: string,
+  message: string
+) {
+  const cleanPhone = to.replace(/[^\d]/g, '');
+
+  try {
+    const response = await fetch(
+      `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: cleanPhone,
+          type: 'text',
+          text: { body: message }
+        })
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: data?.error?.message || 'Error enviando WhatsApp'
+      };
+    }
+
+    return {
+      success: true,
+      messageId: data?.messages?.[0]?.id,
+      to: cleanPhone
+    };
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error?.message || 'Error enviando WhatsApp'
+    };
   }
 }

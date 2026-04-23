@@ -26,7 +26,10 @@ export async function GET(req: NextRequest) {
 
     console.log('[Reminders Cron] Iniciando ejecución automática');
 
-    const results = {
+    const results: {
+      reminders24h: Record<string, any> | null;
+      reminders2h: Record<string, any> | null;
+    } = {
       reminders24h: null,
       reminders2h: null
     };
@@ -50,7 +53,7 @@ export async function GET(req: NextRequest) {
 
       if (response24h.ok) {
         results.reminders24h = await response24h.json();
-        console.log(`[Reminders Cron] 24h: ${results.reminders24h.sent} enviados, ${results.reminders24h.failed} fallidos`);
+        console.log(`[Reminders Cron] 24h: ${results.reminders24h?.sent} enviados, ${results.reminders24h?.failed} fallidos`);
       }
     } catch (error: any) {
       console.error('[Reminders Cron] Error en recordatorios 24h:', error);
@@ -76,7 +79,7 @@ export async function GET(req: NextRequest) {
 
       if (response2h.ok) {
         results.reminders2h = await response2h.json();
-        console.log(`[Reminders Cron] 2h: ${results.reminders2h.sent} enviados, ${results.reminders2h.failed} fallidos`);
+        console.log(`[Reminders Cron] 2h: ${results.reminders2h?.sent} enviados, ${results.reminders2h?.failed} fallidos`);
       }
     } catch (error: any) {
       console.error('[Reminders Cron] Error en recordatorios 2h:', error);

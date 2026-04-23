@@ -80,10 +80,10 @@ export default function WhatsAppTestSendPage() {
           </div>
         </div>
         <h1 className="text-3xl font-semibold text-white md:text-4xl mb-4">
-          Probar Envío de WhatsApp con Twilio
+          Probar Envío de WhatsApp con Meta Cloud API
         </h1>
         <p className="text-base text-white/80 max-w-3xl">
-          Envía mensajes de WhatsApp directamente desde tu sistema a cualquier número configurado en tu Twilio Sandbox.
+          Envía mensajes de WhatsApp directamente desde tu sistema usando Meta Cloud API.
         </p>
       </GlassPanel>
 
@@ -157,7 +157,7 @@ export default function WhatsAppTestSendPage() {
                   <p><strong>Message SID:</strong> {result.message_sid}</p>
                   <p><strong>Estado:</strong> {result.status}</p>
                   <p className="text-xs text-white/60 mt-3">
-                    ✅ El mensaje ha sido enviado a Twilio. Revisa tu WhatsApp en el número configurado.
+                    ✅ El mensaje ha sido enviado por Meta Cloud API. Revisa tu WhatsApp en el número configurado.
                   </p>
                 </div>
               ) : (
@@ -184,13 +184,12 @@ export default function WhatsAppTestSendPage() {
           
           <div className="space-y-3 text-sm text-white/80">
             <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
-              <h4 className="font-semibold text-white mb-2">1. Configurar Twilio Sandbox (Primera vez)</h4>
-              <p>Si es tu primera vez, necesitas activar el Sandbox de Twilio:</p>
+              <h4 className="font-semibold text-white mb-2">1. Configurar Meta Cloud API (Primera vez)</h4>
+              <p>Si es tu primera vez, necesitas configurar tu app en Meta:</p>
               <ul className="list-disc list-inside space-y-1 mt-2 text-white/70">
-                <li>Ve a tu <a href="https://console.twilio.com/us1/develop/sms/try-it-out/whatsapp-learn" target="_blank" className="text-emerald-400 hover:underline">Twilio Console → Try WhatsApp</a></li>
-                <li>Escanea el código QR con WhatsApp</li>
-                <li>Envía el código de activación que te piden (ej: "join [palabra-secreta]")</li>
-                <li>Tu número quedará registrado en el Sandbox por 24 horas</li>
+                <li>Completa Phone Number ID y Access Token en Ajustes</li>
+                <li>Usa el botón de prueba de conexión para validar credenciales</li>
+                <li>En modo prueba, agrega el número receptor en WhatsApp Manager</li>
               </ul>
             </div>
 
@@ -208,9 +207,9 @@ export default function WhatsAppTestSendPage() {
             <div className="rounded-2xl bg-yellow-500/10 border border-yellow-400/20 p-4">
               <h4 className="font-semibold text-white mb-2">⚠️ Importante</h4>
               <ul className="list-disc list-inside space-y-1 text-white/70">
-                <li><strong>Sandbox:</strong> Solo puedes enviar a números registrados en el Sandbox</li>
+                <li><strong>Modo prueba:</strong> Solo puedes enviar a números aprobados</li>
                 <li><strong>Producción:</strong> Para enviar a cualquier número, necesitas un número de WhatsApp Business aprobado</li>
-                <li><strong>Costo:</strong> En Sandbox es gratis. En producción ~$0.005 por mensaje</li>
+                <li><strong>Costo:</strong> En pruebas es gratis. En producción ~$0.005 por mensaje</li>
               </ul>
             </div>
 
