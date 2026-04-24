@@ -18,7 +18,7 @@ interface UpgradeModalProps {
 
 const PLAN_PRICES = {
   basico: 499,
-  pro: 999,
+  pro: 1499,
   enterprise: 2999,
 }
 

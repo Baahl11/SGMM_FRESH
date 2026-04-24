@@ -50,7 +50,7 @@ export function getPlanTierFromMPPlanId(planId: string): 'basico' | 'pro' | 'ent
  */
 export const PLAN_PRICES = {
   basico: { monthly: 599, annual: 5990 },
-  pro: { monthly: 999, annual: 9990 },
+  pro: { monthly: 1499, annual: 14990 },
   enterprise: { monthly: 2999, annual: 29990 },
   lifetime: 19990,
 } as const

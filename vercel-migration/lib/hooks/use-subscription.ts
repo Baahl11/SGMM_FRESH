@@ -131,7 +131,7 @@ export function useSubscription() {
       case 'basico':
         return '$499/mes'
       case 'pro':
-        return '$999/mes'
+        return '$1,499/mes'
       case 'enterprise':
         return '$2,999/mes'
       default:
