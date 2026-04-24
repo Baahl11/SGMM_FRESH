@@ -58,8 +58,8 @@ const plans: readonly StandardPlan[] = [
     name: "Pro",
     planId: "pro",
     description: "Para clínicas en crecimiento",
-    monthlyPrice: 999,
-    annualPrice: 9990,
+    monthlyPrice: 1499,
+    annualPrice: 14990,
     icon: Zap,
     gradient: "from-purple-500 to-pink-500",
     features: [
@@ -109,9 +109,9 @@ const plans: readonly StandardPlan[] = [
 const lifetimeOffer = {
   price: 19990,
   oldPrice: 24999,
-  // Ahorro comparado con Plan Pro anual durante 5 años: $9,990/año × 5 años = $49,950
-  yearlyProCost: 9990, // Costo anual del plan Pro
-  fiveYearSavings: 29960, // (9990 × 5) - 19990 = 29,960
+  // Ahorro comparado con Plan Pro anual durante 5 años: $14,990/año × 5 años = $74,950
+  yearlyProCost: 14990, // Costo anual del plan Pro
+  fiveYearSavings: 54960, // (14990 × 5) - 19990 = 54,960
   included: [
     "Todas las funcionalidades del plan Pro",
     "Actualizaciones de por vida sin costo adicional",

@@ -39,7 +39,7 @@ const FEATURE_NAMES: Record<string, string> = {
 const PLAN_INFO = {
   pro: {
     name: 'Plan Pro',
-    price: '$999 MXN/mes',
+    price: '$1,499 MXN/mes',
     features: [
       'Hasta 10 doctores',
       '5 consultorios',

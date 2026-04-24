@@ -107,7 +107,7 @@ export default function TermsPage() {
                 <p><strong>4.1. Planes de Suscripción:</strong></p>
                 <ul className="list-disc list-inside space-y-1 ml-4">
                   <li><strong>Plan Básico:</strong> $499 MXN/mes o $4,990 MXN/año</li>
-                  <li><strong>Plan Pro:</strong> $999 MXN/mes o $9,990 MXN/año</li>
+                  <li><strong>Plan Pro:</strong> $1,499 MXN/mes o $14,990 MXN/año</li>
                   <li><strong>Plan Enterprise:</strong> $2,999 MXN/mes o $29,990 MXN/año</li>
                   <li><strong>Licencia Lifetime:</strong> Pago único de $19,999 MXN</li>
                 </ul>

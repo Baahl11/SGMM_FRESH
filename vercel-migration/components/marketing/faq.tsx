@@ -15,7 +15,7 @@ const faqs = [
   {
     question: '¿Cuánto cuesta el sistema?',
     answer:
-      'El plan básico cuesta $599 MXN al mes para 1 doctor. El plan Pro a $999 MXN incluye hasta 10 doctores y reportes avanzados. Además, cobramos 3% de cada anticipo que proceses (tú te quedas con el 97%).',
+      'El plan básico cuesta $599 MXN al mes para 1 doctor. El plan Pro a $1,499 MXN incluye hasta 10 doctores y reportes avanzados. Además, cobramos 3% de cada anticipo que proceses (tú te quedas con el 97%).',
   },
   {
     question: '¿Funciona con mi cuenta de WhatsApp Business?',

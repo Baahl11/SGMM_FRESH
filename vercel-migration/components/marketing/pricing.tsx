@@ -29,7 +29,7 @@ const plans = [
   },
   {
     name: 'Pro',
-    price: '$999 MXN',
+    price: '$1,499 MXN',
     period: 'mes',
     badge: 'Más popular',
     description: 'Para clínicas en crecimiento.',
