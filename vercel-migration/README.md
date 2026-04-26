@@ -1,41 +1,31 @@
-This folder contains experimental Vercel migration drafts and is NOT part of the MSI desktop app.
+# AgendaMedPro (vercel-migration)
 
-Build, typecheck, lint, and tests for the MSI project explicitly exclude this folder.
+Aplicacion web activa de SGMM_FRESH.
 
-Artifacts here can be deleted at any time without impacting the MSI build.
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## Stack
+- Next.js App Router
+- Supabase (Auth + PostgreSQL + RLS)
+- Stripe / MercadoPago
+- Facturama (CFDI)
 
-## Getting Started
-
-First, run the development server:
-
+## Comandos basicos
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run build
+npm run lint
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Estructura clave
+- `app/` rutas y paginas
+- `app/api/` endpoints server
+- `supabase/migrations/` migraciones de base de datos
+- `docs/` documentacion tecnica activa
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Documentacion recomendada
+- `docs/CAPABILITY_MATRIX_2026.md`
+- `../DOCS_ESTADO_REAL_MERGED.md`
+- `../ROADMAP_GAPS_MERGED.md`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Nota
+Este directorio es la fuente de verdad del producto actual. No tratarlo como carpeta experimental.
