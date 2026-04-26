@@ -7,6 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "preflight:supabase": "node scripts/preflight-supabase-connectivity.js",
+    "monitor:signup-hotfix": "node scripts/monitor-signup-hotfix.js",
+    "monitor:signup-hotfix:6h": "node scripts/monitor-signup-hotfix.js --hours=6",
     "migrate:sms-providers": "ts-node --project tsconfig.scripts.json -r tsconfig-paths/register scripts/migrate_user_sms_credentials.ts"
   },
   "dependencies": {

@@ -1,0 +1,31 @@
+{
+  "generatedAt": "2026-04-26T20:59:04.268Z",
+  "functions": [
+    {
+      "proname": "create_default_location_for_user",
+      "definition": "CREATE OR REPLACE FUNCTION public.create_default_location_for_user()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\r\nDECLARE\r\n  v_location_id UUID;\r\n  v_profile_exists BOOLEAN;\r\nBEGIN\r\n  SELECT EXISTS(\r\n    SELECT 1 FROM user_profiles WHERE user_id = NEW.id\r\n  ) INTO v_profile_exists;\r\n\r\n  IF NOT v_profile_exists THEN\r\n    INSERT INTO user_profiles (\r\n      user_id,\r\n      email,\r\n      name,\r\n      role,\r\n      plan_type\r\n    ) VALUES (\r\n      NEW.id,\r\n      NEW.email,\r\n      COALESCE(NEW.raw_user_meta_data->>'name', split_part(NEW.email, '@', 1)),\r\n      'user',\r\n      'premium'\r\n    )\r\n    ON CONFLICT (user_id) DO NOTHING;\r\n  END IF;\r\n\r\n  INSERT INTO locations (\r\n    user_id,\r\n    nombre,\r\n    codigo,\r\n    es_principal,\r\n    activo,\r\n    timezone\r\n  ) VALUES (\r\n    NEW.id,\r\n    'Mi Consultorio Principal',\r\n    'PRINCIPAL',\r\n    true,\r\n    true,\r\n    'America/Mexico_City'\r\n  )\r\n  RETURNING id INTO v_location_id;\r\n\r\n  UPDATE user_profiles\r\n  SET default_location_id = v_location_id\r\n  WHERE user_id = NEW.id;\r\n\r\n  RETURN NEW;\r\nEXCEPTION\r\n  WHEN OTHERS THEN\r\n    RAISE NOTICE '[create_default_location_for_user] Failed for %: %', NEW.id, SQLERRM;\r\n    RETURN NEW;\r\nEND;\r\n$function$\n"
+    },
+    {
+      "proname": "create_subscription_on_user_signup",
+      "definition": "CREATE OR REPLACE FUNCTION public.create_subscription_on_user_signup()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\r\nDECLARE\r\n  trial_start TIMESTAMPTZ;\r\n  trial_end TIMESTAMPTZ;\r\nBEGIN\r\n  PERFORM set_config('request.jwt.claim.role', 'service_role', true);\r\n\r\n  trial_start := NOW();\r\n  trial_end := trial_start + INTERVAL '7 days';\r\n\r\n  INSERT INTO subscriptions (\r\n    user_id,\r\n    plan_tier,\r\n    max_doctors,\r\n    max_locations,\r\n    features,\r\n    status,\r\n    stripe_price_id,\r\n    trial_start,\r\n    trial_end,\r\n    current_period_start,\r\n    current_period_end\r\n  )\r\n  SELECT\r\n    NEW.id,\r\n    'basico',\r\n    2,\r\n    1,\r\n    '[\"basic_scheduling\", \"basic_patients\"]'::jsonb,\r\n    'trialing',\r\n    'price_basico_default',\r\n    trial_start,\r\n    trial_end,\r\n    trial_start,\r\n    trial_end\r\n  WHERE NOT EXISTS (\r\n    SELECT 1 FROM subscriptions WHERE user_id = NEW.id\r\n  );\r\n\r\n  RETURN NEW;\r\nEXCEPTION\r\n  WHEN OTHERS THEN\r\n    RAISE NOTICE '[create_subscription_on_user_signup] Skipping auto-create for %: %', NEW.id, SQLERRM;\r\n    RETURN NEW;\r\nEND;\r\n$function$\n"
+    },
+    {
+      "proname": "handle_new_user",
+      "definition": "CREATE OR REPLACE FUNCTION public.handle_new_user()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\r\nBEGIN\r\n  INSERT INTO public.user_profiles (user_id, email, name, role, plan_type)\r\n  VALUES (\r\n    NEW.id,\r\n    NEW.email,\r\n    COALESCE(NEW.raw_user_meta_data->>'name', split_part(NEW.email, '@', 1)),\r\n    'user',\r\n    'premium'\r\n  )\r\n  ON CONFLICT (user_id) DO NOTHING;\r\n\r\n  RETURN NEW;\r\nEXCEPTION\r\n  WHEN OTHERS THEN\r\n    RAISE NOTICE '[handle_new_user] Skipping profile creation for %: %', NEW.id, SQLERRM;\r\n    RETURN NEW;\r\nEND;\r\n$function$\n"
+    }
+  ],
+  "triggers": [
+    {
+      "tgname": "auto_create_subscription_on_signup",
+      "definition": "CREATE TRIGGER auto_create_subscription_on_signup AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION create_subscription_on_user_signup()"
+    },
+    {
+      "tgname": "create_default_location_on_signup",
+      "definition": "CREATE TRIGGER create_default_location_on_signup AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION create_default_location_for_user()"
+    },
+    {
+      "tgname": "on_auth_user_created",
+      "definition": "CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION handle_new_user()"
+    }
+  ]
+}
