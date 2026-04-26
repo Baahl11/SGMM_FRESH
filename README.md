@@ -23,6 +23,7 @@ Se inicio limpieza segura con estrategia `archive-first`.
 ## Documentos consolidados de referencia
 - `DOCS_ESTADO_REAL_MERGED.md`
 - `ROADMAP_GAPS_MERGED.md`
+- `DOCS_ACTIVE_INDEX.md`
 - `vercel-migration/docs/CAPABILITY_MATRIX_2026.md`
 
 ## Regla operativa
