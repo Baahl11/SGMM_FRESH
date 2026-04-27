@@ -68,6 +68,30 @@ function ensureSafePath(path: string | null | undefined) {
   return path.startsWith('/') ? path : `/${path}`
 }
 
+function redirectToAuthError(
+  origin: string,
+  options: {
+    plan: SupportedPlan
+    billing: BillingCycle
+    reason?: string | null
+    detail?: string | null
+  }
+) {
+  const redirectUrl = new URL('/auth/auth-code-error', origin)
+  redirectUrl.searchParams.set('plan', options.plan)
+  redirectUrl.searchParams.set('billing', options.billing)
+
+  if (options.reason) {
+    redirectUrl.searchParams.set('reason', options.reason)
+  }
+
+  if (options.detail) {
+    redirectUrl.searchParams.set('detail', options.detail.slice(0, 240))
+  }
+
+  return NextResponse.redirect(redirectUrl.toString())
+}
+
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
   const origin = requestUrl.origin
@@ -75,6 +99,8 @@ export async function GET(request: NextRequest) {
   const nextParam = requestUrl.searchParams.get('next')
   const planParam = requestUrl.searchParams.get('plan')
   const billingParam = requestUrl.searchParams.get('billing')
+  const oauthError = requestUrl.searchParams.get('error')
+  const oauthErrorDescription = requestUrl.searchParams.get('error_description')
 
   const cookieStore = await cookies()
   const trialSelectionCookie = cookieStore.get('trial_selection')?.value
@@ -97,10 +123,22 @@ export async function GET(request: NextRequest) {
   const plan = normalizePlan(planParam ?? cookiePlan)
   const billing = normalizeBilling(billingParam ?? cookieBilling)
   const planConfig = resolvePlanConfig(plan, billing)
+  const hasCheckoutIntent = Boolean(planParam || billingParam || cookiePlan || cookieBilling)
 
   if (!code) {
-    console.warn('[Auth Callback] Missing authorization code', { plan, billing })
-    return NextResponse.redirect(`${origin}/auth/auth-code-error`)
+    console.warn('[Auth Callback] Missing authorization code', {
+      plan,
+      billing,
+      oauthError,
+      oauthErrorDescription,
+    })
+
+    return redirectToAuthError(origin, {
+      plan,
+      billing,
+      reason: oauthError ?? 'missing_authorization_code',
+      detail: oauthErrorDescription,
+    })
   }
 
   const supabase = createServerClient(
@@ -140,7 +178,12 @@ export async function GET(request: NextRequest) {
 
   if (error || !data?.user) {
     console.error('[Auth Callback] Failed to exchange code for session', error)
-    return NextResponse.redirect(`${origin}/auth/auth-code-error`)
+    return redirectToAuthError(origin, {
+      plan,
+      billing,
+      reason: 'exchange_code_for_session_failed',
+      detail: error?.message,
+    })
   }
 
   const user = data.user
@@ -149,7 +192,12 @@ export async function GET(request: NextRequest) {
 
   if (!userEmail) {
     console.error('[Auth Callback] OAuth provider did not return an email address', { userId })
-    return NextResponse.redirect(`${origin}/auth/auth-code-error`)
+    return redirectToAuthError(origin, {
+      plan,
+      billing,
+      reason: 'oauth_email_missing',
+      detail: 'OAuth provider did not return an email address',
+    })
   }
 
   const userName =
@@ -235,7 +283,7 @@ export async function GET(request: NextRequest) {
   try {
     const { data: existingSubscription, error: subscriptionFetchError } = await supabaseAdmin
       .from('subscriptions')
-      .select('id, status, trial_end')
+      .select('id, status, trial_end, stripe_subscription_id')
       .eq('user_id', userId)
       .in('status', ['active', 'trialing'])
       .maybeSingle()
@@ -247,9 +295,54 @@ export async function GET(request: NextRequest) {
     if (existingSubscription) {
       subscriptionExists = true
       subscriptionTrialEnd = existingSubscription.trial_end
+
+      const hasStripeSubscription =
+        typeof existingSubscription.stripe_subscription_id === 'string' &&
+        existingSubscription.stripe_subscription_id.startsWith('sub_')
+
+      // Trial legacy sin checkout de tarjeta: forzar paso por checkout.
+      if (hasCheckoutIntent && existingSubscription.status === 'trialing' && !hasStripeSubscription) {
+        const checkoutRedirect = new URL('/select-trial-plan', origin)
+        checkoutRedirect.searchParams.set('plan', planConfig.planTier)
+        checkoutRedirect.searchParams.set('billing', planConfig.billing)
+        checkoutRedirect.searchParams.set('autostart', '1')
+
+        const response = NextResponse.redirect(checkoutRedirect.toString())
+
+        if (trialSelectionCookie) {
+          response.cookies.set({
+            name: 'trial_selection',
+            value: '',
+            maxAge: 0,
+            path: '/',
+          })
+        }
+
+        return response
+      }
     }
   } catch (subscriptionLookupError) {
     console.error('[Auth Callback] Unexpected error checking subscription', subscriptionLookupError)
+  }
+
+  if (!subscriptionExists && hasCheckoutIntent) {
+    const checkoutRedirect = new URL('/select-trial-plan', origin)
+    checkoutRedirect.searchParams.set('plan', planConfig.planTier)
+    checkoutRedirect.searchParams.set('billing', planConfig.billing)
+    checkoutRedirect.searchParams.set('autostart', '1')
+
+    const response = NextResponse.redirect(checkoutRedirect.toString())
+
+    if (trialSelectionCookie) {
+      response.cookies.set({
+        name: 'trial_selection',
+        value: '',
+        maxAge: 0,
+        path: '/',
+      })
+    }
+
+    return response
   }
 
   if (!subscriptionExists) {

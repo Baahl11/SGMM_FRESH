@@ -3,6 +3,32 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import Link from 'next/link'
+import { Badge } from '@/components/ui/badge'
+import { Sparkles, CreditCard } from 'lucide-react'
+
+type SupportedPlan = 'basico' | 'pro'
+type BillingCycle = 'monthly' | 'annual'
+
+const cleanStripeId = (id: string | undefined): string => {
+  if (!id) return ''
+  return id
+    .replace(/^["']|["']$/g, '')
+    .replace(/\r\n|\n|\r/g, '')
+    .replace(/\r\n|\n|\r/g, '')
+    .trim()
+}
+
+const STRIPE_PRICES = {
+  basico: {
+    monthly: cleanStripeId(process.env.NEXT_PUBLIC_STRIPE_PRICE_BASICO_MONTHLY),
+    annual: cleanStripeId(process.env.NEXT_PUBLIC_STRIPE_PRICE_BASICO_ANNUAL),
+  },
+  pro: {
+    monthly: cleanStripeId(process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_MONTHLY),
+    annual: cleanStripeId(process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_ANNUAL),
+  },
+} as const
 
 const rememberTrialSelection = (plan: string | null, billing: string | null) => {
   if (!plan && !billing) {
@@ -25,6 +51,8 @@ function SignInContent() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [isCheckoutLoading, setIsCheckoutLoading] = useState(false)
+  const [hasAutoStartedCheckout, setHasAutoStartedCheckout] = useState(false)
   const [message, setMessage] = useState('')
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -33,17 +61,89 @@ function SignInContent() {
   // Obtener parámetros del plan seleccionado
   const planParam = searchParams.get('plan')
   const billingParam = searchParams.get('billing')
+  const normalizedPlan: SupportedPlan | null =
+    planParam === 'basico' || planParam === 'pro' ? planParam : null
+  const normalizedBilling: BillingCycle = billingParam === 'annual' ? 'annual' : 'monthly'
+
+  const planDisplayName = normalizedPlan === 'pro' ? 'Pro' : 'Básico'
+  const billingDisplayName = normalizedBilling === 'annual' ? 'anual' : 'mensual'
+
+  const signupParams = new URLSearchParams()
+  if (planParam) signupParams.set('plan', planParam)
+  if (billingParam) signupParams.set('billing', billingParam)
+  const createAccountHref = signupParams.toString()
+    ? `/auth/signup?${signupParams.toString()}`
+    : '/auth/signup'
+
+  const startCheckoutFromPlan = async (plan: SupportedPlan, billing: BillingCycle) => {
+    try {
+      setIsCheckoutLoading(true)
+      setMessage('Preparando checkout seguro...')
+      rememberTrialSelection(plan, billing)
+
+      const priceId = STRIPE_PRICES[plan][billing]
+      if (!priceId) {
+        setMessage('No encontramos la configuración del plan seleccionado. Intenta de nuevo.')
+        return false
+      }
+
+      const response = await fetch('/api/create-trial-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          priceId,
+          planTier: plan,
+        }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'No se pudo crear la sesión de checkout')
+      }
+
+      const { url } = await response.json()
+      if (!url) {
+        throw new Error('No se recibió URL de checkout')
+      }
+
+      window.location.href = url
+      return true
+    } catch (error) {
+      console.error('Checkout start error:', error)
+      setMessage((error as Error).message || 'No se pudo abrir el checkout. Intenta nuevamente.')
+      return false
+    } finally {
+      setIsCheckoutLoading(false)
+    }
+  }
 
   useEffect(() => {
-    // Check if user is already signed in with Supabase
+    // Si ya hay sesión y llegó con plan, lanzar checkout automáticamente.
     const checkUser = async () => {
       const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
+
+      if (!user) {
+        return
+      }
+
+      if (normalizedPlan && !hasAutoStartedCheckout) {
+        setHasAutoStartedCheckout(true)
+        const started = await startCheckoutFromPlan(normalizedPlan, normalizedBilling)
+        if (!started) {
+          setMessage('No pudimos abrir el checkout. Selecciona tu plan nuevamente para activar el trial.')
+          router.push(`/select-trial-plan?plan=${normalizedPlan}&billing=${normalizedBilling}`)
+        }
+        return
+      }
+
+      if (!normalizedPlan) {
         router.push('/dashboard')
       }
     }
     checkUser()
-  }, [router])
+  }, [router, normalizedPlan, normalizedBilling, hasAutoStartedCheckout])
 
   useEffect(() => {
     rememberTrialSelection(planParam, billingParam)
@@ -63,8 +163,18 @@ function SignInContent() {
       if (error) {
         setMessage('Credenciales incorrectas. Verifica tu email y contraseña.')
       } else if (data.user) {
-        setMessage('¡Login exitoso! Redirigiendo...')
-        setTimeout(() => router.push('/dashboard'), 1000)
+        if (normalizedPlan) {
+          const started = await startCheckoutFromPlan(normalizedPlan, normalizedBilling)
+          if (!started) {
+            setMessage('Sesión iniciada, pero falta activar el trial en checkout. Redirigiendo a selección de plan...')
+            setTimeout(() => {
+              router.push(`/select-trial-plan?plan=${normalizedPlan}&billing=${normalizedBilling}`)
+            }, 800)
+          }
+        } else {
+          setMessage('¡Login exitoso! Redirigiendo...')
+          setTimeout(() => router.push('/dashboard'), 1000)
+        }
       }
     } catch (error) {
       console.error('Login error:', error)
@@ -78,12 +188,11 @@ function SignInContent() {
     setIsLoading(true)
     try {
       // Construir URL de callback con parámetros del plan
-      let callbackUrl = `${window.location.origin}/auth/callback`
-      if (planParam || billingParam) {
-        const params = new URLSearchParams()
-        if (planParam) params.append('plan', planParam)
-        if (billingParam) params.append('billing', billingParam)
-        callbackUrl += `?${params.toString()}`
+      const callbackUrl = new URL(`${window.location.origin}/auth/callback`)
+      if (normalizedPlan) {
+        callbackUrl.searchParams.set('plan', normalizedPlan)
+        callbackUrl.searchParams.set('billing', normalizedBilling)
+        callbackUrl.searchParams.set('autostart', '1')
       }
 
       rememberTrialSelection(planParam, billingParam)
@@ -91,7 +200,7 @@ function SignInContent() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: callbackUrl,
+          redirectTo: callbackUrl.toString(),
         },
       })
 
@@ -108,24 +217,54 @@ function SignInContent() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 via-purple-600 to-blue-800 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full">
-        <div className="bg-white/10 backdrop-blur-md rounded-3xl shadow-2xl border border-white/20 p-8">
-          <div className="text-center mb-8">
-            <div className="mx-auto w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mb-4">
-              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
-            <h2 className="text-3xl font-bold text-white mb-2">
-              AgendaMedPro
-            </h2>
-            <p className="text-white/80 text-sm mb-6">
-              Sistema de Gestión Médica Integral
-            </p>
+    <div className="relative min-h-screen overflow-hidden bg-[#030614] text-white">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.2),_transparent_55%)]" />
+        <div className="absolute inset-y-0 right-0 w-1/2 bg-[radial-gradient(circle_at_center,_rgba(236,72,153,0.25),_transparent_60%)] blur-3xl" />
+      </div>
+
+      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 py-16 sm:px-8 lg:flex-row lg:items-center lg:justify-between lg:gap-12">
+        <div className="max-w-2xl">
+          <Badge className="mb-6 rounded-full border border-white/20 bg-white/10 px-5 py-2 text-xs font-semibold uppercase tracking-[0.3em]">
+            Ingreso seguro
+          </Badge>
+          <div className="flex items-center gap-3 text-emerald-200/80">
+            <Sparkles className="h-6 w-6" />
+            <span className="text-sm font-semibold tracking-[0.4em] uppercase">AgendaMedPro Access</span>
           </div>
-        
-          <form className="space-y-6" onSubmit={handleSubmit}>
+          <h1 className="mt-5 text-4xl font-semibold leading-tight sm:text-5xl">
+            Inicia sesión y continúa tu activación
+          </h1>
+          <p className="mt-4 text-lg text-white/70">
+            Mantén tu plan seleccionado y completa el checkout para iniciar tu trial de 7 días.
+          </p>
+
+          {normalizedPlan && (
+            <div className="mt-8 rounded-2xl border border-emerald-400/25 bg-emerald-400/10 p-5 text-emerald-100">
+              <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.25em] text-emerald-200/80">
+                <CreditCard className="h-4 w-4" />
+                Selección activa
+              </div>
+              <p className="mt-2 text-base">
+                Plan <span className="font-bold">{planDisplayName}</span> con facturación <span className="font-bold">{billingDisplayName}</span>.
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-12 w-full max-w-md lg:mt-0">
+          <div className="glass-panel p-8">
+            <div className="text-center mb-8">
+              <div className="mx-auto w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center mb-4">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <h2 className="text-3xl font-bold text-white mb-2">AgendaMedPro</h2>
+              <p className="text-white/70 text-sm">Sistema de Gestión Médica Integral</p>
+            </div>
+
+            <form className="space-y-6" onSubmit={handleSubmit}>
             <div className="space-y-4">
               <div>
                 <label className="block text-white/90 text-sm font-medium mb-2">
@@ -167,7 +306,7 @@ function SignInContent() {
             <button
               type="button"
               onClick={handleGoogleSignIn}
-              disabled={isLoading}
+              disabled={isLoading || isCheckoutLoading}
               className="w-full bg-white hover:bg-white/90 text-slate-800 font-semibold py-3 px-4 rounded-xl transition-all duration-200 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -191,13 +330,13 @@ function SignInContent() {
 
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || isCheckoutLoading}
               className="w-full bg-white/20 hover:bg-white/30 backdrop-blur-sm border border-white/30 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
             >
-              {isLoading ? (
+              {isLoading || isCheckoutLoading ? (
                 <>
                   <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
-                  <span>Iniciando sesión...</span>
+                  <span>{isCheckoutLoading ? 'Abriendo checkout...' : 'Iniciando sesión...'}</span>
                 </>
               ) : (
                 <>
@@ -233,24 +372,29 @@ function SignInContent() {
               <p className="text-white/80 text-sm mb-2">
                 ¿No tienes cuenta todavía?
               </p>
-              <a 
-                href="/select-trial-plan"
+              <Link
+                href={createAccountHref}
                 className="inline-block bg-white text-purple-600 hover:bg-gray-100 font-semibold py-2 px-6 rounded-lg transition-all duration-200 hover:shadow-lg"
               >
                 Crear Cuenta Gratis
-              </a>
+              </Link>
             </div>
 
-            <a 
+            <Link
               href="/"
               className="block text-sm text-white/80 hover:text-white transition-colors"
             >
               ← Volver al inicio
-            </a>
+            </Link>
             <p className="text-xs text-white/60">
               ¿Problemas para acceder? Contacta a soporte@agendamedpro.com
             </p>
           </div>
+        </div>
+
+          <p className="mt-6 text-center text-xs text-white/50">
+            Al continuar aceptas los términos y condiciones. © {new Date().getFullYear()} AgendaMedPro.
+          </p>
         </div>
       </div>
     </div>
@@ -260,8 +404,8 @@ function SignInContent() {
 export default function SignIn() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 via-purple-600 to-blue-800">
-        <div className="text-white">Cargando...</div>
+      <div className="min-h-screen flex items-center justify-center bg-[#030614] text-white">
+        <div>Cargando...</div>
       </div>
     }>
       <SignInContent />

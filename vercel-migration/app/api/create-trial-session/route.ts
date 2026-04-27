@@ -26,20 +26,31 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Si el usuario está autenticado, verificar si ya tiene suscripción
+    // Si el usuario está autenticado, verificar estado de suscripción.
+    // Permitimos continuar si existe un trial legacy sin stripe_subscription_id
+    // para forzar captura de tarjeta y migrarlo al flujo real de Stripe.
     if (user) {
       const { data: existingSub } = await supabase
         .from('subscriptions')
-        .select('*')
+        .select('id, status, stripe_subscription_id')
         .eq('user_id', user.id)
         .in('status', ['active', 'trialing'])
-        .single()
+        .maybeSingle()
 
       if (existingSub) {
-        return NextResponse.json(
-          { error: 'Ya tienes una suscripción activa' },
-          { status: 400 }
-        )
+        const hasStripeSubscription =
+          typeof existingSub.stripe_subscription_id === 'string' &&
+          existingSub.stripe_subscription_id.startsWith('sub_')
+
+        // Si ya tiene subscripción Stripe real, no crear otra sesión de trial
+        if (existingSub.status === 'active' || hasStripeSubscription) {
+          return NextResponse.json(
+            { error: 'Ya tienes una suscripción activa' },
+            { status: 400 }
+          )
+        }
+
+        // Trial legacy (sin sub_): continuar para capturar tarjeta en Stripe
       }
     }
 

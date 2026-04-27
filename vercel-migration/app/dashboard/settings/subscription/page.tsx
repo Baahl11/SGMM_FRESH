@@ -11,6 +11,7 @@ interface Subscription {
   trial_end: string | null
   current_period_end: string | null
   stripe_customer_id: string | null
+  stripe_subscription_id: string | null
 }
 
 const PLAN_LABELS: Record<string, string> = {
@@ -36,6 +37,8 @@ export default function SubscriptionSettingsPage() {
   const [subscription, setSubscription] = useState<Subscription | null>(null)
   const [loading, setLoading] = useState(true)
   const [portalLoading, setPortalLoading] = useState(false)
+  const [cancelLoading, setCancelLoading] = useState(false)
+  const [success, setSuccess] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -46,7 +49,7 @@ export default function SubscriptionSettingsPage() {
 
       const { data, error } = await supabase
         .from('subscriptions')
-        .select('plan_tier, status, trial_end, current_period_end, stripe_customer_id')
+        .select('plan_tier, status, trial_end, current_period_end, stripe_customer_id, stripe_subscription_id')
         .eq('user_id', user.id)
         .maybeSingle()
 
@@ -59,6 +62,7 @@ export default function SubscriptionSettingsPage() {
   const handleOpenPortal = async () => {
     setPortalLoading(true)
     setError(null)
+    setSuccess(null)
     try {
       const res = await fetch('/api/stripe/portal', { method: 'POST' })
       const data = await res.json()
@@ -67,6 +71,43 @@ export default function SubscriptionSettingsPage() {
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Error al abrir el portal')
       setPortalLoading(false)
+    }
+  }
+
+  const handleCancelSubscription = async () => {
+    const confirmed = window.confirm(
+      'Esta accion cancelara tu suscripcion actual y desvinculara el metodo de pago de Stripe. ¿Deseas continuar?'
+    )
+
+    if (!confirmed) {
+      return
+    }
+
+    setCancelLoading(true)
+    setError(null)
+    setSuccess(null)
+
+    try {
+      const res = await fetch('/api/stripe/subscription/cancel', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'No se pudo cancelar la suscripcion')
+
+      setSubscription((current) => {
+        if (!current) return current
+        return {
+          ...current,
+          status: 'canceled',
+          current_period_end: data.canceledAt || new Date().toISOString(),
+          stripe_customer_id: null,
+          stripe_subscription_id: null,
+        }
+      })
+
+      setSuccess('Suscripcion cancelada y pagos desvinculados correctamente.')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Error al cancelar suscripcion')
+    } finally {
+      setCancelLoading(false)
     }
   }
 
@@ -82,6 +123,12 @@ export default function SubscriptionSettingsPage() {
   const StatusIcon = statusInfo?.icon ?? CheckCircle
   const isTrialing = subscription?.status === 'trialing'
   const planLabel = subscription ? (PLAN_LABELS[subscription.plan_tier] ?? subscription.plan_tier) : '—'
+  const canCancelSubscription = Boolean(
+    subscription &&
+    (subscription.status === 'active' ||
+      subscription.status === 'trialing' ||
+      subscription.stripe_subscription_id)
+  )
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 px-4 py-8">
@@ -129,7 +176,7 @@ export default function SubscriptionSettingsPage() {
               <div className="px-6 py-5">
                 <button
                   onClick={handleOpenPortal}
-                  disabled={portalLoading}
+                  disabled={portalLoading || cancelLoading}
                   className="aura-cta aura-cta--primary"
                 >
                   {portalLoading ? (
@@ -143,7 +190,35 @@ export default function SubscriptionSettingsPage() {
                 </p>
               </div>
             )}
+
+            {canCancelSubscription && (
+              <div className="px-6 py-5">
+                <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4">
+                  <p className="text-sm font-semibold text-red-200">Zona de cancelacion</p>
+                  <p className="mt-1 text-xs text-red-100/80">
+                    Esto cancela tu suscripcion y desvincula tu metodo de pago para detener cobros futuros.
+                  </p>
+                  <button
+                    onClick={handleCancelSubscription}
+                    disabled={cancelLoading || portalLoading}
+                    className="mt-4 inline-flex items-center gap-2 rounded-lg border border-red-400/50 bg-red-500/20 px-4 py-2 text-sm font-medium text-red-100 transition hover:bg-red-500/30 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {cancelLoading ? (
+                      <><Loader2 className="h-4 w-4 animate-spin" /> Cancelando suscripcion...</>
+                    ) : (
+                      <><AlertTriangle className="h-4 w-4" /> Cancelar suscripcion ahora</>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
           </GlassPanel>
+
+          {success && (
+            <div className="rounded-2xl bg-emerald-500/10 border border-emerald-500/30 px-5 py-4 text-sm text-emerald-200">
+              {success}
+            </div>
+          )}
 
           {error && (
             <div className="rounded-2xl bg-red-500/10 border border-red-500/20 px-5 py-4 text-sm text-red-300">

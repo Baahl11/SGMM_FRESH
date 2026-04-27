@@ -1,11 +1,12 @@
 'use client'
 
-import { Suspense, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Check, Sparkles, Zap, Crown, Loader2 } from 'lucide-react'
+import { Check, Sparkles, Zap, Loader2 } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 // Helper to clean Stripe IDs (remove quotes, newlines, whitespace)
 const cleanStripeId = (id: string | undefined): string => {
@@ -104,51 +105,71 @@ const rememberTrialSelection = (planId: Plan['id'], cycle: 'monthly' | 'annual')
 function SelectTrialPlanContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const supabase = createClient()
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly')
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null)
+  const [autoStartPending, setAutoStartPending] = useState(false)
+  const [hasAutoStarted, setHasAutoStarted] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   // Detectar si viene de trial expirado
   const reason = searchParams.get('reason')
   const message = searchParams.get('message')
+  const selectedPlanParam = searchParams.get('plan')
+  const selectedBillingParam = searchParams.get('billing')
+  const autostart = searchParams.get('autostart') === '1'
+  const canceled = searchParams.get('canceled') === 'true'
   const isTrialExpired = reason === 'trial_expired'
+  const isPaymentSetupRequired = reason === 'payment_setup_required'
 
-  const handleSelectPlan = async (plan: Plan) => {
+  const normalizedPlan = selectedPlanParam === 'basico' || selectedPlanParam === 'pro' ? selectedPlanParam : null
+  const normalizedBilling: 'monthly' | 'annual' = selectedBillingParam === 'annual' ? 'annual' : 'monthly'
+
+  useEffect(() => {
+    if (selectedBillingParam === 'annual' || selectedBillingParam === 'monthly') {
+      setBillingCycle(selectedBillingParam)
+    }
+  }, [selectedBillingParam])
+
+  const handleSelectPlan = async (plan: Plan, cycleOverride?: 'monthly' | 'annual') => {
     try {
       setLoadingPlan(plan.id)
       setError(null)
+      const selectedCycle = cycleOverride ?? billingCycle
+      rememberTrialSelection(plan.id, selectedCycle)
 
-      // Si es trial expirado, ir a Stripe para agregar tarjeta
-      if (isTrialExpired) {
-        const priceId = billingCycle === 'monthly' ? plan.monthlyPriceId : plan.annualPriceId
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
 
-        const response = await fetch('/api/create-trial-session', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            priceId,
-            planTier: plan.id,
-          }),
-        })
-
-        if (!response.ok) {
-          const data = await response.json()
-          throw new Error(data.error || 'Error al crear sesión de prueba')
-        }
-
-        const { url } = await response.json()
-
-        if (url) {
-          window.location.href = url
-        }
-      } else {
-        // Usuario nuevo: Redirigir a signin para que haga OAuth
-        // El OAuth callback creará el trial automáticamente
-        rememberTrialSelection(plan.id, billingCycle)
-        const redirectUrl = `/auth/signin?plan=${plan.id}&billing=${billingCycle}`
+      if (!user) {
+        const redirectUrl = `/auth/signin?plan=${plan.id}&billing=${selectedCycle}`
         router.push(redirectUrl)
+        return
+      }
+
+      const priceId = selectedCycle === 'monthly' ? plan.monthlyPriceId : plan.annualPriceId
+
+      const response = await fetch('/api/create-trial-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          priceId,
+          planTier: plan.id,
+        }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Error al crear sesión de prueba')
+      }
+
+      const { url } = await response.json()
+
+      if (url) {
+        window.location.href = url
       }
     } catch (err: any) {
       console.error('Error selecting plan:', err)
@@ -158,36 +179,68 @@ function SelectTrialPlanContent() {
     }
   }
 
+  useEffect(() => {
+    if (!autostart || hasAutoStarted || autoStartPending || !normalizedPlan) {
+      return
+    }
+
+    const plan = plans.find((candidate) => candidate.id === normalizedPlan)
+    if (!plan) {
+      return
+    }
+
+    setHasAutoStarted(true)
+    setAutoStartPending(true)
+    setBillingCycle(normalizedBilling)
+
+    void handleSelectPlan(plan, normalizedBilling).finally(() => {
+      setAutoStartPending(false)
+    })
+  }, [autostart, autoStartPending, hasAutoStarted, normalizedBilling, normalizedPlan])
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 py-12 px-4">
-      <div className="max-w-6xl mx-auto">
+    <div className="relative min-h-screen overflow-hidden bg-[#030614] py-12 px-4 text-white">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.22),_transparent_55%)]" />
+        <div className="absolute inset-y-0 right-0 w-1/2 bg-[radial-gradient(circle_at_center,_rgba(236,72,153,0.20),_transparent_60%)] blur-3xl" />
+      </div>
+
+      <div className="relative z-10 max-w-6xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <Badge className="mb-4 bg-green-500 text-white text-base px-6 py-2">
-            🎉 ¡SIN TARJETA REQUERIDA! - Prueba Gratis por 7 Días
+          <Badge className="mb-4 bg-emerald-500 text-white text-base px-6 py-2">
+            💳 Tarjeta requerida para iniciar tu prueba de 7 días
           </Badge>
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+          <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
             {isTrialExpired ? 'Continúa con AgendaMedPro' : 'Comienza tu Prueba Gratis'}
           </h1>
-          <p className="text-xl text-gray-600 mb-2">
+          <p className="text-xl text-white/75 mb-2">
             {isTrialExpired ? (
-              <span className="font-bold text-orange-600">{message || 'Tu periodo de prueba ha terminado'}</span>
+              <span className="font-bold text-orange-300">{message || 'Tu periodo de prueba ha terminado'}</span>
             ) : (
               <>
-                Crea tu cuenta con Google y <span className="font-bold text-green-600">empieza a usar el sistema inmediatamente</span>
+                Selecciona tu plan, agrega tarjeta y <span className="font-bold text-emerald-300">activa el trial al instante</span>
               </>
             )}
           </p>
           {!isTrialExpired && (
-            <div className="flex items-center justify-center gap-2 text-sm text-gray-500 flex-wrap">
+            <div className="flex items-center justify-center gap-2 text-sm text-white/60 flex-wrap">
               <span>✓ Sin contrato</span>
-              <span className="text-gray-300">•</span>
+              <span className="text-white/35">•</span>
               <span>✓ Cancela cuando quieras</span>
-              <span className="text-gray-300">•</span>
-              <span>✓ Todas las funciones incluidas</span>
+              <span className="text-white/35">•</span>
+              <span>✓ Trial real de 7 días tras agregar tarjeta</span>
             </div>
           )}
         </div>
+
+        {(canceled || isPaymentSetupRequired) && (
+          <div className="mb-8 max-w-2xl mx-auto rounded-xl border border-amber-300/40 bg-amber-300/10 px-4 py-3 text-amber-100">
+            {isPaymentSetupRequired
+              ? message || 'Para activar tu trial debes completar el checkout con tarjeta.'
+              : 'El checkout fue cancelado. Puedes seleccionar tu plan nuevamente para activar tu trial.'}
+          </div>
+        )}
 
         {/* Social Proof */}
         {!isTrialExpired && (
@@ -299,7 +352,9 @@ function SelectTrialPlanContent() {
               <Card
                 key={plan.id}
                 className={`relative p-8 ${
-                  plan.popular ? 'border-2 border-purple-500 shadow-xl' : 'border border-gray-200'
+                  plan.popular
+                    ? 'border-2 border-fuchsia-400/70 shadow-xl shadow-fuchsia-500/20 bg-white/95'
+                    : 'border border-slate-200 bg-white/95'
                 }`}
               >
                 {plan.popular && (
@@ -341,7 +396,7 @@ function SelectTrialPlanContent() {
                       Procesando...
                     </>
                   ) : (
-                    '🎉 Iniciar Prueba Gratis'
+                    'Continuar al Checkout Seguro'
                   )}
                 </Button>
 

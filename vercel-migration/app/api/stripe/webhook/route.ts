@@ -362,20 +362,41 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
+
+  const nowIso = new Date().toISOString()
   
-  const { error } = await supabaseAdmin
+  const { error: userError } = await supabaseAdmin
     .from('users')
     .update({
       subscription_status: 'cancelled',
-      subscription_end_date: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      subscription_end_date: nowIso,
+      stripe_subscription_id: null,
+      stripe_customer_id: null,
+      updated_at: nowIso,
     })
     .eq('id', userId)
 
-  if (error) {
-    console.error('Error marking subscription as canceled:', error)
+  if (userError) {
+    console.error('Error marking users table subscription as canceled:', userError)
   } else {
-    console.log(`Subscription canceled for user ${userId}`)
+    console.log(`Users table updated after cancellation for user ${userId}`)
+  }
+
+  const { error: subscriptionError } = await supabaseAdmin
+    .from('subscriptions')
+    .update({
+      status: 'canceled',
+      stripe_subscription_id: null,
+      stripe_customer_id: null,
+      current_period_end: nowIso,
+      updated_at: nowIso,
+    })
+    .eq('user_id', userId)
+
+  if (subscriptionError) {
+    console.error('Error marking subscriptions table as canceled:', subscriptionError)
+  } else {
+    console.log(`Subscriptions table updated after cancellation for user ${userId}`)
   }
 
   // 🎯 NUEVO: Cancelar comisiones pendientes de vendedor (si cliente cancela en mes 2)

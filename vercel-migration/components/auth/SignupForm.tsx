@@ -10,6 +10,23 @@ import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
 
+const rememberTrialSelection = (plan: string | null, billing: string | null) => {
+  if (!plan && !billing) {
+    return
+  }
+
+  try {
+    const payload = encodeURIComponent(
+      JSON.stringify({ plan: plan ?? null, billing: billing ?? null, recordedAt: Date.now() })
+    )
+    document.cookie = `trial_selection=${payload}; path=/; max-age=600; SameSite=Lax`
+  } catch (error) {
+    console.warn('[Signup] Unable to persist trial selection cookie', {
+      errorMessage: (error as Error).message,
+    })
+  }
+}
+
 export function SignupForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -48,12 +65,19 @@ export function SignupForm() {
     setLoading(true)
 
     try {
+      const callbackUrl = new URL(`${window.location.origin}/auth/callback`)
+
+      if (planFromUrl) callbackUrl.searchParams.set('plan', planFromUrl)
+      if (billingFromUrl) callbackUrl.searchParams.set('billing', billingFromUrl)
+
+      rememberTrialSelection(planFromUrl || null, billingFromUrl || null)
+
       const supabase = createClient()
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: callbackUrl.toString(),
           data: {
             name: email.split('@')[0],
           },
@@ -75,6 +99,10 @@ export function SignupForm() {
             description: 'Por favor inicia sesión en vez de crear una cuenta nueva',
           })
           setTimeout(() => {
+            if (planFromUrl && billingFromUrl) {
+              router.push(`/auth/signin?plan=${planFromUrl}&billing=${billingFromUrl}`)
+              return
+            }
             router.push('/auth/signin')
           }, 2000)
           return
@@ -89,8 +117,13 @@ export function SignupForm() {
           if (redirectUrl) {
             router.push(redirectUrl)
           } else if (planFromUrl && billingFromUrl) {
-            // Si vienen parámetros de plan, ir directo al dashboard (ya tiene trial automático)
-            router.push('/dashboard')
+            // Si viene desde selección de plan, continuar al checkout del trial con tarjeta.
+            // Con sesión activa se auto-inicia checkout; sin sesión, pedirá login y luego checkout.
+            if (data.session) {
+              router.push(`/select-trial-plan?plan=${planFromUrl}&billing=${billingFromUrl}&autostart=1`)
+            } else {
+              router.push(`/auth/signin?plan=${planFromUrl}&billing=${billingFromUrl}`)
+            }
           } else {
             // Si no, mostrar selector de plan
             router.push('/select-trial-plan')
@@ -110,11 +143,18 @@ export function SignupForm() {
   const handleGoogleSignup = async () => {
     try {
       setGoogleLoading(true)
+      const callbackUrl = new URL(`${window.location.origin}/auth/callback`)
+
+      if (planFromUrl) callbackUrl.searchParams.set('plan', planFromUrl)
+      if (billingFromUrl) callbackUrl.searchParams.set('billing', billingFromUrl)
+
+      rememberTrialSelection(planFromUrl || null, billingFromUrl || null)
+
       const supabase = createClient()
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: callbackUrl.toString(),
         },
       })
 

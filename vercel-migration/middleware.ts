@@ -146,7 +146,7 @@ export async function middleware(request: NextRequest) {
       // -------------------------------------------------
       const { data: subscription, error: subscriptionError } = await supabase
         .from('subscriptions')
-        .select('plan_tier, status, max_doctors, max_locations, trial_end, current_period_end')
+        .select('plan_tier, status, max_doctors, max_locations, trial_end, current_period_end, stripe_subscription_id')
         .eq('user_id', user.id)
         .in('status', ['active', 'trialing'])
         .maybeSingle()
@@ -159,6 +159,19 @@ export async function middleware(request: NextRequest) {
         const selectPlanUrl = new URL('/select-trial-plan', request.url)
         selectPlanUrl.searchParams.set('reason', 'no_subscription')
         return NextResponse.redirect(selectPlanUrl)
+      }
+
+      // Trial sin suscripción Stripe real (legacy/manual) -> exigir checkout con tarjeta.
+      if (
+        subscription.status === 'trialing' &&
+        (!subscription.stripe_subscription_id || !subscription.stripe_subscription_id.startsWith('sub_'))
+      ) {
+        const addPaymentUrl = new URL('/select-trial-plan', request.url)
+        addPaymentUrl.searchParams.set('reason', 'payment_setup_required')
+        addPaymentUrl.searchParams.set('message', 'Activa tu trial agregando una tarjeta para continuar.')
+        addPaymentUrl.searchParams.set('plan', subscription.plan_tier || 'basico')
+        addPaymentUrl.searchParams.set('autostart', '1')
+        return NextResponse.redirect(addPaymentUrl)
       }
 
       // -------------------------------------------------
