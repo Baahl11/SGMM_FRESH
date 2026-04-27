@@ -10,6 +10,7 @@ This runbook executes signup trigger hardening with observability and rollback s
 ## Files involved
 - supabase/migrations/20260426175000_hotfix_signup_database_error.sql
 - supabase/migrations/20260426193000_signup_trigger_observability.sql
+- supabase/migrations/20260426233000_signup_location_idempotency_followup.sql
 - scripts/backup-signup-trigger-state.js
 - scripts/apply-hotfix-signup-db.js
 - scripts/preflight-supabase-connectivity.js

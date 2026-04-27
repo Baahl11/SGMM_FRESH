@@ -6,6 +6,26 @@ async function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+async function retry(label, fn, attempts = 3, delayMs = 2000) {
+  let lastError;
+
+  for (let i = 1; i <= attempts; i += 1) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      const isLast = i === attempts;
+
+      if (!isLast) {
+        console.warn(`${label}_RETRY_${i}`, error.message || String(error));
+        await sleep(delayMs);
+      }
+    }
+  }
+
+  throw lastError;
+}
+
 async function main() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -24,14 +44,20 @@ async function main() {
   const testEmail = `hotfix-smoke-${Date.now()}@example.com`;
   const testPassword = `Sgmm!${Date.now()}`;
 
-  const createResult = await supabase.auth.admin.createUser({
-    email: testEmail,
-    password: testPassword,
-    email_confirm: true,
-    user_metadata: {
-      name: 'Hotfix Smoke Test'
-    }
-  });
+  const createResult = await retry(
+    'SMOKE_CREATE_USER',
+    () =>
+      supabase.auth.admin.createUser({
+        email: testEmail,
+        password: testPassword,
+        email_confirm: true,
+        user_metadata: {
+          name: 'Hotfix Smoke Test'
+        }
+      }),
+    4,
+    2500
+  );
 
   if (createResult.error || !createResult.data?.user?.id) {
     throw new Error(`Failed to create smoke user: ${createResult.error?.message || 'unknown error'}`);
@@ -80,7 +106,12 @@ async function main() {
 
   console.log('SMOKE_SIGNUP_RESULT', JSON.stringify(summary, null, 2));
 
-  const deleteResult = await supabase.auth.admin.deleteUser(userId);
+  const deleteResult = await retry(
+    'SMOKE_DELETE_USER',
+    () => supabase.auth.admin.deleteUser(userId),
+    4,
+    2000
+  );
   if (deleteResult.error) {
     console.warn('SMOKE_DELETE_WARNING', deleteResult.error.message);
   } else {

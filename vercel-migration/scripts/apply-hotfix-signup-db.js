@@ -16,7 +16,8 @@ const portFromEnv = Number(process.env.POSTGRES_PORT || 6543);
 
 const defaultMigrationFiles = [
   '20260426175000_hotfix_signup_database_error.sql',
-  '20260426193000_signup_trigger_observability.sql'
+  '20260426193000_signup_trigger_observability.sql',
+  '20260426233000_signup_location_idempotency_followup.sql'
 ];
 
 function getMigrationFiles() {
