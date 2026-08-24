@@ -3,15 +3,16 @@ import { createClient } from '@/lib/supabase/server';
 
 /**
  * GET /api/user/whatsapp-settings
- * Get user's WhatsApp configuration
+ * Get user's WhatsApp configuration (incluye estado Meta enmascarado —
+ * fable/reception-ai fase 0: nunca devolver whatsapp_access_token).
  */
 export async function GET() {
   try {
     const supabase = await createClient();
-    
+
     // Get authenticated user directly from Supabase
     const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
+
     if (authError || !user) {
       console.error('Auth error:', authError);
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -19,7 +20,7 @@ export async function GET() {
 
     const { data: profile, error } = await supabase
       .from('user_profiles')
-      .select('whatsapp_phone, whatsapp_enabled, whatsapp_default_message, whatsapp_config_level')
+      .select('whatsapp_phone, whatsapp_enabled, whatsapp_default_message, whatsapp_config_level, whatsapp_provider, whatsapp_phone_number_id, whatsapp_business_account_id, whatsapp_access_token')
       .eq('user_id', user.id)
       .maybeSingle();
 
@@ -33,6 +34,10 @@ export async function GET() {
       whatsapp_enabled: profile?.whatsapp_enabled || false,
       whatsapp_default_message: profile?.whatsapp_default_message || '¡Hola! Me contacto desde AgendaMedPro',
       whatsapp_config_level: profile?.whatsapp_config_level || 'basic',
+      whatsapp_provider: profile?.whatsapp_provider || null,
+      whatsapp_phone_number_id: profile?.whatsapp_phone_number_id || '',
+      whatsapp_business_account_id: profile?.whatsapp_business_account_id || '',
+      whatsapp_has_access_token: Boolean(profile?.whatsapp_access_token),
     });
   } catch (error) {
     console.error('Unexpected error in GET /api/user/whatsapp-settings:', error);
@@ -121,7 +126,9 @@ export async function POST(request: NextRequest) {
     if (whatsapp_business_account_id !== undefined) updateData.whatsapp_business_account_id = whatsapp_business_account_id || null;
     if (whatsapp_access_token !== undefined) updateData.whatsapp_access_token = whatsapp_access_token || null;
 
-    console.log('Updating user_profiles with data:', JSON.stringify(updateData, null, 2));
+    // fable/reception-ai fase 0 (P0): se eliminó el console.log de updateData
+    // completo — incluía whatsapp_access_token / whatsapp_twilio_auth_token /
+    // whatsapp_twilio_account_sid en texto plano en logs de servidor.
 
     const { error } = await supabase
       .from('user_profiles')
