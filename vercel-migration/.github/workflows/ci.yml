@@ -42,6 +42,9 @@ jobs:
       - name: Presupuesto de lint (requerido — la deuda no puede crecer)
         run: npm run lint:budget
 
+      - name: Secret scan (requerido — Recepción IA Fase 0)
+        run: npm run secret-scan
+
       - name: ESLint reporte completo (informativo)
         run: npx eslint . || true
 
