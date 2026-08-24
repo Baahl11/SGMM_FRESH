@@ -126,7 +126,7 @@ class WhatsAppService {
   
   private cleanPhoneNumber(phone: string): string {
     // Remover espacios, guiones, paréntesis
-    let cleaned = phone.replace(/[\s\-\(\)]/g, '');
+    const cleaned = phone.replace(/[\s\-\(\)]/g, '');
     
     // Si empieza con +52, mantenerlo
     if (cleaned.startsWith('+52')) {

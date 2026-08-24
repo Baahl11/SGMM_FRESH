@@ -14,22 +14,22 @@ const pains = [
   {
     icon: CalendarX,
     title: 'Tu agenda está desordenada y pierdes citas',
-    detail: 'Dobles reservas, horarios sin confirmar y pacientes que no aparecen. Cada hueco vacío es ingreso perdido.',
+    detail: 'Dobles reservas, horarios sin confirmar y pacientes que no aparecen. Cada hueco sin ocupar es dinero que no regresa.',
   },
   {
     icon: MessageSquareX,
     title: 'Tu equipo confirma por WhatsApp manualmente',
-    detail: 'Horas de llamadas y mensajes para confirmar una cita que igual se cancela. Sin automatización, sin control.',
+    detail: 'Horas de llamadas y mensajes para confirmar una cita que igual se cancela. Trabajo operativo alto con resultado incierto.',
   },
   {
     icon: TrendingDown,
     title: 'No sabes qué horarios generan más ingresos',
-    detail: 'Sin reportes claros, es imposible saber qué días llenan más, qué doctores facturan más o cuándo hay huecos.',
+    detail: 'Sin reportes claros, es imposible saber qué días venden más, qué doctores facturan mejor o dónde se pierden oportunidades.',
   },
   {
     icon: Package,
     title: 'Tu inventario se controla en hojas o a mano',
-    detail: 'Caducidades que pasan desapercibidas, materiales que se acaban sin aviso y pérdidas difíciles de rastrear.',
+    detail: 'Caducidades que pasan desapercibidas, materiales que se acaban sin aviso y compras de emergencia más caras.',
   },
   {
     icon: Clock,
@@ -50,10 +50,10 @@ export function PainPoints() {
         <div className="mx-auto max-w-2xl text-center">
           <p className="text-sm uppercase tracking-[0.4em] text-red-300/70">¿Te suena familiar?</p>
           <h2 className="mt-3 text-3xl font-semibold lg:text-4xl">
-            Los problemas que frena a la mayoría de consultorios en México
+            Los problemas que frenan a la mayoría de consultorios en México
           </h2>
           <p className="mt-4 text-white/60">
-            No es falta de pacientes. Es falta de sistema. Cada uno de estos puntos tiene solución.
+            No es falta de pacientes. Es falta de sistema. Cada punto impacta tu ingreso diario.
           </p>
         </div>
         <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -76,7 +76,7 @@ export function PainPoints() {
         <div className="mt-10 rounded-3xl border border-emerald-400/20 bg-emerald-400/5 px-8 py-6 text-center">
           <p className="text-white/80">
             AgendaMedPro resuelve todos estos puntos en una sola plataforma.{' '}
-            <span className="font-semibold text-emerald-300">Sin hojas de cálculo, sin WhatsApps manuales, sin sorpresas.</span>
+            <span className="font-semibold text-emerald-300">Sin hojas de cálculo, sin confirmaciones manuales y con control real de ingresos.</span>
           </p>
         </div>
       </div>

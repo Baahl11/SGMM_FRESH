@@ -1,73 +1,107 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } }
-)
+import { z } from 'zod'
+import { getSupabaseAdmin } from '@/lib/supabase/admin'
+import {
+  findPublicResource,
+  publicRateLimit,
+  readJsonBody,
+  sanitizeAssociations,
+} from '@/lib/security/public-endpoints'
 
 /**
- * GET /api/intake-forms/[id]/public — fetch form definition (no auth)
- * POST /api/intake-forms/[id]/public — submit response (no auth)
+ * Intake form público (fable C13): Zod, límites, rate limit por IP,
+ * asociaciones verificadas por tenant y lookup por public_token con
+ * compatibilidad legacy por id.
  */
 
 type Params = { params: Promise<{ id: string }> }
 
-export async function GET(_req: NextRequest, { params }: Params) {
+type FormRow = {
+  id: string
+  title?: string
+  description?: string
+  fields?: unknown
+  user_id: string
+}
+
+const submitSchema = z
+  .object({
+    nombre: z.string().trim().max(200).nullish(),
+    email: z.string().trim().email().max(320).nullish(),
+    telefono: z.string().trim().max(30).nullish(),
+    answers: z.record(z.string(), z.unknown()),
+    patient_id: z.string().uuid().nullish(),
+    appointment_id: z.string().uuid().nullish(),
+  })
+  .strict()
+
+export async function GET(req: NextRequest, { params }: Params) {
   const { id } = await params
+  const { result, headers } = publicRateLimit(req, 'intake', 'get')
+  if (!result.allowed) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429, headers })
+  }
 
-  const { data, error } = await supabaseAdmin
-    .from('intake_forms')
-    .select('id, title, description, fields')
-    .eq('id', id)
-    .eq('is_active', true)
-    .single()
-
-  if (error || !data) return NextResponse.json({ error: 'Formulario no encontrado' }, { status: 404 })
-  return NextResponse.json({ form: data })
+  const admin = getSupabaseAdmin()
+  const form = await findPublicResource<FormRow & { is_active?: boolean }>(
+    admin,
+    'intake_forms',
+    id,
+    'id, title, description, fields, is_active'
+  )
+  if (!form || form.is_active === false) {
+    return NextResponse.json({ error: 'Formulario no encontrado' }, { status: 404 })
+  }
+  const { is_active: _omit, ...publicForm } = form
+  void _omit
+  return NextResponse.json({ form: publicForm })
 }
 
 export async function POST(request: NextRequest, { params }: Params) {
   const { id } = await params
-
-  // Verify form is active
-  const { data: form } = await supabaseAdmin
-    .from('intake_forms')
-    .select('id')
-    .eq('id', id)
-    .eq('is_active', true)
-    .single()
-
-  if (!form) return NextResponse.json({ error: 'Formulario no encontrado o inactivo' }, { status: 404 })
-
-  let body: Record<string, unknown>
-  try {
-    body = await request.json()
-  } catch {
-    return NextResponse.json({ error: 'JSON inválido' }, { status: 400 })
+  const { result, headers } = publicRateLimit(request, 'intake', 'post')
+  if (!result.allowed) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429, headers })
   }
 
-  const { nombre, email, telefono, answers, patient_id, appointment_id } = body as Record<string, string>
-
-  if (!answers || typeof answers !== 'object') {
-    return NextResponse.json({ error: 'answers es requerido' }, { status: 400 })
+  const admin = getSupabaseAdmin()
+  const form = await findPublicResource<FormRow & { is_active?: boolean }>(
+    admin,
+    'intake_forms',
+    id,
+    'id, is_active, user_id'
+  )
+  if (!form || form.is_active === false) {
+    return NextResponse.json({ error: 'Formulario no encontrado o inactivo' }, { status: 404 })
   }
 
-  const { error } = await supabaseAdmin.from('intake_responses').insert({
-    form_id: id,
-    patient_id: patient_id ?? null,
-    appointment_id: appointment_id ?? null,
-    nombre: nombre ?? null,
-    email: email ?? null,
-    telefono: telefono ?? null,
-    answers,
+  const parsedBody = await readJsonBody(request)
+  if ('error' in parsedBody) {
+    return NextResponse.json({ error: parsedBody.error }, { status: parsedBody.status })
+  }
+  const parsed = submitSchema.safeParse(parsedBody.body)
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: 'Datos inválidos', issues: parsed.error.issues.map((i) => i.message) },
+      { status: 400 }
+    )
+  }
+  const body = parsed.data
+
+  const assoc = await sanitizeAssociations(admin, form.user_id, body, 'intake-forms')
+
+  const { error } = await admin.from('intake_responses').insert({
+    form_id: form.id,
+    patient_id: assoc.patient_id,
+    appointment_id: assoc.appointment_id,
+    nombre: body.nombre ?? null,
+    email: body.email ?? null,
+    telefono: body.telefono ?? null,
+    answers: body.answers,
   })
 
   if (error) {
-    console.error('[intake public submit]', error)
     return NextResponse.json({ error: 'Error al guardar' }, { status: 500 })
   }
-
   return NextResponse.json({ success: true }, { status: 201 })
 }

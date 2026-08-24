@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { User, LogOut, Settings } from 'lucide-react'
 import { toast } from 'sonner'
+import { clearAppCaches } from '@/lib/pwa/clear-caches' // fable C6
 
 interface UserMenuProps {
   user: {
@@ -32,6 +33,7 @@ export function UserMenu({ user }: UserMenuProps) {
   async function handleLogout() {
     try {
       const supabase = createClient()
+      await clearAppCaches() // fable C6
       const { error } = await supabase.auth.signOut()
       
       if (error) {

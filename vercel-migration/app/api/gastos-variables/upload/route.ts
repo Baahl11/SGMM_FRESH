@@ -5,6 +5,8 @@
  */
 
 import { createClient } from '@/lib/supabase/server';
+import { getSupabaseAdmin } from '@/lib/supabase/admin';
+import { signStoredObject } from '@/lib/storage/signed';
 import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
@@ -114,16 +116,15 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-    // Obtener URL pública
-    const { data: { publicUrl } } = supabase.storage
-      .from('gastos-facturas')
-      .getPublicUrl(filePath);
+    // fable C4: el bucket es privado; la BD guarda la RUTA y la respuesta
+    // entrega una signed URL de 1 hora.
+    const signedUrl = await signStoredObject(getSupabaseAdmin(), 'gastos-facturas', filePath);
     // Si se proporcionó gasto_id, actualizar el registro
     if (gasto_id) {
       const { error: updateError } = await supabase
         .from('variable_expenses')
         .update({ 
-          factura_url: publicUrl,
+          factura_url: filePath, // fable C4: ruta, no URL pública
           factura_tipo: file.type === 'application/pdf' ? 'fiscal' : 'simple'
         })
         .eq('id', gasto_id)
@@ -138,7 +139,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({
-      url: publicUrl,
+      url: signedUrl,
       path: filePath,
       fileName: file.name,
       size: file.size,

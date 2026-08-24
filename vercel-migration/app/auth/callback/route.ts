@@ -3,28 +3,15 @@ import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/server'
-import emailService from '@/lib/email-service'
-import { PLAN_FEATURES } from '@/lib/stripe/config'
 
-type SupportedPlan = 'basico' | 'pro'
+type SupportedPlan = 'pro' | 'enterprise'
 type BillingCycle = 'monthly' | 'annual'
 
-const FALLBACK_PRICE_IDS = {
-  basico: {
-    monthly: 'price_basico_monthly_placeholder',
-    annual: 'price_basico_annual_placeholder',
-  },
-  pro: {
-    monthly: 'price_pro_monthly_placeholder',
-    annual: 'price_pro_annual_placeholder',
-  },
-} as const
-
 function normalizePlan(plan: string | null | undefined): SupportedPlan {
-  if (plan === 'pro') {
-    return 'pro'
+  if (plan === 'enterprise') {
+    return 'enterprise'
   }
-  return 'basico'
+  return 'pro'
 }
 
 function normalizeBilling(billing: string | null | undefined): BillingCycle {
@@ -32,28 +19,6 @@ function normalizeBilling(billing: string | null | undefined): BillingCycle {
     return 'annual'
   }
   return 'monthly'
-}
-
-function resolvePlanConfig(plan: SupportedPlan, billing: BillingCycle) {
-  const stripePriceId =
-    plan === 'pro'
-      ? billing === 'annual'
-        ? process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_ANNUAL
-        : process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_MONTHLY
-      : billing === 'annual'
-        ? process.env.NEXT_PUBLIC_STRIPE_PRICE_BASICO_ANNUAL
-        : process.env.NEXT_PUBLIC_STRIPE_PRICE_BASICO_MONTHLY
-
-  const featuresConfig = PLAN_FEATURES[plan]
-
-  return {
-    planTier: plan,
-    billing,
-    stripePriceId: stripePriceId ?? FALLBACK_PRICE_IDS[plan][billing],
-    maxDoctors: featuresConfig.max_doctors,
-    maxLocations: featuresConfig.max_locations,
-    features: [...featuresConfig.features],
-  }
 }
 
 function ensureSafePath(path: string | null | undefined) {
@@ -92,6 +57,31 @@ function redirectToAuthError(
   return NextResponse.redirect(redirectUrl.toString())
 }
 
+function buildCheckoutPath(plan: SupportedPlan, billing: BillingCycle) {
+  const params = new URLSearchParams({
+    plan,
+    billing,
+  })
+  return `/select-trial-plan?${params.toString()}`
+}
+
+function redirectToVerifyEmailRequired(
+  origin: string,
+  options: {
+    email: string
+    nextPath: string
+    plan: SupportedPlan
+    billing: BillingCycle
+  }
+) {
+  const verifyUrl = new URL('/auth/verify-email-required', origin)
+  verifyUrl.searchParams.set('email', options.email)
+  verifyUrl.searchParams.set('next', ensureSafePath(options.nextPath))
+  verifyUrl.searchParams.set('plan', options.plan)
+  verifyUrl.searchParams.set('billing', options.billing)
+  return NextResponse.redirect(verifyUrl.toString())
+}
+
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
   const origin = requestUrl.origin
@@ -122,7 +112,10 @@ export async function GET(request: NextRequest) {
 
   const plan = normalizePlan(planParam ?? cookiePlan)
   const billing = normalizeBilling(billingParam ?? cookieBilling)
-  const planConfig = resolvePlanConfig(plan, billing)
+  const planConfig = {
+    planTier: plan,
+    billing,
+  }
   const hasCheckoutIntent = Boolean(planParam || billingParam || cookiePlan || cookieBilling)
 
   if (!code) {
@@ -206,8 +199,26 @@ export async function GET(request: NextRequest) {
     userEmail.split('@')[0] ||
     'Usuario'
 
-  let isFirstLogin = false
+  const nextPath = hasCheckoutIntent
+    ? buildCheckoutPath(planConfig.planTier, planConfig.billing)
+    : ensureSafePath(nextParam)
 
+  if (!user.email_confirmed_at) {
+    console.warn('[Auth Callback] Unverified email blocked from onboarding flow', {
+      userId,
+      userEmail,
+      nextPath,
+    })
+
+    return redirectToVerifyEmailRequired(origin, {
+      email: userEmail,
+      nextPath,
+      plan,
+      billing,
+    })
+  }
+
+  const isFirstLogin = false
   try {
     const { data: existingUser, error: fetchUserError } = await supabaseAdmin
       .from('users')
@@ -234,8 +245,6 @@ export async function GET(request: NextRequest) {
 
       if (insertUserError && insertUserError.code !== '23505') {
         console.error('[Auth Callback] Error inserting user profile', insertUserError)
-      } else {
-        isFirstLogin = true
       }
     }
 
@@ -278,7 +287,6 @@ export async function GET(request: NextRequest) {
   }
 
   let subscriptionExists = false
-  let subscriptionTrialEnd: string | null = null
 
   try {
     const { data: existingSubscription, error: subscriptionFetchError } = await supabaseAdmin
@@ -294,42 +302,16 @@ export async function GET(request: NextRequest) {
 
     if (existingSubscription) {
       subscriptionExists = true
-      subscriptionTrialEnd = existingSubscription.trial_end
 
-      const hasStripeSubscription =
-        typeof existingSubscription.stripe_subscription_id === 'string' &&
-        existingSubscription.stripe_subscription_id.startsWith('sub_')
-
-      // Trial legacy sin checkout de tarjeta: forzar paso por checkout.
-      if (hasCheckoutIntent && existingSubscription.status === 'trialing' && !hasStripeSubscription) {
-        const checkoutRedirect = new URL('/select-trial-plan', origin)
-        checkoutRedirect.searchParams.set('plan', planConfig.planTier)
-        checkoutRedirect.searchParams.set('billing', planConfig.billing)
-        checkoutRedirect.searchParams.set('autostart', '1')
-
-        const response = NextResponse.redirect(checkoutRedirect.toString())
-
-        if (trialSelectionCookie) {
-          response.cookies.set({
-            name: 'trial_selection',
-            value: '',
-            maxAge: 0,
-            path: '/',
-          })
-        }
-
-        return response
-      }
     }
   } catch (subscriptionLookupError) {
     console.error('[Auth Callback] Unexpected error checking subscription', subscriptionLookupError)
   }
 
-  if (!subscriptionExists && hasCheckoutIntent) {
+  if (!subscriptionExists) {
     const checkoutRedirect = new URL('/select-trial-plan', origin)
     checkoutRedirect.searchParams.set('plan', planConfig.planTier)
     checkoutRedirect.searchParams.set('billing', planConfig.billing)
-    checkoutRedirect.searchParams.set('autostart', '1')
 
     const response = NextResponse.redirect(checkoutRedirect.toString())
 
@@ -345,61 +327,7 @@ export async function GET(request: NextRequest) {
     return response
   }
 
-  if (!subscriptionExists) {
-    const trialStart = new Date()
-    const trialEnd = new Date(trialStart)
-    trialEnd.setDate(trialEnd.getDate() + 7)
-
-    try {
-      const { error: createSubscriptionError, data: createdSubscription } = await supabaseAdmin
-        .from('subscriptions')
-        .insert({
-          user_id: userId,
-          stripe_price_id: planConfig.stripePriceId,
-          plan_tier: planConfig.planTier,
-          max_doctors: planConfig.maxDoctors,
-          max_locations: planConfig.maxLocations,
-          features: planConfig.features,
-          status: 'trialing',
-          trial_start: trialStart.toISOString(),
-          trial_end: trialEnd.toISOString(),
-          current_period_start: trialStart.toISOString(),
-          current_period_end: trialEnd.toISOString(),
-        })
-        .select('id, trial_end')
-        .single()
-
-      if (createSubscriptionError && createSubscriptionError.code !== '23505') {
-        console.error('[Auth Callback] Error creating subscription', createSubscriptionError)
-      } else {
-        subscriptionExists = true
-        subscriptionTrialEnd = createdSubscription?.trial_end ?? trialEnd.toISOString()
-        isFirstLogin = true
-
-        const welcomeTrialEnd = subscriptionTrialEnd ?? trialEnd.toISOString()
-
-        void emailService
-          .sendTrialWelcomeEmail(
-            userEmail,
-            userName,
-            planConfig.planTier === 'pro' ? 'Profesional' : 'Básico',
-            welcomeTrialEnd
-          )
-          .catch(err => {
-            console.error('[Auth Callback] Error sending welcome email', err)
-          })
-      }
-    } catch (subscriptionCreateError) {
-      console.error('[Auth Callback] Unexpected error ensuring subscription', subscriptionCreateError)
-    }
-  }
-
-  if (!subscriptionExists) {
-    console.warn('[Auth Callback] User has no subscription after callback', { userId })
-    return NextResponse.redirect(`${origin}/select-trial-plan`)
-  }
-
-  const redirectPath = isFirstLogin ? '/welcome' : ensureSafePath(nextParam)
+  const redirectPath = nextPath
 
   console.log('[Auth Callback] Redirecting user', {
     userId,

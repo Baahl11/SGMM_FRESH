@@ -138,6 +138,42 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
 
+    // Mantener compatibilidad: sincronizar credenciales Meta en la tabla canónica messaging_config
+    const shouldSyncMetaToMessagingConfig =
+      whatsapp_provider === 'meta'
+      || whatsapp_phone_number_id !== undefined
+      || whatsapp_business_account_id !== undefined
+      || whatsapp_access_token !== undefined
+      || whatsapp_enabled !== undefined;
+
+    if (shouldSyncMetaToMessagingConfig) {
+      const messagingConfigUpdate: any = {
+        user_id: user.id,
+        updated_at: new Date().toISOString(),
+      };
+
+      if (whatsapp_phone_number_id !== undefined) {
+        messagingConfigUpdate.whatsapp_phone_number_id = whatsapp_phone_number_id || null;
+      }
+      if (whatsapp_business_account_id !== undefined) {
+        messagingConfigUpdate.whatsapp_business_id = whatsapp_business_account_id || null;
+      }
+      if (whatsapp_access_token !== undefined) {
+        messagingConfigUpdate.whatsapp_access_token = whatsapp_access_token || null;
+      }
+      if (whatsapp_enabled !== undefined) {
+        messagingConfigUpdate.whatsapp_enabled = Boolean(whatsapp_enabled);
+      }
+
+      const { error: syncError } = await supabase
+        .from('messaging_config')
+        .upsert(messagingConfigUpdate, { onConflict: 'user_id' });
+
+      if (syncError) {
+        console.error('Error syncing WhatsApp settings to messaging_config:', JSON.stringify(syncError, null, 2));
+      }
+    }
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Unexpected error in POST /api/user/whatsapp-settings:', error);

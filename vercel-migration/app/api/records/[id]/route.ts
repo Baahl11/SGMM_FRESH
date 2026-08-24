@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { getAuthUser } from '@/lib/auth-server'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(
@@ -8,6 +9,12 @@ export async function GET(
   const params = await context.params;
   try {
     const supabase = await createClient()
+    // fable F1: verificación explícita de sesión (defensa en profundidad;
+    // antes la protección dependía únicamente de RLS).
+    const user = await getAuthUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     const { data, error } = await supabase
       .from('records')
       .select(`
@@ -16,6 +23,7 @@ export async function GET(
         treatments(id, nombre)
       `)
       .eq('id', params.id)
+      .eq('user_id', user.id) // fable F1: tenant explícito
       .single()
 
     if (error) {
@@ -46,6 +54,12 @@ export async function PUT(
   const params = await context.params;
   try {
     const supabase = await createClient()
+    // fable F1: verificación explícita de sesión (defensa en profundidad;
+    // antes la protección dependía únicamente de RLS).
+    const user = await getAuthUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     const body = await request.json()
 
     const { data, error } = await supabase
@@ -70,6 +84,7 @@ export async function PUT(
         updated_at: new Date().toISOString()
       })
       .eq('id', params.id)
+      .eq('user_id', user.id) // fable F1
       .select(`
         *,
         patients!inner(id, nombre, apellido),
@@ -96,11 +111,18 @@ export async function DELETE(
   const params = await context.params;
   try {
     const supabase = await createClient()
+    // fable F1: verificación explícita de sesión (defensa en profundidad;
+    // antes la protección dependía únicamente de RLS).
+    const user = await getAuthUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     
     const { error } = await supabase
       .from('records')
       .delete()
       .eq('id', params.id)
+      .eq('user_id', user.id) // fable F1
 
     if (error) {
       console.error('Error deleting record:', error)

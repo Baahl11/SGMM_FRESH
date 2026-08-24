@@ -111,14 +111,10 @@ export async function POST(request: Request) {
       );
     }
 
-    // Get public URLs (these are signed URLs for private bucket)
-    const { data: cerUrl } = supabaseAdmin.storage
-      .from('facturama-certificates')
-      .getPublicUrl(cerPath);
-
-    const { data: keyUrl } = supabaseAdmin.storage
-      .from('facturama-certificates')
-      .getPublicUrl(keyPath);
+    // fable C4/G1: el bucket es PRIVADO; getPublicUrl generaba URLs muertas
+    // (y un incentivo peligroso a volver público el bucket de llaves CSD).
+    // Se almacenan las RUTAS; cualquier consumidor futuro debe usar
+    // storage.download(path) server-side o signed URLs de corta duración.
 
     // Encrypt .key password with AES-256-GCM
     const encryptedPassword = encrypt(keyPassword);
@@ -127,8 +123,8 @@ export async function POST(request: Request) {
     const { data: config, error: updateError } = await supabaseAdmin
       .from('facturama_config')
       .update({
-        certificate_cer_url: cerUrl.publicUrl,
-        certificate_key_url: keyUrl.publicUrl,
+        certificate_cer_url: cerPath,
+        certificate_key_url: keyPath,
         certificate_password_encrypted: encryptedPassword.encrypted,
         certificate_password_iv: encryptedPassword.iv,
         certificate_password_tag: encryptedPassword.tag,
@@ -150,8 +146,9 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       message: 'Certificados CSD subidos exitosamente',
-      certificate_cer_url: cerUrl.publicUrl,
-      certificate_key_url: keyUrl.publicUrl,
+      // fable G1: nunca devolver URLs de los archivos .cer/.key al cliente;
+      // sólo confirmación. Las rutas viven en facturama_config (server-side).
+      certificates_stored: true,
     });
   } catch (error) {
     console.error('[Upload CSD] Unhandled error:', error);

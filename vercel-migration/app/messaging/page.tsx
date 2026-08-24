@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import {
   MessageSquare,
   Mail,
@@ -32,24 +32,36 @@ import { GuideToggle } from '@/components/settings/guide-toggle';
 import { TIMING_OPTIONS } from '@/lib/utils/sms-reminders';
 
 interface MessagingStats {
+  channel: 'whatsapp' | 'sms' | 'email';
   total_sent: number;
   total_delivered: number;
   total_read: number;
   total_failed: number;
   today_sent: number;
   today_limit: number;
+  channel_enabled: boolean;
   whatsapp_enabled: boolean;
   connection_status: 'connected' | 'disconnected' | 'error';
 }
 
 interface RecentMessage {
   id: string;
-  to_phone: string;
+  channel: 'whatsapp' | 'sms' | 'email';
+  destination: string;
   patient_name: string;
+  subject?: string | null;
   message_body: string;
   status: 'pending' | 'sent' | 'delivered' | 'read' | 'failed';
   created_at: string;
   error_message?: string;
+}
+
+type MessagingChannelTab = 'whatsapp' | 'sms' | 'email';
+
+const MESSAGING_CHANNEL_TABS: MessagingChannelTab[] = ['whatsapp', 'sms', 'email'];
+
+function isMessagingChannelTab(value: string): value is MessagingChannelTab {
+  return MESSAGING_CHANNEL_TABS.includes(value as MessagingChannelTab);
 }
 
 const TIMING_DESCRIPTIONS: Record<keyof typeof TIMING_OPTIONS, string> = {
@@ -65,17 +77,29 @@ function MessagingContent() {
   const [stats, setStats] = useState<MessagingStats | null>(null);
   const [recentMessages, setRecentMessages] = useState<RecentMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSendingTest, setIsSendingTest] = useState(false);
+  const [isSendingSms, setIsSendingSms] = useState(false);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [testPhone, setTestPhone] = useState('');
-  const [testMessage, setTestMessage] = useState('Hola! Este es un mensaje de prueba desde AgendaMedPro 🏥');
+  const [testMessage, setTestMessage] = useState('Hola! Este es un mensaje de prueba desde AgendaMedPro');
+  const [testEmail, setTestEmail] = useState('');
+  const [emailSubject, setEmailSubject] = useState('Recordatorio de AgendaMedPro');
+  const [emailMessage, setEmailMessage] = useState('Hola! Este es un correo de prueba desde AgendaMedPro.');
+  const [whatsappStatus, setWhatsappStatus] = useState<{
+    enabled: boolean;
+    connection_status: 'connected' | 'disconnected' | 'error';
+  }>({
+    enabled: false,
+    connection_status: 'disconnected',
+  });
   const searchParams = useSearchParams();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('whatsapp');
+  const latestTabRef = useRef(activeTab);
   const { config: smsConfig, updateConfig: updateSmsConfig } = useSmsReminders();
 
   useEffect(() => {
-    loadMessagingData();
-  }, []);
+    latestTabRef.current = activeTab;
+  }, [activeTab]);
 
   useEffect(() => {
     const tabParam = searchParams.get('tab');
@@ -96,18 +120,47 @@ function MessagingContent() {
     router.replace(`/messaging?${params.toString()}`, { scroll: false });
   };
 
-  const loadMessagingData = async () => {
+  const loadWhatsAppStatus = async () => {
+    try {
+      const response = await fetch('/api/messaging/stats?channel=whatsapp');
+      if (!response.ok) {
+        return;
+      }
+      const data = await response.json();
+      setWhatsappStatus({
+        enabled: Boolean(data?.stats?.channel_enabled),
+        connection_status: data?.stats?.connection_status || 'disconnected',
+      });
+    } catch (error) {
+      console.error('Error loading WhatsApp status:', error);
+    }
+  };
+
+  const loadMessagingData = async (channel: MessagingChannelTab) => {
+    const isStaleRequest = () => latestTabRef.current !== channel;
+
     try {
       setIsLoading(true);
-      
+
       const [statsRes, messagesRes] = await Promise.all([
-        fetch('/api/messaging/stats'),
-        fetch('/api/messaging/recent'),
+        fetch(`/api/messaging/stats?channel=${channel}`),
+        fetch(`/api/messaging/recent?channel=${channel}`),
       ]);
+
+      if (isStaleRequest()) {
+        return;
+      }
 
       if (statsRes.ok) {
         const statsData = await statsRes.json();
         setStats(statsData.stats);
+
+        if (channel === 'whatsapp') {
+          setWhatsappStatus({
+            enabled: Boolean(statsData?.stats?.channel_enabled),
+            connection_status: statsData?.stats?.connection_status || 'disconnected',
+          });
+        }
       }
 
       if (messagesRes.ok) {
@@ -118,9 +171,27 @@ function MessagingContent() {
       console.error('Error loading messaging data:', error);
       toast.error('Error al cargar datos de mensajería');
     } finally {
-      setIsLoading(false);
+      if (!isStaleRequest()) {
+        setIsLoading(false);
+      }
     }
   };
+
+  useEffect(() => {
+    loadWhatsAppStatus();
+  }, []);
+
+  useEffect(() => {
+    if (isMessagingChannelTab(activeTab)) {
+      loadMessagingData(activeTab);
+      return;
+    }
+
+    if (activeTab === 'reminders') {
+      setIsLoading(false);
+      loadWhatsAppStatus();
+    }
+  }, [activeTab]);
 
   const sendTestMessage = async () => {
     if (!testPhone || !testMessage) {
@@ -128,31 +199,69 @@ function MessagingContent() {
       return;
     }
 
-    setIsSendingTest(true);
+    setIsSendingSms(true);
     try {
-      const response = await fetch('/api/messaging/test-send', {
+      const response = await fetch('/api/messaging/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          phone: testPhone,
-          message: testMessage
+          channel: 'sms',
+          to_contact: {
+            phone: testPhone,
+          },
+          body: testMessage,
         })
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        toast.success('¡Mensaje de prueba encolado! Se enviará en menos de 60 segundos.');
+        toast.success('SMS enviado o en cola correctamente');
         setTestPhone('');
-        // Recargar mensajes después de 2 segundos
-        setTimeout(() => loadMessagingData(), 2000);
+        setTimeout(() => loadMessagingData('sms'), 1200);
       } else {
         toast.error(data.error || 'Error al enviar mensaje');
       }
     } catch (error) {
       toast.error('Error de conexión');
     } finally {
-      setIsSendingTest(false);
+      setIsSendingSms(false);
+    }
+  };
+
+  const sendTestEmail = async () => {
+    if (!testEmail || !emailSubject || !emailMessage) {
+      toast.error('Completa destinatario, asunto y mensaje');
+      return;
+    }
+
+    setIsSendingEmail(true);
+    try {
+      const response = await fetch('/api/messaging/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          channel: 'email',
+          to_contact: {
+            email: testEmail,
+          },
+          subject: emailSubject,
+          body: emailMessage,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success('Email enviado correctamente');
+        setTimeout(() => loadMessagingData('email'), 1200);
+      } else {
+        toast.error(data.error || 'Error al enviar email');
+      }
+    } catch (error) {
+      toast.error('Error de conexión');
+    } finally {
+      setIsSendingEmail(false);
     }
   };
 
@@ -187,7 +296,8 @@ function MessagingContent() {
     );
   }
 
-  const isWhatsAppConfigured = stats?.whatsapp_enabled && stats?.connection_status === 'connected';
+  const isWhatsAppConfigured =
+    whatsappStatus.enabled && whatsappStatus.connection_status === 'connected';
   const hasSmsEnabled = smsConfig.enabled;
   const smsTimingCards = smsConfig.default_timings.map((timing) => {
     const timingKey = timing as keyof typeof TIMING_OPTIONS;
@@ -300,7 +410,7 @@ function MessagingContent() {
         </GlassPanel>
 
       {/* Configuration Alert */}
-      {!isWhatsAppConfigured && (
+      {activeTab === 'whatsapp' && !isWhatsAppConfigured && (
         <GlassPanel className="border-amber-400/30 bg-amber-500/15 text-amber-50">
           <div className="flex items-start gap-3">
             <AlertCircle className="h-5 w-5 mt-0.5" />
@@ -368,7 +478,7 @@ function MessagingContent() {
                           <p className="text-sm font-medium text-white">{message.patient_name}</p>
                           {getStatusBadge(message.status)}
                         </div>
-                        <p className="text-xs text-white/60">{message.to_phone}</p>
+                        <p className="text-xs text-white/60">{message.destination}</p>
                         <p className="text-sm text-white/70 line-clamp-2">{message.message_body}</p>
                         {message.error_message && (
                           <p className="text-xs text-rose-300">Error: {message.error_message}</p>
@@ -436,11 +546,11 @@ function MessagingContent() {
 
                   <Button
                     onClick={sendTestMessage}
-                    disabled={isSendingTest || !testPhone || !testMessage}
+                    disabled={isSendingSms || !testPhone || !testMessage}
                     className="w-full rounded-full border-white/20 bg-white/5 text-white hover:bg-white/10"
                     variant="ghost"
                   >
-                    {isSendingTest ? (
+                    {isSendingSms ? (
                       <>
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2" />
                         Enviando...
@@ -477,26 +587,181 @@ function MessagingContent() {
             <SmsReminderSettings
               config={smsConfig}
               onConfigChange={updateSmsConfig}
+              appearance="glass"
             />
 
             <GuideToggle label="¿Cómo funcionan los recordatorios por SMS?">
               <SmsRemindersGuide />
             </GuideToggle>
+
+            <GlassPanel className="space-y-5 p-5 text-white">
+              <div>
+                <h3 className="text-lg font-semibold">Mensajes SMS recientes</h3>
+                <p className="text-sm text-white/70">Historial del canal SMS con estatus de entrega</p>
+              </div>
+              <div>
+                {recentMessages.length === 0 ? (
+                  <div className="py-10 text-center text-white/70">
+                    <Send className="mx-auto h-10 w-10 text-white/40 mb-3" />
+                    <p className="text-sm">No hay SMS registrados todavía</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {recentMessages.map((message) => (
+                      <div
+                        key={message.id}
+                        className="flex items-start justify-between border-b border-white/10 pb-4 last:border-0"
+                      >
+                        <div className="space-y-1 flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium text-white">{message.patient_name}</p>
+                            {getStatusBadge(message.status)}
+                          </div>
+                          <p className="text-xs text-white/60">{message.destination}</p>
+                          <p className="text-sm text-white/70 line-clamp-2">{message.message_body}</p>
+                          {message.error_message && (
+                            <p className="text-xs text-rose-300">Error: {message.error_message}</p>
+                          )}
+                          <p className="text-xs text-white/60">
+                            {new Date(message.created_at).toLocaleString('es-MX', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </GlassPanel>
           </div>
         </TabsContent>
 
         {/* Email Tab */}
         <TabsContent value="email">
-          <GlassPanel className="space-y-5 p-5 text-white">
-            <div>
-              <h3 className="text-lg font-semibold">Mensajes por Email</h3>
-              <p className="text-sm text-white/70">Próximamente: Envío de recordatorios por correo electrónico</p>
-            </div>
-            <div className="py-16 text-center text-white/70">
-              <Mail className="mx-auto h-12 w-12 text-white/40 mb-4" />
-              <p className="text-sm">Esta funcionalidad estará disponible próximamente</p>
-            </div>
-          </GlassPanel>
+          <div className="space-y-6">
+            <GlassPanel className="space-y-5 p-5 text-white">
+              <div>
+                <h3 className="text-lg font-semibold">Enviar Email de Prueba</h3>
+                <p className="text-sm text-white/70">Utiliza la configuración de email que definiste en Notificaciones</p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="test-email" className="text-white">Destinatario</Label>
+                  <Input
+                    id="test-email"
+                    type="email"
+                    placeholder="paciente@ejemplo.com"
+                    value={testEmail}
+                    onChange={(e) => setTestEmail(e.target.value)}
+                    className="border-white/20 bg-white/5 text-white placeholder:text-white/40"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="test-email-subject" className="text-white">Asunto</Label>
+                  <Input
+                    id="test-email-subject"
+                    type="text"
+                    value={emailSubject}
+                    onChange={(e) => setEmailSubject(e.target.value)}
+                    className="border-white/20 bg-white/5 text-white placeholder:text-white/40"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="test-email-message" className="text-white">Mensaje</Label>
+                  <Textarea
+                    id="test-email-message"
+                    rows={4}
+                    value={emailMessage}
+                    onChange={(e) => setEmailMessage(e.target.value)}
+                    className="border-white/20 bg-white/5 text-white placeholder:text-white/40"
+                  />
+                </div>
+
+                <Button
+                  onClick={sendTestEmail}
+                  disabled={isSendingEmail || !testEmail || !emailSubject || !emailMessage}
+                  className="w-full rounded-full border-white/20 bg-white/5 text-white hover:bg-white/10"
+                  variant="ghost"
+                >
+                  {isSendingEmail ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2" />
+                      Enviando email...
+                    </>
+                  ) : (
+                    <>
+                      <Mail className="h-4 w-4 mr-2" />
+                      Enviar Email de Prueba
+                    </>
+                  )}
+                </Button>
+
+                <p className="text-xs text-white/60">
+                  Si no tienes configurado email aún, ve a{' '}
+                  <Link href="/dashboard/settings/notifications" className="underline font-semibold hover:text-white">
+                    Configuración → Notificaciones
+                  </Link>
+                  .
+                </p>
+              </div>
+            </GlassPanel>
+
+            <GlassPanel className="space-y-5 p-5 text-white">
+              <div>
+                <h3 className="text-lg font-semibold">Emails recientes</h3>
+                <p className="text-sm text-white/70">Historial del canal email con estatus por envío</p>
+              </div>
+              <div>
+                {recentMessages.length === 0 ? (
+                  <div className="py-10 text-center text-white/70">
+                    <Mail className="mx-auto h-10 w-10 text-white/40 mb-3" />
+                    <p className="text-sm">No hay emails registrados todavía</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {recentMessages.map((message) => (
+                      <div
+                        key={message.id}
+                        className="flex items-start justify-between border-b border-white/10 pb-4 last:border-0"
+                      >
+                        <div className="space-y-1 flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium text-white">{message.patient_name}</p>
+                            {getStatusBadge(message.status)}
+                          </div>
+                          <p className="text-xs text-white/60">{message.destination}</p>
+                          {message.subject && (
+                            <p className="text-xs text-white/50">Asunto: {message.subject}</p>
+                          )}
+                          <p className="text-sm text-white/70 line-clamp-2">{message.message_body}</p>
+                          {message.error_message && (
+                            <p className="text-xs text-rose-300">Error: {message.error_message}</p>
+                          )}
+                          <p className="text-xs text-white/60">
+                            {new Date(message.created_at).toLocaleString('es-MX', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </GlassPanel>
+          </div>
         </TabsContent>
 
         {/* Reminders Tab */}

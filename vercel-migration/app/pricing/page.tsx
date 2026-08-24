@@ -73,19 +73,38 @@ const ALL_FEATURES = [
   'Soporte prioritario',
 ]
 
+type CommercialPlan = 'pro' | 'enterprise'
+
+const COMMERCIAL_PLANS = [
+  {
+    id: 'pro' as const,
+    name: 'Pro',
+    icon: Zap,
+    description: 'Para clínicas en crecimiento con operación multi-doctor.',
+    monthlyPrice: 1499,
+    annualPrice: 14990,
+    annualBadge: 'Ahorra 2 meses',
+    highlights: ['Hasta 10 doctores', 'Reportes avanzados', 'WhatsApp + inventario'],
+  },
+  {
+    id: 'enterprise' as const,
+    name: 'Enterprise',
+    icon: TrendingUp,
+    description: 'Para redes médicas con alta demanda y necesidades avanzadas.',
+    monthlyPrice: 2999,
+    annualPrice: 29990,
+    annualBadge: 'Escalamiento total',
+    highlights: ['Doctores ilimitados', 'API e integraciones', 'Soporte 24/7'],
+  },
+]
+
 export default function PricingPage() {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('annual')
   const router = useRouter()
 
-  const handleSubscribe = (cycle: 'monthly' | 'annual') => {
-    // Redirect to signup with plan
-    router.push(`/auth/signup?plan=pro&billing=${cycle}`)
+  const handleSubscribe = (plan: CommercialPlan, cycle: 'monthly' | 'annual') => {
+    router.push(`/select-trial-plan?plan=${plan}&billing=${cycle}`)
   }
-
-  const monthlyPrice = 1499
-  const annualPrice = 14990
-  const annualMonthlyEquivalent = Math.round(annualPrice / 12)
-  const savings = (monthlyPrice * 12) - annualPrice
 
   return (
     <main className="min-h-screen bg-[#030614]">
@@ -99,7 +118,7 @@ export default function PricingPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <p className="text-sm uppercase tracking-[0.4em] text-emerald-400/80">Un solo plan, todo incluido</p>
+            <p className="text-sm uppercase tracking-[0.4em] text-emerald-400/80">Dos planes, una sola plataforma</p>
             <h1 className="mt-6 text-5xl font-bold text-white lg:text-6xl">
               Gestiona tu consultorio <br />
               <span className="bg-gradient-to-r from-emerald-400 via-cyan-400 to-blue-400 bg-clip-text text-transparent">
@@ -107,8 +126,8 @@ export default function PricingPage() {
               </span>
             </h1>
             <p className="mt-6 text-xl text-white/70 max-w-2xl mx-auto">
-              Todas las funciones que necesitas para llevar tu práctica médica al siguiente nivel.
-              Sin planes complicados, sin sorpresas.
+              Elige entre Pro y Enterprise según tu operación actual. Ambos planes incluyen onboarding guiado,
+              trial de 14 días sin tarjeta y activación sin fricción.
             </p>
           </motion.div>
         </div>
@@ -147,96 +166,79 @@ export default function PricingPage() {
           </div>
 
           <div className="grid gap-8 lg:grid-cols-2">
-            {/* Monthly Plan */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className={`rounded-[32px] border p-10 transition-all ${
-                billingCycle === 'monthly'
-                  ? 'border-emerald-400/60 bg-gradient-to-br from-emerald-400/15 via-sky-500/10 to-purple-500/20 shadow-[0_25px_80px_rgba(34,197,94,0.35)] scale-105'
-                  : 'border-white/10 bg-white/[0.03]'
-              }`}
-            >
-              <div>
-                <div className="flex items-center gap-3">
-                  <Zap className="h-8 w-8 text-emerald-400" />
-                  <div>
-                    <p className="text-sm uppercase tracking-[0.4em] text-white/50">Plan</p>
-                    <h3 className="text-2xl font-bold text-white">Mensual</h3>
-                  </div>
-                </div>
-                
-                <div className="mt-8">
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-5xl font-bold text-white">${monthlyPrice.toLocaleString('es-MX')}</span>
-                    <span className="text-white/60">MXN/mes</span>
-                  </div>
-                  <p className="mt-2 text-sm text-white/60">Facturado mensualmente</p>
-                </div>
+            {COMMERCIAL_PLANS.map((plan, index) => {
+              const annualSavings = plan.monthlyPrice * 12 - plan.annualPrice
+              const displayPrice = billingCycle === 'monthly' ? plan.monthlyPrice : plan.annualPrice
+              const periodLabel = billingCycle === 'monthly' ? 'MXN/mes' : 'MXN/año'
+              const monthlyEquivalent = Math.round(plan.annualPrice / 12)
 
-                <button
-                  onClick={() => handleSubscribe('monthly')}
-                  className="mt-8 w-full rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 px-8 py-4 text-center font-semibold text-white shadow-lg transition-all hover:shadow-emerald-500/50 hover:scale-105"
+              return (
+                <motion.div
+                  key={plan.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: index * 0.1 }}
+                  className={`rounded-[32px] border p-10 transition-all relative ${
+                    plan.id === 'pro'
+                      ? 'border-emerald-400/60 bg-gradient-to-br from-emerald-400/15 via-sky-500/10 to-purple-500/20 shadow-[0_25px_80px_rgba(34,197,94,0.35)]'
+                      : 'border-white/20 bg-white/[0.04]'
+                  }`}
                 >
-                  Comenzar prueba gratis
-                </button>
+                  {billingCycle === 'annual' && (
+                    <div className="absolute -top-4 right-8">
+                      <div className="rounded-full bg-gradient-to-r from-pink-500 to-purple-500 px-4 py-2 text-sm font-bold text-white shadow-lg">
+                        {plan.annualBadge} · Ahorra ${annualSavings.toLocaleString('es-MX')}
+                      </div>
+                    </div>
+                  )}
 
-                <p className="mt-4 text-center text-xs text-white/60">
-                  7 días gratis • Cancela cuando quieras
-                </p>
-              </div>
-            </motion.div>
-
-            {/* Annual Plan */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.1 }}
-              className={`rounded-[32px] border p-10 transition-all relative ${
-                billingCycle === 'annual'
-                  ? 'border-emerald-400/60 bg-gradient-to-br from-emerald-400/15 via-sky-500/10 to-purple-500/20 shadow-[0_25px_80px_rgba(34,197,94,0.35)] scale-105'
-                  : 'border-white/10 bg-white/[0.03]'
-              }`}
-            >
-              <div className="absolute -top-4 right-8">
-                <div className="rounded-full bg-gradient-to-r from-pink-500 to-purple-500 px-4 py-2 text-sm font-bold text-white shadow-lg">
-                  Ahorra ${savings.toLocaleString('es-MX')}
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center gap-3">
-                  <Star className="h-8 w-8 text-emerald-400" />
-                  <div>
-                    <p className="text-sm uppercase tracking-[0.4em] text-white/50">Plan</p>
-                    <h3 className="text-2xl font-bold text-white">Anual</h3>
+                  <div className="flex items-center gap-3">
+                    <plan.icon className="h-8 w-8 text-emerald-300" />
+                    <div>
+                      <p className="text-sm uppercase tracking-[0.4em] text-white/50">Plan</p>
+                      <h3 className="text-2xl font-bold text-white">{plan.name}</h3>
+                    </div>
                   </div>
-                </div>
-                
-                <div className="mt-8">
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-5xl font-bold text-white">${annualPrice.toLocaleString('es-MX')}</span>
-                    <span className="text-white/60">MXN/año</span>
+
+                  <p className="mt-4 text-sm text-white/70">{plan.description}</p>
+
+                  <div className="mt-8">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-5xl font-bold text-white">${displayPrice.toLocaleString('es-MX')}</span>
+                      <span className="text-white/60">{periodLabel}</span>
+                    </div>
+                    {billingCycle === 'annual' && (
+                      <p className="mt-2 text-sm text-emerald-300">
+                        Equivale a ${monthlyEquivalent.toLocaleString('es-MX')} MXN/mes
+                      </p>
+                    )}
+                    <p className="mt-1 text-xs text-white/60">
+                      {billingCycle === 'annual' ? 'Facturado anualmente' : 'Facturado mensualmente'}
+                    </p>
                   </div>
-                  <p className="mt-2 text-sm text-emerald-400">
-                    Equivale a ${annualMonthlyEquivalent.toLocaleString('es-MX')} MXN/mes
+
+                  <ul className="mt-6 space-y-2 text-sm text-white/75">
+                    {plan.highlights.map((highlight) => (
+                      <li key={highlight} className="flex items-center gap-2">
+                        <Check className="h-4 w-4 text-emerald-300" />
+                        {highlight}
+                      </li>
+                    ))}
+                  </ul>
+
+                  <button
+                    onClick={() => handleSubscribe(plan.id, billingCycle)}
+                    className="mt-8 w-full rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 px-8 py-4 text-center font-semibold text-white shadow-lg transition-all hover:shadow-emerald-500/50 hover:scale-105"
+                  >
+                    Elegir {plan.name}
+                  </button>
+
+                  <p className="mt-4 text-center text-xs text-white/60">
+                    14 días gratis sin tarjeta • Decide al terminar
                   </p>
-                  <p className="mt-1 text-xs text-white/60">Facturado anualmente • 2 meses gratis</p>
-                </div>
-
-                <button
-                  onClick={() => handleSubscribe('annual')}
-                  className="mt-8 w-full rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 px-8 py-4 text-center font-semibold text-white shadow-lg transition-all hover:shadow-emerald-500/50 hover:scale-105"
-                >
-                  Comenzar prueba gratis
-                </button>
-
-                <p className="mt-4 text-center text-xs text-white/60">
-                  7 días gratis • Cancela cuando quieras
-                </p>
-              </div>
-            </motion.div>
+                </motion.div>
+              )
+            })}
           </div>
         </div>
       </section>
@@ -250,7 +252,7 @@ export default function PricingPage() {
               Funcionalidades completas
             </h2>
             <p className="mt-4 text-white/70">
-              Sin planes básicos ni premium. Obtienes todo desde el día uno.
+              Todas las capacidades críticas incluidas en Pro y Enterprise desde el día uno.
             </p>
           </div>
 
@@ -312,13 +314,13 @@ export default function PricingPage() {
               Únete a cientos de médicos que ya digitalizaron su práctica con AgendaMedPro
             </p>
             <button
-              onClick={() => handleSubscribe(billingCycle)}
+              onClick={() => handleSubscribe('pro', billingCycle)}
               className="rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 px-12 py-5 text-lg font-semibold text-white shadow-lg transition-all hover:shadow-emerald-500/50 hover:scale-105"
             >
-              Comenzar prueba gratis por 7 días
+              Elegir plan y activar trial
             </button>
             <p className="mt-4 text-sm text-white/60">
-              Sin tarjeta de crédito requerida • Cancela cuando quieras
+              Empieza sin tarjeta • Acceso completo durante 14 días
             </p>
           </motion.div>
         </div>
@@ -341,8 +343,8 @@ export default function PricingPage() {
                 a: 'Sí, puedes cambiar en cualquier momento desde tu panel. El cambio se aplicará de inmediato y se ajustará el cobro proporcionalmente.'
               },
               {
-                q: '¿Qué incluye la prueba gratis de 7 días?',
-                a: 'Acceso completo a todas las funcionalidades sin limitaciones. No necesitas tarjeta de crédito para comenzar.'
+                q: '¿Qué incluye la prueba gratis de 14 días?',
+                a: 'Acceso completo al plan que elijas, Pro o Enterprise, durante 14 días. No necesitas tarjeta para activar el trial.'
               },
               {
                 q: '¿Puedo cancelar cuando quiera?',

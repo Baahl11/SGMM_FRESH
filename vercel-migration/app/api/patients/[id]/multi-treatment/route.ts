@@ -1,4 +1,5 @@
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server'
+import { getAuthUser } from '@/lib/auth-server';
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
@@ -33,12 +34,18 @@ export async function POST(
     const { id: patientId } = resolvedParams;
     const body = await request.json();
     const supabase = await createClient();
+    // fable F1: verificación explícita de sesión (defensa en profundidad).
+    const user = await getAuthUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
     // 1. Verificar que el paciente existe
     const { data: patient, error: patientError } = await supabase
       .from('patients')
       .select('id')
       .eq('id', patientId)
+      .eq('user_id', user.id) // fable F1
       .single();
 
     if (patientError || !patient) {
@@ -103,6 +110,7 @@ export async function POST(
         comision_monto: comisionMonto,
         notas: sharedData.notas,
         nombre_promocion: sharedData.nombre_promocion,
+        user_id: user.id, // fable F1: tenant explícito en el insert
         tiene_multiples_tratamientos: true,
         pendiente_facturar: true
       };

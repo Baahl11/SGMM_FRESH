@@ -9,6 +9,13 @@ import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
+import { trackSignupCompleted } from '@/lib/analytics/funnel-events'
+import { trackFunnelEvent } from '@/lib/analytics/funnel-client'
+import {
+  captureMarketingAttribution,
+  readStoredMarketingAttribution,
+  syncSignupAttribution,
+} from '@/lib/marketing/attribution'
 
 const rememberTrialSelection = (plan: string | null, billing: string | null) => {
   if (!plan && !billing) {
@@ -34,6 +41,7 @@ export function SignupForm() {
   const redirectUrl = searchParams.get('redirect') || ''
   const planFromUrl = searchParams.get('plan') || ''
   const billingFromUrl = searchParams.get('billing') || ''
+  const [calculatorMonthlyLoss, setCalculatorMonthlyLoss] = useState<number | null>(null)
   
   const [email, setEmail] = useState(prefilledEmail)
   const [password, setPassword] = useState('')
@@ -47,6 +55,36 @@ export function SignupForm() {
       setEmail(prefilledEmail)
     }
   }, [prefilledEmail])
+
+  useEffect(() => {
+    captureMarketingAttribution(searchParams)
+    const stored = readStoredMarketingAttribution()
+    setCalculatorMonthlyLoss(stored?.calculator.monthlyLoss ?? null)
+    trackFunnelEvent('signup_view', {
+      has_plan: Boolean(planFromUrl),
+      has_calculator_result: Boolean(stored?.calculator.monthlyLoss),
+    })
+  }, [searchParams])
+
+  const resendVerificationEmail = async (targetEmail: string) => {
+    const payload: Record<string, string> = {
+      email: targetEmail,
+      next: planFromUrl && billingFromUrl
+        ? `/select-trial-plan?plan=${planFromUrl}&billing=${billingFromUrl}`
+        : '/select-trial-plan',
+    }
+
+    if (planFromUrl) payload.plan = planFromUrl
+    if (billingFromUrl) payload.billing = billingFromUrl
+
+    await fetch('/api/auth/resend-verification', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    })
+  }
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault()
@@ -95,8 +133,16 @@ export function SignupForm() {
 
       if (data.user) {
         if (data.user.identities && data.user.identities.length === 0) {
+          try {
+            await resendVerificationEmail(email)
+          } catch (resendError) {
+            console.warn('[Signup] No se pudo reenviar verificación para cuenta existente', {
+              errorMessage: (resendError as Error).message,
+            })
+          }
+
           toast.error('Este email ya está registrado', {
-            description: 'Por favor inicia sesión en vez de crear una cuenta nueva',
+            description: 'Inicia sesión o verifica tu correo. Ya reenviamos el enlace de verificación.',
           })
           setTimeout(() => {
             if (planFromUrl && billingFromUrl) {
@@ -109,21 +155,37 @@ export function SignupForm() {
         }
 
         toast.success('¡Cuenta creada exitosamente!', {
-          description: 'Redirigiendo...',
+          description: 'Te guiaremos al siguiente paso.',
         })
+        trackSignupCompleted('email')
+        trackFunnelEvent('signup_success', { method: 'email' })
+        if (data.session) {
+          void syncSignupAttribution()
+        }
 
         setTimeout(() => {
+          if (!data.session) {
+            const verifyParams = new URLSearchParams()
+            verifyParams.set('email', email)
+
+            if (planFromUrl && billingFromUrl) {
+              verifyParams.set('next', `/select-trial-plan?plan=${planFromUrl}&billing=${billingFromUrl}`)
+              verifyParams.set('plan', planFromUrl)
+              verifyParams.set('billing', billingFromUrl)
+            } else {
+              verifyParams.set('next', '/select-trial-plan')
+            }
+
+            router.push(`/auth/verify-email-required?${verifyParams.toString()}`)
+            return
+          }
+
           // If there's a redirect URL (from team invitation), go there
           if (redirectUrl) {
             router.push(redirectUrl)
           } else if (planFromUrl && billingFromUrl) {
-            // Si viene desde selección de plan, continuar al checkout del trial con tarjeta.
-            // Con sesión activa se auto-inicia checkout; sin sesión, pedirá login y luego checkout.
-            if (data.session) {
-              router.push(`/select-trial-plan?plan=${planFromUrl}&billing=${billingFromUrl}&autostart=1`)
-            } else {
-              router.push(`/auth/signin?plan=${planFromUrl}&billing=${billingFromUrl}`)
-            }
+            // Preserve the previous choice, but require an explicit activation click.
+            router.push(`/select-trial-plan?plan=${planFromUrl}&billing=${billingFromUrl}`)
           } else {
             // Si no, mostrar selector de plan
             router.push('/select-trial-plan')
@@ -176,6 +238,19 @@ export function SignupForm() {
 
   return (
     <form onSubmit={handleSignup} className="space-y-6">
+      {calculatorMonthlyLoss !== null && calculatorMonthlyLoss > 0 && (
+        <div className="rounded-2xl border border-emerald-300/20 bg-emerald-400/10 p-4 text-sm text-emerald-50">
+          Estás activando AgendaMedPro para atacar una pérdida estimada de{' '}
+          <strong>
+            {new Intl.NumberFormat('es-MX', {
+              style: 'currency',
+              currency: 'MXN',
+              maximumFractionDigits: 0,
+            }).format(calculatorMonthlyLoss)}
+          </strong>{' '}
+          al mes.
+        </div>
+      )}
       <div className="space-y-3">
         <Button
           type="button"
@@ -266,9 +341,12 @@ export function SignupForm() {
             Creando cuenta...
           </>
         ) : (
-          'Crear Cuenta'
+          'Crear cuenta y continuar al trial'
         )}
       </Button>
+      <p className="text-center text-xs leading-relaxed text-muted-foreground">
+        No necesitas tarjeta. Después de verificar tu correo eliges Pro o Enterprise y comienzan tus 14 días.
+      </p>
     </form>
   )
 }

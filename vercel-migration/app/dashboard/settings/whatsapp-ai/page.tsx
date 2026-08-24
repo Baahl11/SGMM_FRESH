@@ -9,7 +9,7 @@ export default function WhatsAppAIGuide() {
   const [copied, setCopied] = useState<string | null>(null);
 
   const webhookUrl = 'https://agendamedpro.com/api/webhooks/whatsapp';
-  const verifyToken = 'agendamedpro_verify_2026';
+  const verifyToken = process.env.NEXT_PUBLIC_WHATSAPP_VERIFY_TOKEN || 'CONFIGURA_WHATSAPP_VERIFY_TOKEN_EN_VERCEL';
 
   const copyToClipboard = (text: string, id: string) => {
     navigator.clipboard.writeText(text);

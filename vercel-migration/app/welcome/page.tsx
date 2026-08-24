@@ -22,7 +22,7 @@ export default function WelcomePage() {
   const router = useRouter()
   const supabase = createClient()
   const [showConfetti, setShowConfetti] = useState(true)
-  const [trialDaysLeft, setTrialDaysLeft] = useState(7)
+  const [trialDaysLeft, setTrialDaysLeft] = useState(14)
   const [userPlan, setUserPlan] = useState('Básico')
   const [checklist, setChecklist] = useState<ChecklistItem[]>([
     {
@@ -174,7 +174,7 @@ export default function WelcomePage() {
           </h1>
           
           <p className="text-xl text-gray-600 mb-4">
-            Tu prueba gratuita de <strong className="text-purple-600">7 días</strong> ha comenzado
+            Tu prueba gratuita de <strong className="text-purple-600">14 días</strong> ha comenzado
           </p>
 
           <div className="flex items-center justify-center gap-4 flex-wrap">

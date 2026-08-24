@@ -3,28 +3,36 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Check, Sparkles, Zap, Loader2 } from 'lucide-react'
+import { Check, Zap, Crown, Loader2, ShieldCheck, ArrowRight } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { GlassPanel } from '@/components/ui/glass-panel'
+import { trackFunnelEvent } from '@/lib/analytics/funnel-client'
+import {
+  readStoredMarketingAttribution,
+  syncSignupAttribution,
+} from '@/lib/marketing/attribution'
 
 // Helper to clean Stripe IDs (remove quotes, newlines, whitespace)
 const cleanStripeId = (id: string | undefined): string => {
   if (!id) return ''
   return id
-    .replace(/^["']|["']$/g, '') // Remove quotes
-    .replace(/\\r\\n|\\n|\\r/g, '') // Remove escaped newlines
-    .replace(/\r\n|\n|\r/g, '') // Remove actual newlines
+    .replace(/^["']|["']$/g, '')
+    .replace(/\\r\\n|\\n|\\r/g, '')
+    .replace(/\r\n|\n|\r/g, '')
     .trim()
 }
 
 // Stripe Price IDs from environment variables (cleaned)
 const STRIPE_PRICES = {
-  BASICO_MONTHLY: cleanStripeId(process.env.NEXT_PUBLIC_STRIPE_PRICE_BASICO_MONTHLY),
-  BASICO_ANNUAL: cleanStripeId(process.env.NEXT_PUBLIC_STRIPE_PRICE_BASICO_ANNUAL),
   PRO_MONTHLY: cleanStripeId(process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_MONTHLY),
   PRO_ANNUAL: cleanStripeId(process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_ANNUAL),
+  ENTERPRISE_MONTHLY: cleanStripeId(process.env.NEXT_PUBLIC_STRIPE_PRICE_ENTERPRISE_MONTHLY),
+  ENTERPRISE_ANNUAL: cleanStripeId(process.env.NEXT_PUBLIC_STRIPE_PRICE_ENTERPRISE_ANNUAL),
 }
+
+const NO_CARD_TRIAL_ENABLED = process.env.NEXT_PUBLIC_NO_CARD_TRIAL_ENABLED === 'true'
 
 const currencyFormatter = new Intl.NumberFormat('es-MX', {
   style: 'currency',
@@ -33,67 +41,90 @@ const currencyFormatter = new Intl.NumberFormat('es-MX', {
 })
 
 type Plan = {
-  id: 'basico' | 'pro'
+  id: 'pro' | 'enterprise'
   name: string
   description: string
   monthlyPrice: number
   annualPrice: number
   monthlyPriceId: string
   annualPriceId: string
-  icon: any
+  icon: LucideIcon
   gradient: string
   features: string[]
   popular: boolean
+  outcome: string
 }
 
 const plans: Plan[] = [
   {
-    id: 'basico',
-    name: 'Básico',
-    description: 'Perfecto para consultorios pequeños',
-    monthlyPrice: 599,
-    annualPrice: 5990,
-    monthlyPriceId: STRIPE_PRICES.BASICO_MONTHLY,
-    annualPriceId: STRIPE_PRICES.BASICO_ANNUAL,
-    icon: Sparkles,
-    gradient: 'from-blue-500 to-cyan-500',
-    popular: false,
-    features: [
-      '1 doctor',
-      '200 citas/mes',
-      'Agenda básica',
-      'Gestión de pacientes',
-      'Soporte por email',
-    ],
-  },
-  {
     id: 'pro',
     name: 'Pro',
-    description: 'Para clínicas en crecimiento',
+    description: 'Para clinicas en crecimiento con equipo y demanda constante.',
     monthlyPrice: 1499,
     annualPrice: 14990,
     monthlyPriceId: STRIPE_PRICES.PRO_MONTHLY,
     annualPriceId: STRIPE_PRICES.PRO_ANNUAL,
     icon: Zap,
-    gradient: 'from-purple-500 to-pink-500',
+    gradient: 'from-emerald-400 to-sky-500',
     popular: true,
+    outcome: 'Escalas operacion multi-doctor con reportes y automatizacion.',
     features: [
       '10 doctores',
       'Citas ilimitadas',
-      'Múltiples sucursales',
-      'WhatsApp Business',
+      'Multiples sucursales',
+      'WhatsApp Business (BYOK)',
       'Inventario avanzado',
       'Reportes extendidos',
       'Soporte prioritario',
     ],
   },
+  {
+    id: 'enterprise',
+    name: 'Enterprise',
+    description: 'Para grupos medicos con operaciones multi-sede y alta demanda.',
+    monthlyPrice: 2999,
+    annualPrice: 29990,
+    monthlyPriceId: STRIPE_PRICES.ENTERPRISE_MONTHLY,
+    annualPriceId: STRIPE_PRICES.ENTERPRISE_ANNUAL,
+    icon: Crown,
+    gradient: 'from-orange-400 to-rose-500',
+    popular: false,
+    outcome: 'Escalas sin limites con soporte dedicado y control total de tu red clinica.',
+    features: [
+      'Doctores ilimitados',
+      'Consultorios ilimitados',
+      'Todo lo incluido en Pro',
+      'API e integraciones personalizadas',
+      'Capacitacion para equipos',
+      'Soporte prioritario 24/7',
+    ],
+  },
+]
+
+const proofMetrics = [
+  { value: '-78%', label: 'Menos no-shows con anticipos y recordatorios' },
+  { value: '18 h/sem', label: 'Tiempo administrativo recuperado por equipo' },
+  { value: '+32%', label: 'Ingreso extra por huecos ocupados con lista de espera' },
+]
+
+const faqItems = [
+  {
+    question: 'Cuanto dura la prueba gratis?',
+    answer: 'El trial dura 14 dias completos desde que eliges Pro o Enterprise.',
+  },
+  {
+    question: 'Necesito tarjeta para empezar?',
+    answer: 'No. Solo agregas tu tarjeta si decides continuar cuando terminen los 14 dias.',
+  },
+  {
+    question: 'Que necesito para iniciar?',
+    answer: 'Una cuenta verificada y elegir el plan Pro o Enterprise que quieres probar.',
+  },
 ]
 
 const rememberTrialSelection = (planId: Plan['id'], cycle: 'monthly' | 'annual') => {
   try {
-    const payload = encodeURIComponent(
-      JSON.stringify({ plan: planId, billing: cycle, recordedAt: Date.now() })
-    )
+    const payload = encodeURIComponent(JSON.stringify({ plan: planId, billing: cycle, recordedAt: Date.now() }))
     document.cookie = `trial_selection=${payload}; path=/; max-age=600; SameSite=Lax`
   } catch (error) {
     console.warn('[Select Trial Plan] Unable to persist plan choice', {
@@ -112,7 +143,6 @@ function SelectTrialPlanContent() {
   const [hasAutoStarted, setHasAutoStarted] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Detectar si viene de trial expirado
   const reason = searchParams.get('reason')
   const message = searchParams.get('message')
   const selectedPlanParam = searchParams.get('plan')
@@ -122,8 +152,16 @@ function SelectTrialPlanContent() {
   const isTrialExpired = reason === 'trial_expired'
   const isPaymentSetupRequired = reason === 'payment_setup_required'
 
-  const normalizedPlan = selectedPlanParam === 'basico' || selectedPlanParam === 'pro' ? selectedPlanParam : null
+  const normalizedPlan = selectedPlanParam === 'pro' || selectedPlanParam === 'enterprise' ? selectedPlanParam : null
   const normalizedBilling: 'monthly' | 'annual' = selectedBillingParam === 'annual' ? 'annual' : 'monthly'
+
+  useEffect(() => {
+    trackFunnelEvent('select_trial_plan_view', {
+      autostart,
+      selected_plan: normalizedPlan,
+      selected_billing: normalizedBilling,
+    })
+  }, [])
 
   useEffect(() => {
     if (selectedBillingParam === 'annual' || selectedBillingParam === 'monthly') {
@@ -137,20 +175,34 @@ function SelectTrialPlanContent() {
       setError(null)
       const selectedCycle = cycleOverride ?? billingCycle
       rememberTrialSelection(plan.id, selectedCycle)
+      trackFunnelEvent('plan_select_clicked', {
+        plan: plan.id,
+        billing: selectedCycle,
+      })
 
       const {
         data: { user },
       } = await supabase.auth.getUser()
 
       if (!user) {
-        const redirectUrl = `/auth/signin?plan=${plan.id}&billing=${selectedCycle}`
-        router.push(redirectUrl)
+        router.push(`/auth/signin?plan=${plan.id}&billing=${selectedCycle}`)
         return
       }
 
+      const marketingContext = readStoredMarketingAttribution()
+
+      // Best effort: attribution must never block account activation.
+      void syncSignupAttribution(marketingContext)
+
+      const startsNoCardTrial = NO_CARD_TRIAL_ENABLED && !isTrialExpired
+      const endpoint = startsNoCardTrial
+        ? '/api/trials/activate'
+        : isTrialExpired
+          ? '/api/create-subscription-session'
+          : '/api/create-trial-session'
       const priceId = selectedCycle === 'monthly' ? plan.monthlyPriceId : plan.annualPriceId
 
-      const response = await fetch('/api/create-trial-session', {
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -158,33 +210,59 @@ function SelectTrialPlanContent() {
         body: JSON.stringify({
           priceId,
           planTier: plan.id,
+          billingCycle: selectedCycle,
+          marketingContext,
         }),
       })
 
+      const data = await response.json()
+
       if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || 'Error al crear sesión de prueba')
+        if (response.status === 403 && data?.code === 'email_not_verified') {
+          const verifyParams = new URLSearchParams({
+            email: data?.email || user.email || '',
+            next: `/select-trial-plan?plan=${plan.id}&billing=${selectedCycle}`,
+            plan: plan.id,
+            billing: selectedCycle,
+          })
+          router.push(`/auth/verify-email-required?${verifyParams.toString()}`)
+          return
+        }
+
+        throw new Error(data?.error || 'No se pudo continuar con la activacion')
       }
 
-      const { url } = await response.json()
-
-      if (url) {
-        window.location.href = url
+      if (data.activated) {
+        trackFunnelEvent('trial_started', {
+          plan: plan.id,
+          billing: selectedCycle,
+          card_required: false,
+        })
+        router.push(data.redirectTo || '/welcome')
+        return
       }
-    } catch (err: any) {
+
+      if (data.url) {
+        trackFunnelEvent('checkout_started', {
+          plan: plan.id,
+          billing: selectedCycle,
+        })
+        window.location.href = data.url
+      }
+    } catch (err) {
       console.error('Error selecting plan:', err)
-      setError(err.message)
+      setError((err as Error).message)
     } finally {
       setLoadingPlan(null)
     }
   }
 
   useEffect(() => {
-    if (!autostart || hasAutoStarted || autoStartPending || !normalizedPlan) {
+    if (NO_CARD_TRIAL_ENABLED || !autostart || hasAutoStarted || autoStartPending || !normalizedPlan) {
       return
     }
 
-    const plan = plans.find((candidate) => candidate.id === normalizedPlan)
+    const plan = plans.find(candidate => candidate.id === normalizedPlan)
     if (!plan) {
       return
     }
@@ -198,135 +276,91 @@ function SelectTrialPlanContent() {
     })
   }, [autostart, autoStartPending, hasAutoStarted, normalizedBilling, normalizedPlan])
 
+  const selectedPlanForCta = plans.find(plan => plan.id === normalizedPlan) ?? plans[0]
+
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#030614] py-12 px-4 text-white">
+    <div className="relative min-h-screen overflow-hidden bg-[#030614] px-4 pb-16 pt-12 text-white">
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.22),_transparent_55%)]" />
-        <div className="absolute inset-y-0 right-0 w-1/2 bg-[radial-gradient(circle_at_center,_rgba(236,72,153,0.20),_transparent_60%)] blur-3xl" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.20),_transparent_55%)]" />
+        <div className="absolute inset-y-0 right-0 w-1/2 bg-[radial-gradient(circle_at_center,_rgba(16,185,129,0.18),_transparent_62%)] blur-3xl" />
       </div>
 
-      <div className="relative z-10 max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <Badge className="mb-4 bg-emerald-500 text-white text-base px-6 py-2">
-            💳 Tarjeta requerida para iniciar tu prueba de 7 días
+      <div className="relative z-10 mx-auto max-w-6xl">
+        <div className="text-center">
+          <Badge className="mb-4 border border-emerald-300/40 bg-emerald-400/15 px-5 py-2 text-sm text-emerald-100">
+            <ShieldCheck className="mr-2 h-4 w-4" /> 14 dias gratis sin tarjeta
           </Badge>
-          <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-            {isTrialExpired ? 'Continúa con AgendaMedPro' : 'Comienza tu Prueba Gratis'}
+          <h1 className="text-4xl font-semibold leading-tight md:text-5xl">
+            {isTrialExpired ? 'Continua con AgendaMedPro' : 'Elige el plan que quieres probar'}
           </h1>
-          <p className="text-xl text-white/75 mb-2">
-            {isTrialExpired ? (
-              <span className="font-bold text-orange-300">{message || 'Tu periodo de prueba ha terminado'}</span>
-            ) : (
-              <>
-                Selecciona tu plan, agrega tarjeta y <span className="font-bold text-emerald-300">activa el trial al instante</span>
-              </>
-            )}
+          <p className="mx-auto mt-4 max-w-3xl text-lg text-white/75">
+            {isTrialExpired
+              ? message || 'Tu periodo de prueba termino. Selecciona un plan para seguir operando sin interrupciones.'
+              : 'Prueba Pro o Enterprise durante 14 dias completos. No necesitas agregar tarjeta para empezar.'}
           </p>
           {!isTrialExpired && (
-            <div className="flex items-center justify-center gap-2 text-sm text-white/60 flex-wrap">
-              <span>✓ Sin contrato</span>
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-3 text-sm text-white/65">
+              <span>Sin contrato</span>
               <span className="text-white/35">•</span>
-              <span>✓ Cancela cuando quieras</span>
+              <span>Sin tarjeta</span>
               <span className="text-white/35">•</span>
-              <span>✓ Trial real de 7 días tras agregar tarjeta</span>
+              <span>Tus datos permanecen seguros al terminar</span>
             </div>
           )}
         </div>
 
         {(canceled || isPaymentSetupRequired) && (
-          <div className="mb-8 max-w-2xl mx-auto rounded-xl border border-amber-300/40 bg-amber-300/10 px-4 py-3 text-amber-100">
+          <div className="mx-auto mt-8 max-w-3xl rounded-2xl border border-amber-300/35 bg-amber-300/10 px-5 py-4 text-amber-100">
             {isPaymentSetupRequired
-              ? message || 'Para activar tu trial debes completar el checkout con tarjeta.'
-              : 'El checkout fue cancelado. Puedes seleccionar tu plan nuevamente para activar tu trial.'}
+              ? message || 'Tu trial termino. Agrega tu tarjeta solo para continuar.'
+              : 'El checkout fue cancelado. Puedes volver a intentarlo cuando quieras.'}
           </div>
         )}
 
-        {/* Social Proof */}
+        {autoStartPending && (
+          <div className="mx-auto mt-8 max-w-3xl rounded-2xl border border-sky-300/30 bg-sky-400/10 px-5 py-4 text-sky-100">
+            Estamos iniciando tu checkout automaticamente...
+          </div>
+        )}
+
+        {isTrialExpired && (
+          <GlassPanel className="mx-auto mt-8 max-w-4xl border-orange-300/30 bg-orange-400/10 p-6 text-orange-100">
+            <h3 className="text-xl font-semibold">Tu trial termino</h3>
+            <p className="mt-2 text-sm text-orange-100/90">
+              Conserva tu configuracion actual activando un plan ahora. Si tienes codigo promocional, puedes usarlo en checkout.
+            </p>
+          </GlassPanel>
+        )}
+
         {!isTrialExpired && (
-          <div className="mb-8 max-w-3xl mx-auto">
-            <div className="grid grid-cols-3 gap-4 text-center">
-              <div className="bg-white rounded-lg p-4 shadow-sm">
-                <div className="text-3xl font-bold text-purple-600">500+</div>
-                <div className="text-sm text-gray-600">Médicos activos</div>
-              </div>
-              <div className="bg-white rounded-lg p-4 shadow-sm">
-                <div className="text-3xl font-bold text-blue-600">50K+</div>
-                <div className="text-sm text-gray-600">Citas gestionadas</div>
-              </div>
-              <div className="bg-white rounded-lg p-4 shadow-sm">
-                <div className="text-3xl font-bold text-green-600">4.9/5</div>
-                <div className="text-sm text-gray-600">Calificación</div>
-              </div>
-            </div>
+          <div className="mt-10 grid gap-4 md:grid-cols-3">
+            {proofMetrics.map(metric => (
+              <GlassPanel key={metric.label} className="border-white/10 bg-white/[0.04] p-5 text-center">
+                <p className="text-3xl font-semibold text-emerald-200">{metric.value}</p>
+                <p className="mt-2 text-sm text-white/70">{metric.label}</p>
+              </GlassPanel>
+            ))}
           </div>
         )}
 
-        {/* Payment Methods Notice - Solo para trial expirado */}
-        {isTrialExpired && (
-          <div className="mb-8 max-w-2xl mx-auto bg-gradient-to-r from-blue-50 to-green-50 border border-blue-200 rounded-xl p-4 shadow-sm">
-            <div className="flex items-start gap-3">
-              <div className="flex-shrink-0 mt-1">
-                <span className="text-2xl">💳</span>
-              </div>
-              <div className="flex-1">
-                <p className="text-sm text-gray-900 font-medium mb-2">
-                  <strong>Métodos de pago aceptados:</strong>
-                </p>
-                <div className="space-y-1 text-sm text-gray-700">
-                  <p>✅ Visa, Mastercard, American Express</p>
-                  <p>✅ Tarjetas de crédito y débito</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Trial Expired Alert */}
-        {isTrialExpired && (
-          <div className="mb-8 max-w-2xl mx-auto bg-orange-50 border-2 border-orange-300 rounded-xl p-6 shadow-md">
-            <div className="flex items-start gap-4">
-              <div className="flex-shrink-0">
-                <div className="w-12 h-12 bg-orange-500 rounded-full flex items-center justify-center">
-                  <span className="text-2xl">⏰</span>
-                </div>
-              </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-bold text-orange-900 mb-2">
-                  Tu Periodo de Prueba ha Terminado
-                </h3>
-                <p className="text-orange-800 mb-3">
-                  Has disfrutado de <strong>7 días gratis</strong> de AgendaMedPro. Para continuar usando el sistema, selecciona un plan y agrega tu método de pago.
-                </p>
-                <div className="bg-white/50 rounded-lg p-3 border border-orange-200">
-                  <p className="text-sm text-orange-900 font-medium">
-                    💡 <strong>Tip:</strong> ¿Tienes un código promocional? Ingrésalo en el checkout para obtener descuentos.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Billing Cycle Toggle */}
-        <div className="flex justify-center mb-8">
-          <div className="inline-flex bg-white rounded-lg p-1 shadow-sm border border-gray-200">
+        <div className="mt-10 flex justify-center">
+          <div className="inline-flex rounded-full border border-white/15 bg-white/5 p-1">
             <button
               onClick={() => setBillingCycle('monthly')}
-              className={`px-6 py-2 rounded-md transition-all ${
+              className={`rounded-full px-6 py-2 text-sm font-semibold transition ${
                 billingCycle === 'monthly'
-                  ? 'bg-purple-600 text-white'
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? 'bg-gradient-to-r from-emerald-300 to-sky-300 text-slate-900 shadow-[0_12px_35px_rgba(56,189,248,0.25)]'
+                  : 'text-white/70 hover:text-white'
               }`}
             >
               Mensual
             </button>
             <button
               onClick={() => setBillingCycle('annual')}
-              className={`px-6 py-2 rounded-md transition-all ${
+              className={`rounded-full px-6 py-2 text-sm font-semibold transition ${
                 billingCycle === 'annual'
-                  ? 'bg-purple-600 text-white'
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? 'bg-gradient-to-r from-emerald-300 to-sky-300 text-slate-900 shadow-[0_12px_35px_rgba(56,189,248,0.25)]'
+                  : 'text-white/70 hover:text-white'
               }`}
             >
               Anual (2 meses gratis)
@@ -334,230 +368,125 @@ function SelectTrialPlanContent() {
           </div>
         </div>
 
-        {/* Error Message */}
         {error && (
-          <div className="mb-8 max-w-2xl mx-auto bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
+          <div className="mx-auto mt-8 max-w-3xl rounded-2xl border border-red-300/35 bg-red-400/15 px-5 py-4 text-red-100">
             {error}
           </div>
         )}
 
-        {/* Plans Grid */}
-        <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-          {plans.map((plan) => {
+        <div className="mt-10 grid gap-6 lg:grid-cols-2">
+          {plans.map(plan => {
             const Icon = plan.icon
             const price = billingCycle === 'monthly' ? plan.monthlyPrice : plan.annualPrice / 12
+            const annualSavings = plan.monthlyPrice * 12 - plan.annualPrice
             const isLoading = loadingPlan === plan.id
 
             return (
-              <Card
+              <GlassPanel
                 key={plan.id}
                 className={`relative p-8 ${
                   plan.popular
-                    ? 'border-2 border-fuchsia-400/70 shadow-xl shadow-fuchsia-500/20 bg-white/95'
-                    : 'border border-slate-200 bg-white/95'
+                    ? 'border-emerald-300/50 bg-gradient-to-br from-emerald-400/18 via-sky-400/12 to-transparent shadow-[0_25px_85px_rgba(16,185,129,0.18)]'
+                    : 'border-white/10 bg-white/[0.03]'
                 }`}
               >
                 {plan.popular && (
-                  <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-purple-600 text-white">
-                    Más Popular
+                  <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 border border-emerald-200/40 bg-emerald-300/20 text-emerald-100">
+                    Mas elegido
                   </Badge>
                 )}
 
-                <div className="text-center mb-6">
-                  <div className={`inline-flex p-3 rounded-xl bg-gradient-to-r ${plan.gradient} mb-4`}>
-                    <Icon className="w-8 h-8 text-white" />
+                <div className="mb-6 text-center">
+                  <div className={`mx-auto mb-4 inline-flex rounded-2xl bg-gradient-to-r ${plan.gradient} p-3`}>
+                    <Icon className="h-7 w-7 text-white" />
                   </div>
-                  <h3 className="text-2xl font-bold text-gray-900 mb-2">{plan.name}</h3>
-                  <p className="text-gray-600 mb-4">{plan.description}</p>
-
-                  <div className="flex items-baseline justify-center gap-2">
-                    <span className="text-4xl font-bold text-gray-900">
-                      {currencyFormatter.format(price)}
-                    </span>
-                    <span className="text-gray-600">/mes</span>
+                  <h3 className="text-2xl font-semibold text-white">{plan.name}</h3>
+                  <p className="mt-2 text-sm text-white/65">{plan.description}</p>
+                  <div className="mt-5 flex items-end justify-center gap-2">
+                    <span className="text-4xl font-semibold text-white">{currencyFormatter.format(price)}</span>
+                    <span className="pb-1 text-white/60">/mes</span>
                   </div>
-
                   {billingCycle === 'annual' && (
-                    <p className="text-sm text-green-600 font-semibold mt-2">
-                      Ahorras {currencyFormatter.format(plan.monthlyPrice * 12 - plan.annualPrice)} al año
+                    <p className="mt-2 text-sm font-semibold text-emerald-200">
+                      Ahorras {currencyFormatter.format(annualSavings)} por ano
                     </p>
                   )}
+                  <p className="mt-3 text-sm text-emerald-200/90">{plan.outcome}</p>
                 </div>
 
                 <Button
                   onClick={() => handleSelectPlan(plan)}
                   disabled={isLoading}
-                  className={`w-full mb-6 bg-gradient-to-r ${plan.gradient} hover:opacity-90 text-white`}
+                  className={`mb-6 w-full bg-gradient-to-r ${plan.gradient} text-white hover:opacity-95`}
                   size="lg"
                 >
                   {isLoading ? (
                     <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Procesando...
                     </>
                   ) : (
-                    'Continuar al Checkout Seguro'
+                    <>
+                      {isTrialExpired ? 'Continuar y pagar' : 'Iniciar 14 dias gratis'}
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </>
                   )}
                 </Button>
 
                 <ul className="space-y-3">
-                  {plan.features.map((feature, index) => (
-                    <li key={index} className="flex items-start gap-3">
-                      <Check className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-                      <span className="text-gray-700">{feature}</span>
+                  {plan.features.map(feature => (
+                    <li key={feature} className="flex items-start gap-3 text-sm text-white/80">
+                      <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-300" />
+                      <span>{feature}</span>
                     </li>
                   ))}
                 </ul>
-              </Card>
+              </GlassPanel>
             )
           })}
         </div>
 
-        {/* Comparison Table */}
-        <div className="mt-16 mb-16 max-w-5xl mx-auto">
-          <h3 className="text-3xl font-bold text-gray-900 mb-8 text-center">Comparación Detallada</h3>
-          
-          <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gradient-to-r from-purple-50 to-blue-50">
-                  <tr>
-                    <th className="text-left p-4 font-semibold text-gray-900">Funcionalidad</th>
-                    <th className="text-center p-4 font-semibold text-blue-600">Básico</th>
-                    <th className="text-center p-4 font-semibold text-purple-600">Pro</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  <tr className="hover:bg-gray-50">
-                    <td className="p-4 text-gray-700">Número de doctores</td>
-                    <td className="p-4 text-center text-gray-600">1</td>
-                    <td className="p-4 text-center text-gray-900 font-semibold">10</td>
-                  </tr>
-                  <tr className="hover:bg-gray-50">
-                    <td className="p-4 text-gray-700">Citas mensuales</td>
-                    <td className="p-4 text-center text-gray-600">200</td>
-                    <td className="p-4 text-center text-gray-900 font-semibold">Ilimitadas</td>
-                  </tr>
-                  <tr className="hover:bg-gray-50">
-                    <td className="p-4 text-gray-700">Gestión de pacientes</td>
-                    <td className="p-4 text-center"><Check className="w-5 h-5 text-green-500 mx-auto" /></td>
-                    <td className="p-4 text-center"><Check className="w-5 h-5 text-green-500 mx-auto" /></td>
-                  </tr>
-                  <tr className="hover:bg-gray-50">
-                    <td className="p-4 text-gray-700">Agenda y calendario</td>
-                    <td className="p-4 text-center"><Check className="w-5 h-5 text-green-500 mx-auto" /></td>
-                    <td className="p-4 text-center"><Check className="w-5 h-5 text-green-500 mx-auto" /></td>
-                  </tr>
-                  <tr className="hover:bg-gray-50">
-                    <td className="p-4 text-gray-700">Expedientes médicos</td>
-                    <td className="p-4 text-center"><Check className="w-5 h-5 text-green-500 mx-auto" /></td>
-                    <td className="p-4 text-center"><Check className="w-5 h-5 text-green-500 mx-auto" /></td>
-                  </tr>
-                  <tr className="hover:bg-gray-50">
-                    <td className="p-4 text-gray-700">Múltiples sucursales</td>
-                    <td className="p-4 text-center text-gray-400">—</td>
-                    <td className="p-4 text-center"><Check className="w-5 h-5 text-green-500 mx-auto" /></td>
-                  </tr>
-                  <tr className="hover:bg-gray-50">
-                    <td className="p-4 text-gray-700">WhatsApp Business</td>
-                    <td className="p-4 text-center text-gray-400">—</td>
-                    <td className="p-4 text-center"><Check className="w-5 h-5 text-green-500 mx-auto" /></td>
-                  </tr>
-                  <tr className="hover:bg-gray-50">
-                    <td className="p-4 text-gray-700">Inventario avanzado</td>
-                    <td className="p-4 text-center text-gray-400">—</td>
-                    <td className="p-4 text-center"><Check className="w-5 h-5 text-green-500 mx-auto" /></td>
-                  </tr>
-                  <tr className="hover:bg-gray-50">
-                    <td className="p-4 text-gray-700">Reportes extendidos</td>
-                    <td className="p-4 text-center text-gray-400">—</td>
-                    <td className="p-4 text-center"><Check className="w-5 h-5 text-green-500 mx-auto" /></td>
-                  </tr>
-                  <tr className="hover:bg-gray-50">
-                    <td className="p-4 text-gray-700">Soporte</td>
-                    <td className="p-4 text-center text-gray-600">Email</td>
-                    <td className="p-4 text-center text-gray-900 font-semibold">Prioritario</td>
-                  </tr>
-                </tbody>
-              </table>
+        <div className="mt-14 grid gap-6 lg:grid-cols-2">
+          <GlassPanel className="border-white/10 bg-white/[0.03] p-6">
+            <p className="text-xs uppercase tracking-[0.3em] text-white/55">Incluido en todos los planes</p>
+            <ul className="mt-4 space-y-3 text-sm text-white/80">
+              <li className="flex items-start gap-2"><ShieldCheck className="mt-0.5 h-4 w-4 text-emerald-300" /> Seguridad y cifrado de nivel profesional</li>
+              <li className="flex items-start gap-2"><ShieldCheck className="mt-0.5 h-4 w-4 text-emerald-300" /> Soporte en espanol durante onboarding</li>
+              <li className="flex items-start gap-2"><ShieldCheck className="mt-0.5 h-4 w-4 text-emerald-300" /> Trial real de 14 dias con funcionalidades completas</li>
+            </ul>
+          </GlassPanel>
+          <GlassPanel className="border-white/10 bg-white/[0.03] p-6">
+            <p className="text-xs uppercase tracking-[0.3em] text-white/55">Preguntas frecuentes</p>
+            <div className="mt-4 space-y-4">
+              {faqItems.map(item => (
+                <div key={item.question}>
+                  <p className="font-semibold text-white">{item.question}</p>
+                  <p className="mt-1 text-sm text-white/70">{item.answer}</p>
+                </div>
+              ))}
             </div>
-          </div>
+          </GlassPanel>
         </div>
 
-        {/* FAQ */}
-        <div className="mt-16 text-center max-w-3xl mx-auto">
-          <h3 className="text-3xl font-bold text-gray-900 mb-8">Preguntas Frecuentes</h3>
-          <div className="space-y-4 text-left">
-            <div className="bg-white p-6 rounded-xl border-2 border-gray-200 hover:border-purple-300 transition-colors">
-              <p className="font-bold text-gray-900 mb-3 text-lg flex items-center gap-2">
-                <span className="text-purple-600">⏰</span>
-                ¿Cuánto dura la prueba gratis?
-              </p>
-              <p className="text-gray-600">
-                Tendrás <strong>7 días completos</strong> para probar todas las funciones de AgendaMedPro sin restricciones ni límites.
-              </p>
-            </div>
-            
-            <div className="bg-white p-6 rounded-xl border-2 border-gray-200 hover:border-purple-300 transition-colors">
-              <p className="font-bold text-gray-900 mb-3 text-lg flex items-center gap-2">
-                <span className="text-purple-600">🔓</span>
-                ¿Puedo cancelar en cualquier momento?
-              </p>
-              <p className="text-gray-600">
-                Por supuesto. No hay contratos ni compromisos. Cancela cuando quieras desde tu panel de control, sin preguntas ni complicaciones.
-              </p>
-            </div>
-
-            <div className="bg-white p-6 rounded-xl border-2 border-gray-200 hover:border-purple-300 transition-colors">
-              <p className="font-bold text-gray-900 mb-3 text-lg flex items-center gap-2">
-                <span className="text-purple-600">🔄</span>
-                ¿Puedo cambiar de plan después?
-              </p>
-              <p className="text-gray-600">
-                Sí, puedes actualizar o cambiar tu plan en cualquier momento. Los cambios se aplican inmediatamente y el cobro se ajusta proporcionalmente.
-              </p>
-            </div>
-
-            <div className="bg-white p-6 rounded-xl border-2 border-gray-200 hover:border-purple-300 transition-colors">
-              <p className="font-bold text-gray-900 mb-3 text-lg flex items-center gap-2">
-                <span className="text-purple-600">🛡️</span>
-                ¿Mis datos están seguros?
-              </p>
-              <p className="text-gray-600">
-                Absolutamente. Usamos encriptación de nivel bancario y cumplimos con todas las regulaciones de privacidad médica (HIPAA, GDPR). Tus datos están protegidos 24/7.
-              </p>
-            </div>
-
-            <div className="bg-white p-6 rounded-xl border-2 border-gray-200 hover:border-purple-300 transition-colors">
-              <p className="font-bold text-gray-900 mb-3 text-lg flex items-center gap-2">
-                <span className="text-purple-600">📞</span>
-                ¿Ofrecen soporte técnico?
-              </p>
-              <p className="text-gray-600">
-                Sí. El plan Básico incluye soporte por email, y el plan Pro incluye soporte prioritario con respuesta en menos de 2 horas.
-              </p>
-            </div>
-          </div>
-
-          {/* CTA Final */}
-          <div className="mt-12 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl p-8 text-white">
-            <h4 className="text-2xl font-bold mb-4">¿Listo para transformar tu consultorio?</h4>
-            <p className="text-lg mb-6 text-purple-100">
-              Únete a cientos de médicos que ya confían en AgendaMedPro
-            </p>
-            <Button
-              onClick={() => {
-                const firstPlan = plans[0] // Seleccionar primer plan (Básico)
-                if (firstPlan && !loadingPlan) handleSelectPlan(firstPlan)
-              }}
-              disabled={!!loadingPlan}
-              size="lg"
-              className="bg-white text-purple-600 hover:bg-gray-100 font-bold px-8 py-6 text-lg"
-            >
-              Comenzar Ahora - 100% Gratis
-            </Button>
-          </div>
-        </div>
+        <GlassPanel className="mt-14 border-emerald-300/30 bg-gradient-to-r from-emerald-400/14 via-sky-400/10 to-transparent p-8 text-center">
+          <p className="text-xs uppercase tracking-[0.35em] text-emerald-200/80">Paso final</p>
+          <h3 className="mt-3 text-3xl font-semibold">Empieza hoy con tus propios datos</h3>
+          <p className="mx-auto mt-3 max-w-2xl text-white/70">
+            Activa tu trial, conecta tu operacion y valida resultados con tu flujo real de pacientes.
+          </p>
+          <Button
+            onClick={() => {
+              if (!loadingPlan) {
+                void handleSelectPlan(selectedPlanForCta)
+              }
+            }}
+            disabled={!!loadingPlan}
+            size="lg"
+            className="mt-6 bg-gradient-to-r from-emerald-300 to-sky-300 font-semibold text-slate-900 hover:opacity-95"
+          >
+            {isTrialExpired ? 'Recuperar acceso' : 'Iniciar trial sin tarjeta'}
+          </Button>
+        </GlassPanel>
       </div>
     </div>
   )
@@ -565,11 +494,13 @@ function SelectTrialPlanContent() {
 
 export default function SelectTrialPlanPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-[#030614] text-white">
+          <Loader2 className="h-8 w-8 animate-spin text-emerald-300" />
+        </div>
+      }
+    >
       <SelectTrialPlanContent />
     </Suspense>
   )

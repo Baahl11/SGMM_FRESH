@@ -12,15 +12,15 @@ import { QuickPhraseManager } from "@/components/quick-phrases/quick-phrase-mana
 
 // UI Components
 const Card = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
-  <div className={`bg-white rounded-lg shadow-sm border border-gray-200 ${className}`}>{children}</div>
+  <div className={`rounded-3xl border border-white/10 bg-[#061025]/80 text-white shadow-[0_25px_55px_rgba(2,6,23,0.45)] backdrop-blur-xl ${className}`}>{children}</div>
 )
 
 const CardHeader = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
-  <div className={`p-6 pb-4 border-b border-gray-100 ${className}`}>{children}</div>
+  <div className={`border-b border-white/10 p-6 pb-4 ${className}`}>{children}</div>
 )
 
 const CardTitle = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
-  <h3 className={`text-lg font-semibold ${className}`}>{children}</h3>
+  <h3 className={`text-lg font-semibold text-white ${className}`}>{children}</h3>
 )
 
 const CardContent = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
@@ -30,9 +30,9 @@ const CardContent = ({ children, className = "" }: { children: React.ReactNode, 
 const Button = ({ children, className = "", variant = "default", size = "default", onClick, disabled = false, type = "button" }: any) => {
   const baseClasses = "inline-flex items-center justify-center rounded-md transition-colors font-medium"
   const variantClasses: Record<string, string> = {
-    default: "bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed",
-    outline: "border border-gray-300 bg-white hover:bg-gray-50 text-gray-700",
-    destructive: "bg-red-600 text-white hover:bg-red-700"
+    default: "border-0 bg-gradient-to-r from-emerald-300 via-cyan-300 to-sky-300 text-black hover:from-emerald-200 hover:via-cyan-200 hover:to-sky-200 disabled:opacity-50 disabled:cursor-not-allowed",
+    outline: "border border-white/20 bg-white/5 text-white hover:bg-white/10",
+    destructive: "border border-rose-400/40 bg-rose-500/15 text-rose-100 hover:bg-rose-500/25"
   }
   const sizeClasses: Record<string, string> = {
     default: "px-4 py-2",
@@ -52,11 +52,11 @@ const Button = ({ children, className = "", variant = "default", size = "default
 }
 
 const Input = ({ className = "", ...props }: any) => (
-  <input className={`flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:cursor-not-allowed disabled:opacity-50 ${className}`} {...props} />
+  <input className={`flex h-10 w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-cyan-300/60 focus:outline-none focus:ring-2 focus:ring-cyan-300/20 disabled:cursor-not-allowed disabled:opacity-50 ${className}`} {...props} />
 )
 
 const Label = ({ children, htmlFor, className = "" }: any) => (
-  <label htmlFor={htmlFor} className={`text-sm font-medium text-gray-700 ${className}`}>{children}</label>
+  <label htmlFor={htmlFor} className={`text-sm font-medium text-white/75 ${className}`}>{children}</label>
 )
 
 interface Treatment {
@@ -289,8 +289,8 @@ export default function EditTreatmentPage() {
       <AppLayout>
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Cargando...</p>
+            <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-cyan-300"></div>
+            <p className="text-white/70">Cargando...</p>
           </div>
         </div>
       </AppLayout>
@@ -301,8 +301,8 @@ export default function EditTreatmentPage() {
     return (
       <AppLayout>
         <div className="container mx-auto py-10">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <p className="text-red-800">{error}</p>
+          <div className="rounded-2xl border border-rose-400/40 bg-rose-500/10 p-4 backdrop-blur">
+            <p className="text-rose-100">{error}</p>
           </div>
         </div>
       </AppLayout>
@@ -325,7 +325,7 @@ export default function EditTreatmentPage() {
               Volver
             </Button>
           </Link>
-          <h1 className="text-3xl font-bold text-gray-900">Editar Tratamiento</h1>
+          <h1 className="text-3xl font-bold text-white">Editar Tratamiento</h1>
         </div>
 
         <div className="space-y-6">
@@ -399,9 +399,9 @@ export default function EditTreatmentPage() {
                     value={descripcion}
                     onChange={(e) => setDescripcion(e.target.value)}
                     placeholder="Descripción del tratamiento... o usa frases rápidas"
-                    className="flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[100px]"
+                    className="min-h-[100px] flex w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-cyan-300/60 focus:outline-none focus:ring-2 focus:ring-cyan-300/20"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="mt-1 text-xs text-white/55">
                     💡 Usa frases rápidas para indicaciones, contraindicaciones o cuidados comunes
                   </p>
                 </div>
@@ -412,7 +412,7 @@ export default function EditTreatmentPage() {
                     id="category"
                     value={category}
                     onChange={(e) => setCategory(e.target.value as TreatmentCategory)}
-                    className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex h-10 w-full rounded-xl border border-white/15 bg-[#0b1325] px-3 py-2 text-sm text-white focus:border-cyan-300/60 focus:outline-none focus:ring-2 focus:ring-cyan-300/20"
                   >
                     <option value="">Sin categoría</option>
                     {TREATMENT_CATEGORIES.map((cat) => (
@@ -421,7 +421,7 @@ export default function EditTreatmentPage() {
                       </option>
                     ))}
                   </select>
-                  <p className="text-xs text-gray-500 mt-1">Organiza tus tratamientos por tipo</p>
+                  <p className="mt-1 text-xs text-white/55">Organiza tus tratamientos por tipo</p>
                 </div>
 
                 <div>
@@ -432,14 +432,14 @@ export default function EditTreatmentPage() {
                     placeholder="Agregar etiquetas (ej: botox, facial, antiaging)..."
                     maxTags={10}
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="mt-1 text-xs text-white/55">
                     Agrega etiquetas para facilitar la búsqueda. Presiona Enter para agregar.
                   </p>
                 </div>
 
                 {error && (
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                    <p className="text-red-800 text-sm">{error}</p>
+                  <div className="rounded-xl border border-rose-400/40 bg-rose-500/10 p-3">
+                    <p className="text-sm text-rose-100">{error}</p>
                   </div>
                 )}
 
@@ -462,7 +462,7 @@ export default function EditTreatmentPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div className="flex items-center gap-3">
-                <Package className="h-5 w-5 text-blue-600" />
+                <Package className="h-5 w-5 text-cyan-200" />
                 <CardTitle>Consumibles Asignados</CardTitle>
               </div>
               <Button 
@@ -476,22 +476,22 @@ export default function EditTreatmentPage() {
             </CardHeader>
             <CardContent>
               {loadingInventory ? (
-                <div className="text-center py-8 text-gray-500">Cargando consumibles...</div>
+                <div className="py-8 text-center text-white/60">Cargando consumibles...</div>
               ) : assignedItems.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <Package className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                <div className="py-8 text-center text-white/65">
+                  <Package className="mx-auto mb-3 h-12 w-12 text-white/25" />
                   <p>No hay consumibles asignados a este tratamiento</p>
-                  <p className="text-sm mt-2">Los consumibles se descontarán automáticamente al aplicar el tratamiento</p>
+                  <p className="mt-2 text-sm text-white/50">Los consumibles se descontarán automáticamente al aplicar el tratamiento</p>
                 </div>
               ) : (
                 <div className="space-y-3">
                   {assignedItems.map((item) => (
-                    <div key={item.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <div key={item.id} className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-4">
                       <div className="flex-1">
-                        <p className="font-medium text-gray-900">
+                        <p className="font-medium text-white">
                           {item.inventory_items?.nombre || `Item #${item.inventory_item_id}`}
                         </p>
-                        <div className="flex gap-4 mt-1 text-sm text-gray-600">
+                        <div className="mt-1 flex flex-wrap gap-4 text-sm text-white/70">
                           <span>Cantidad: <strong>{item.cantidad_requerida}</strong></span>
                           <span>Stock: <strong>{item.inventory_items?.stock_actual || 0}</strong></span>
                           <span>Precio: <strong>${item.inventory_items?.precio_unitario || 0}</strong></span>
@@ -514,10 +514,10 @@ export default function EditTreatmentPage() {
 
         {/* Add Inventory Modal */}
         {showAddModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-              <div className="p-6 border-b border-gray-200">
-                <h3 className="text-lg font-semibold">Agregar Consumible</h3>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm">
+            <div className="mx-4 w-full max-w-md rounded-3xl border border-white/10 bg-[#061025]/90 text-white shadow-[0_35px_80px_rgba(2,6,23,0.65)] backdrop-blur-2xl">
+              <div className="border-b border-white/10 p-6">
+                <h3 className="text-lg font-semibold text-white">Agregar Consumible</h3>
               </div>
               <div className="p-6 space-y-4">
                 <div>
@@ -526,7 +526,7 @@ export default function EditTreatmentPage() {
                     id="item"
                     value={selectedItemId}
                     onChange={(e) => setSelectedItemId(e.target.value)}
-                    className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex h-10 w-full rounded-xl border border-white/15 bg-[#0b1325] px-3 py-2 text-sm text-white focus:border-cyan-300/60 focus:outline-none focus:ring-2 focus:ring-cyan-300/20"
                   >
                     <option value="">Seleccionar consumible...</option>
                     {availableItems.map((item) => (
@@ -549,7 +549,7 @@ export default function EditTreatmentPage() {
                   />
                 </div>
               </div>
-              <div className="p-6 border-t border-gray-200 flex gap-3">
+              <div className="flex gap-3 border-t border-white/10 p-6">
                 <Button onClick={handleAddInventoryItem} className="flex-1">
                   Agregar
                 </Button>

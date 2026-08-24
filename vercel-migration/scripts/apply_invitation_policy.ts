@@ -5,6 +5,10 @@ import * as fs from 'fs';
 const envPath = path.resolve(process.cwd(), '.env.production');
 loadEnv({ path: envPath });
 
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 async function main() {
   const [{ supabaseAdmin }] = await Promise.all([
     import('@/lib/supabase/server')
@@ -40,7 +44,13 @@ async function main() {
       
       for (const statement of statements) {
         if (statement) {
-          const { error: execError } = await (supabaseAdmin as any).rpc('exec', { sql: statement });
+          const fallbackClient = supabaseAdmin as unknown as {
+            rpc: (
+              functionName: string,
+              args: Record<string, unknown>
+            ) => Promise<{ error: Error | null }>;
+          };
+          const { error: execError } = await fallbackClient.rpc('exec', { sql: statement });
           if (execError) {
             console.error('❌ Error ejecutando statement:', execError);
             throw execError;
@@ -53,8 +63,8 @@ async function main() {
       console.log('✅ Migración aplicada exitosamente');
       console.log('Resultado:', data);
     }
-  } catch (err: any) {
-    console.error('❌ Error al aplicar migración:', err.message);
+  } catch (err: unknown) {
+    console.error('❌ Error al aplicar migración:', getErrorMessage(err));
     console.error('\n💡 Aplica la migración manualmente:');
     console.error('1. Ve a https://supabase.com/dashboard/project/[tu-proyecto]/editor/sql');
     console.error('2. Copia y pega el SQL de arriba');

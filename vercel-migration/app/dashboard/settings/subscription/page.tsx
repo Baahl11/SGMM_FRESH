@@ -125,9 +125,8 @@ export default function SubscriptionSettingsPage() {
   const planLabel = subscription ? (PLAN_LABELS[subscription.plan_tier] ?? subscription.plan_tier) : '—'
   const canCancelSubscription = Boolean(
     subscription &&
-    (subscription.status === 'active' ||
-      subscription.status === 'trialing' ||
-      subscription.stripe_subscription_id)
+    subscription.stripe_subscription_id &&
+    (subscription.status === 'active' || subscription.status === 'trialing')
   )
 
   return (
@@ -158,7 +157,9 @@ export default function SubscriptionSettingsPage() {
                 <p className="text-sm text-sky-300/80">
                   Tu prueba termina el{' '}
                   <strong className="text-sky-200">{formatDate(subscription.trial_end)}</strong>.
-                  Después se activará el cobro automáticamente.
+                  {subscription.stripe_subscription_id
+                    ? ' Después se activará el cobro configurado en Stripe.'
+                    : ' Para continuar después, deberás elegir un plan y agregar tu tarjeta.'}
                 </p>
               </div>
             )}

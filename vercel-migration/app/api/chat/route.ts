@@ -1,6 +1,10 @@
 import { createAnthropic } from '@ai-sdk/anthropic';
-import { streamText } from 'ai';
+import { dateStringInTimezone, DEFAULT_CLINIC_TIMEZONE } from '@/lib/timezone';
+import { maskPhone, maskEmail } from '@/lib/log';
+import { generateText } from 'ai';
 import { createClient } from '@supabase/supabase-js';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 
 // Edge runtime para mejor performance
 export const runtime = 'edge';
@@ -13,6 +17,35 @@ const supabase = createClient(
 
 // Rate limiting simple en memoria
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
+type RagSnippet = {
+  id: string;
+  keywords: string[];
+  content: string;
+};
+
+const RAG_KNOWLEDGE_SNIPPETS: RagSnippet[] = [
+  {
+    id: 'product-core',
+    keywords: ['agenda', 'citas', 'pacientes', 'inventario', 'factura', 'facturacion', 'cfdi'],
+    content: 'AgendaMedPro centraliza agenda, pacientes, inventario, recordatorios y facturación en una sola plataforma.',
+  },
+  {
+    id: 'trial-pricing',
+    keywords: ['trial', 'demo', 'precio', 'plan', 'suscripcion', 'costo'],
+    content: 'AgendaMedPro maneja flujo de trial comercial y planes por nivel de operación; la activación se completa desde el onboarding de pago.',
+  },
+  {
+    id: 'messaging',
+    keywords: ['whatsapp', 'recordatorio', 'mensaje', 'notificacion', 'sms', 'email'],
+    content: 'El sistema soporta mensajería y notificaciones para seguimiento de pacientes y reducción de inasistencias.',
+  },
+  {
+    id: 'operations',
+    keywords: ['dashboard', 'reporte', 'ingresos', 'gastos', 'estadisticas', 'metricas'],
+    content: 'El dashboard consolida indicadores operativos y financieros para decisiones rápidas en clínica.',
+  },
+];
 
 function checkRateLimit(userId: string): { allowed: boolean; remaining: number } {
   const now = Date.now();
@@ -34,6 +67,119 @@ function checkRateLimit(userId: string): { allowed: boolean; remaining: number }
   return { allowed: true, remaining: limit - userLimit.count };
 }
 
+function cleanSystemContext(contextData: string): string {
+  return (contextData || '')
+    .replace(/\[DATOS DEL SISTEMA\s*-?\s*/gi, '')
+    .replace(/\[RAG\s*-?\s*Base de conocimiento:\s*/gi, '')
+    .replace(/\]/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function retrieveRagContext(question: string): string {
+  const normalizedQuestion = (question || '').toLowerCase();
+  if (!normalizedQuestion) return '';
+
+  const matched = RAG_KNOWLEDGE_SNIPPETS.filter((snippet) =>
+    snippet.keywords.some((keyword) => normalizedQuestion.includes(keyword))
+  ).slice(0, 3);
+
+  if (!matched.length) return '';
+
+  return matched.map((snippet, index) => `${index + 1}. ${snippet.content}`).join('\n');
+}
+
+function isAppointmentIntent(question: string): boolean {
+  const text = (question || '').toLowerCase();
+  const asksByAppointmentKeywords = /\bcitas?\b|\bappointment(?:s)?\b/i.test(text);
+  const asksByAgendaOperation = /\bagenda\b/i.test(text)
+    && /\b(hoy|ma[ñn]ana|fecha|calendario|disponib|ocupad|libre|programad|tengo|cu[aá]nt|ver|mostrar)\b/i.test(text);
+
+  return asksByAppointmentKeywords || asksByAgendaOperation;
+}
+
+function shouldEscalateToAI(question: string, cleanedContext: string): boolean {
+  if (!cleanedContext) {
+    return true;
+  }
+
+  const requiresReasoning = /(recomienda|estrateg|analiza|insight|predic|optimiza|prioriza|roadmap|propuesta|plan de acci[oó]n|comparar|pros|contras|por qu[eé]|porque|opina)/i;
+  const asksForGeneration = /(redacta|escribe|copy|mensaje|correo|guion|script|campa[ñn]a|anuncio)/i;
+  const longQuestion = (question || '').trim().length > 240;
+
+  return requiresReasoning.test(question) || asksForGeneration.test(question) || longQuestion;
+}
+
+function buildContextFirstAnswer(question: string, cleanedContext: string): string {
+  const normalizedQuestion = (question || '').toLowerCase();
+  let intro = 'Con base en el contexto recuperado (RAG + base de datos), esto es lo que encontré:';
+
+  if (isAppointmentIntent(normalizedQuestion)) {
+    intro = 'Con base en tu agenda y tus datos actuales:';
+  } else if (/paciente|patient/.test(normalizedQuestion)) {
+    intro = 'Con base en tu módulo de pacientes:';
+  } else if (/inventario|stock|producto/.test(normalizedQuestion)) {
+    intro = 'Con base en tu inventario actual:';
+  } else if (/factura|cfdi|cobro|pago/.test(normalizedQuestion)) {
+    intro = 'Con base en tu información de facturación y cobros:';
+  }
+
+  return `${intro}\n\n${cleanedContext}`;
+}
+
+function buildDeterministicFallback(lastMessage: string, contextData: string, isAuthenticated: boolean): string {
+  const compactQuestion = (lastMessage || '').trim();
+  const cleanedContext = cleanSystemContext(contextData);
+
+  if (cleanedContext) {
+    return `Estoy en modo respaldo, pero sí pude consultar tu sistema.\n\n${cleanedContext}`;
+  }
+
+  if (!isAuthenticated) {
+    if (/precio|plan|suscrip|trial|demo/i.test(compactQuestion)) {
+      return 'AgendaMedPro ofrece trial de 14 días y planes por nivel de operación. Si quieres, te explico qué incluye cada plan y cuál te conviene según tu clínica.';
+    }
+
+    if (/cita|agenda|paciente|inventario|factura/i.test(compactQuestion)) {
+      return 'AgendaMedPro centraliza agenda, pacientes, inventario, recordatorios y facturación en un solo sistema. Inicia sesión para darte respuestas con datos reales de tu cuenta.';
+    }
+
+    return 'Soy el asistente de AgendaMedPro. Puedo resolver dudas del producto y, al iniciar sesión, ayudarte con datos de tu clínica en tiempo real.';
+  }
+
+  return 'No pude usar el modelo IA en este momento, pero puedo seguir apoyándote con consultas de citas, pacientes, inventario, facturación y reportes de tu cuenta.';
+}
+
+async function getAuthenticatedUserFromCookies() {
+  try {
+    const cookieStore = await cookies();
+    const authClient = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value;
+          },
+          set() {
+            // No-op in this read-only auth lookup context
+          },
+          remove() {
+            // No-op in this read-only auth lookup context
+          },
+        },
+      }
+    );
+
+    const { data: { user }, error } = await authClient.auth.getUser();
+    if (error || !user) return null;
+    return user;
+  } catch (error) {
+    console.error('[AI CHAT] Cookie auth lookup failed', error);
+    return null;
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const { messages, userId } = await req.json();
@@ -46,17 +192,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Rate limiting
-    const rateLimitId = userId || 'anonymous';
-    const rateLimit = checkRateLimit(rateLimitId);
-    
-    if (!rateLimit.allowed) {
-      return new Response(
-        JSON.stringify({ error: 'Límite excedido. Máximo 20 mensajes por hora.' }), 
-        { status: 429 }
-      );
-    }
-    
     // Obtener usuario autenticado
     const authHeader = req.headers.get('authorization');
     let authenticatedUser = null;
@@ -69,45 +204,70 @@ export async function POST(req: Request) {
       console.log('[AI DEBUG] No hay token de autenticación');
     }
 
+    // Fallback: autenticación por cookies de sesión
+    if (!authenticatedUser) {
+      const cookieUser = await getAuthenticatedUserFromCookies();
+      if (cookieUser) {
+        authenticatedUser = cookieUser;
+        console.log('[AI DEBUG] Usuario autenticado por cookie:', cookieUser.id);
+      }
+    }
+
+    // Rate limiting por usuario autenticado o IP para anónimos
+    const forwardedFor = req.headers.get('x-forwarded-for');
+    const clientIp = forwardedFor?.split(',')[0]?.trim() || 'anonymous-ip';
+    // Auditoría fable 2026-06-11 (E2): antes un anónimo podía enviar `userId`
+    // arbitrario y rotarlo para evadir el límite. La identidad sólo puede ser
+    // el usuario AUTENTICADO o la IP. (Limitación conocida: Map en memoria por
+    // instancia serverless — ver OD-4 para límite distribuido.)
+    const rateLimitId = authenticatedUser?.id ? `user:${authenticatedUser.id}` : `ip:${clientIp}`;
+    const rateLimit = checkRateLimit(rateLimitId);
+
+    if (!rateLimit.allowed) {
+      return new Response(
+        JSON.stringify({ error: 'Límite excedido. Máximo 20 mensajes por hora.' }),
+        {
+          status: 429,
+          headers: { 'Content-Type': 'application/json', 'Retry-After': '3600' },
+        }
+      );
+    }
+
     // Límite de contexto (últimos 10 mensajes)
     const limitedMessages = messages.slice(-10);
     const lastMessage = limitedMessages[limitedMessages.length - 1]?.content || '';
 
     // DETECCIÓN SIMPLE DE INTENCIÓN (pre-tool execution)
     let contextData = '';
+    const appointmentIntent = isAppointmentIntent(lastMessage);
+
+    // RAG ligero de conocimiento de producto antes de escalar a IA
+    const ragContext = appointmentIntent ? '' : retrieveRagContext(lastMessage);
+    if (ragContext) {
+      contextData += `\n\n[RAG - Base de conocimiento:\n${ragContext}]`;
+    }
     
     // Si pregunta por citas (detectar fecha)
     let targetDate = null;
     let dateLabel = '';
     
     // Detectar cualquier pregunta sobre citas primero
-    const askingAboutAppointments = lastMessage.match(/citas?|cita|agend|appointment/i);
+    const askingAboutAppointments = appointmentIntent;
     
     if (askingAboutAppointments) {
       // Detectar mañana
       if (lastMessage.match(/ma[ñn]ana|tomorrow/i)) {
-        // Calcular fecha en zona horaria de México (UTC-6)
-        const nowUtc = new Date();
-        const mexicoOffset = -6 * 60; // -6 horas en minutos
-        const mexicoTime = new Date(nowUtc.getTime() + mexicoOffset * 60 * 1000);
-        
-        // Sumar un día
-        mexicoTime.setDate(mexicoTime.getDate() + 1);
-        
-        // Formatear como YYYY-MM-DD
-        targetDate = mexicoTime.toISOString().split('T')[0];
+        // fable E3: zona IANA de la clínica (multi-sede, DST correcto) en lugar
+        // de UTC-6 manual. México tiene varias zonas; ver lib/timezone.ts.
+        const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        targetDate = dateStringInTimezone(tomorrow, DEFAULT_CLINIC_TIMEZONE);
         dateLabel = 'mañana';
-        console.log('[AI DEBUG] Detectado: mañana, UTC:', nowUtc.toISOString(), 'México:', mexicoTime.toISOString(), 'fecha:', targetDate);
       }
       // Detectar hoy
       else if (lastMessage.match(/hoy|today/i)) {
-        // Calcular fecha en zona horaria de México (UTC-6)
-        const nowUtc = new Date();
-        const mexicoOffset = -6 * 60;
-        const mexicoTime = new Date(nowUtc.getTime() + mexicoOffset * 60 * 1000);
-        targetDate = mexicoTime.toISOString().split('T')[0];
+        // fable E3: fecha local de la clínica vía zona IANA.
+        targetDate = dateStringInTimezone(new Date(), DEFAULT_CLINIC_TIMEZONE);
         dateLabel = 'hoy';
-        console.log('[AI DEBUG] Detectado: hoy, UTC:', nowUtc.toISOString(), 'México:', mexicoTime.toISOString(), 'fecha:', targetDate);
       }
       // Detectar fecha específica (ej: "29 de enero", "enero 29", "2026-01-29")
       else {
@@ -147,7 +307,6 @@ export async function POST(req: Request) {
         
         if (!authenticatedUser) {
           console.log('[AI DEBUG] No hay usuario autenticado para citas');
-          contextData = `\n\n[DATOS DEL SISTEMA - Error: Usuario no autenticado]`;
         } else {
         
         const { data, error } = await supabase
@@ -180,10 +339,10 @@ export async function POST(req: Request) {
             return `Cita #${i+1}:\n  - Hora de inicio: ${hora}\n  - Hora de fin: ${horaFin}\n  - Duración: ${duracion} minutos\n  - Paciente: ${patientName}\n  - Estado: ${a.estado}\n  - Precio acordado: $${a.precio_acordado || 0}`;
           }).join('\n\n');
           
-          contextData = `\n\n[DATOS DEL SISTEMA - Citas para ${dateLabel} (${targetDate}):\nTotal: ${data.length} cita(s) agendada(s)\n\n${citasDetalle}]`;
+          contextData += `\n\n[DATOS DEL SISTEMA - Citas para ${dateLabel} (${targetDate}):\nTotal: ${data.length} cita(s) agendada(s)\n\n${citasDetalle}]`;
           console.log('[AI DEBUG] Context data creado con', data.length, 'citas');
         } else {
-          contextData = `\n\n[DATOS DEL SISTEMA - Citas para ${dateLabel} (${targetDate}): 0 citas agendadas. La agenda está completamente libre.]`;
+          contextData += `\n\n[DATOS DEL SISTEMA - Citas para ${dateLabel} (${targetDate}): 0 citas agendadas. La agenda está completamente libre.]`;
           console.log('[AI DEBUG] No se encontraron citas');
         }
         }
@@ -215,7 +374,7 @@ export async function POST(req: Request) {
             income: data?.reduce((sum, a) => sum + (a.precio_acordado || 0), 0) || 0,
           };
         
-          contextData = `\n\n[DATOS DEL SISTEMA - Estadísticas de hoy (${today}):
+          contextData += `\n\n[DATOS DEL SISTEMA - Estadísticas de hoy (${today}):
 - Total de citas: ${stats.total}
 - Confirmadas: ${stats.confirmed}
 - Completadas: ${stats.completed}
@@ -235,7 +394,6 @@ export async function POST(req: Request) {
         
         if (!authenticatedUser) {
           console.log('[AI DEBUG] No hay usuario autenticado');
-          contextData += `\n\n[DATOS DEL SISTEMA - Error: Usuario no autenticado]`;
         } else {
           const { data, error } = await supabase
             .from('treatments')
@@ -363,7 +521,7 @@ TOTAL MENSUAL: $${totalMensual.toLocaleString('es-MX')} MXN]`;
         
         if (data && data.length > 0) {
           const patientsList = data.map((p: any, i: number) => 
-            `${i+1}. ${p.nombre} ${p.apellido}${p.telefono ? ` - ${p.telefono}` : ''}${p.email ? ` - ${p.email}` : ''}`
+            `${i+1}. ${p.nombre} ${p.apellido}${p.telefono ? ` - ${maskPhone(p.telefono)}` : ''}${p.email ? ` - ${maskEmail(p.email)}` : ''}` // fable E1: PII enmascarada hacia el proveedor IA
           ).join('\n');
           
             contextData += `\n\n[DATOS DEL SISTEMA - Pacientes (${count} total):
@@ -382,13 +540,23 @@ ${patientsList}${(count || 0) > 15 ? '\n... y más' : ''}]`;
     if (patientMatch) {
       try {
         const query = patientMatch[2];
-        const { data } = await supabase
-          .from('patients')
-          .select('id, name, phone, email')
-          .ilike('name', `%${query}%`)
-          .limit(5);
-        
-        contextData = `\n\n[DATOS DEL SISTEMA - Resultados de búsqueda "${query}": ${data?.length || 0} pacientes encontrados. ${data?.map(p => `${p.name} (Tel: ${p.phone})`).join(', ')}]`;
+
+        if (!authenticatedUser) {
+          contextData += `\n\n[DATOS DEL SISTEMA - Búsqueda de paciente: inicia sesión para consultar pacientes de tu cuenta]`;
+        } else {
+          const { data } = await supabase
+            .from('patients')
+            .select('id, nombre, apellido, telefono, email')
+            .eq('user_id', authenticatedUser.id)
+            .or(`nombre.ilike.%${query}%,apellido.ilike.%${query}%`)
+            .limit(5);
+
+          const patientSummary = (data || [])
+            .map((patient: any) => `${patient.nombre} ${patient.apellido || ''}`.trim() + (patient.telefono ? ` (Tel: ${maskPhone(patient.telefono)})` : '') /* fable E1 */)
+            .join(', ');
+
+          contextData += `\n\n[DATOS DEL SISTEMA - Resultados de búsqueda "${query}": ${data?.length || 0} pacientes encontrados${patientSummary ? `. ${patientSummary}` : ''}]`;
+        }
       } catch (e) {
         console.error('Error searching patients:', e);
       }
@@ -446,7 +614,7 @@ ${templatesList}${(count || 0) > 10 ? '\n... y más' : ''}]`;
           
           if (data && data.length > 0) {
             const messagesList = data.map((m: any, i: number) => 
-              `${i+1}. ${m.status || 'Sin estado'} - ${m.to_number || 'Sin destino'}${m.sent_at ? ` - ${new Date(m.sent_at).toLocaleDateString()}` : ''}`
+              `${i+1}. ${m.status || 'Sin estado'} - ${m.to_phone || m.to_number || 'Sin destino'}${m.sent_at ? ` - ${new Date(m.sent_at).toLocaleDateString()}` : ''}`
             ).join('\n');
             
             contextData += `\n\n[DATOS DEL SISTEMA - Mensajes WhatsApp (${count} total):
@@ -655,9 +823,36 @@ Ubicaciones permitidas: ${maxLocations}]`;
       }
     }
     
+    const cleanedContext = cleanSystemContext(contextData);
+    const escalateToAI = shouldEscalateToAI(lastMessage, cleanedContext);
+
+    // Retrieval-first: si RAG/DB alcanzan, responde sin costo de modelo
+    if (cleanedContext && !escalateToAI) {
+      return new Response(buildContextFirstAnswer(lastMessage, cleanedContext), {
+        status: 200,
+        headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+      });
+    }
+
+    const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
+    if (!anthropicApiKey) {
+      console.error('[AI CHAT] Missing ANTHROPIC_API_KEY');
+
+      const deterministicFallback = buildDeterministicFallback(
+        lastMessage,
+        contextData,
+        Boolean(authenticatedUser)
+      );
+
+      return new Response(deterministicFallback, {
+        status: 200,
+        headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+      });
+    }
+
     // Inicializar Anthropic
     const anthropic = createAnthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
+      apiKey: anthropicApiKey,
     });
 
     // Modificar el último mensaje con contexto de datos
@@ -669,21 +864,78 @@ Ubicaciones permitidas: ${maxLocations}]`;
       };
     }
 
-    // Llamar a Claude Haiku SIN tools (approach más simple y confiable)
-    const result = await streamText({
-      model: anthropic('claude-3-5-haiku-20241022'),
-      messages: messagesWithContext,
-      system: `Eres un asistente IA para AgendaMedPro. Responde de forma CONCISA (máximo 3 párrafos).
+    const conversationPrompt = messagesWithContext
+      .map((message) => {
+        const roleLabel = message.role === 'assistant' ? 'Asistente' : 'Usuario';
+        return `${roleLabel}: ${message.content}`;
+      })
+      .join('\n\n');
+
+    const systemPrompt = `Eres un asistente IA para AgendaMedPro. Responde de forma CONCISA (máximo 3 párrafos).
 
 REGLA CRÍTICA: Cuando veas información marcada como [DATOS DEL SISTEMA], SIEMPRE úsala como la única fuente de verdad. NUNCA inventes o asumas información diferente. Si los DATOS DEL SISTEMA dicen que hay citas, entonces HAY citas. Si dicen que NO hay citas, entonces NO hay.
 
 Los datos del sistema son SIEMPRE correctos y tienen prioridad sobre cualquier otra información.
 
-Responde en español mexicano natural y profesional.`,
-      temperature: 0.7,
-    });
+Responde en español mexicano natural y profesional.`;
 
-    return result.toTextStreamResponse();
+    const configuredModel = process.env.ANTHROPIC_MODEL?.trim();
+    const modelCandidates = [
+      configuredModel,
+      'claude-3-5-haiku-latest',
+      'claude-3-5-sonnet-latest',
+      'claude-3-haiku-20240307',
+    ].filter((modelName): modelName is string => Boolean(modelName));
+
+    let finalText = '';
+    let lastGenerationError: unknown = null;
+
+    for (const modelName of modelCandidates) {
+      try {
+        const { text } = await generateText({
+          model: anthropic(modelName),
+          prompt: conversationPrompt,
+          system: systemPrompt,
+          temperature: 0.7,
+          maxOutputTokens: 700, // fable B1: API correcta del AI SDK v6 instalado
+        });
+
+        if (text && text.trim()) {
+          finalText = text.trim();
+          break;
+        }
+
+        console.warn('[AI CHAT] Modelo respondió vacío:', modelName);
+      } catch (modelError) {
+        lastGenerationError = modelError;
+        console.error('[AI CHAT] Error con modelo', modelName, modelError);
+      }
+    }
+
+    if (!finalText) {
+      if (lastGenerationError) {
+        console.error('[AI CHAT] No se pudo generar respuesta con ningún modelo', lastGenerationError);
+      }
+
+      const deterministicFallback = buildDeterministicFallback(
+        lastMessage,
+        contextData,
+        Boolean(authenticatedUser)
+      );
+
+      return new Response(
+        deterministicFallback,
+        {
+          status: 200,
+          headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+        }
+      );
+    }
+
+    return new Response(finalText, {
+      status: 200,
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+    });
   } catch (error) {
     console.error('Chat API error:', error);
     return new Response(

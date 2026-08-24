@@ -1,8 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyMetaSignature, allowUnsignedInDev } from '@/lib/security/webhook-signatures';
+import { maskPhone } from '@/lib/log';
 import Anthropic from '@anthropic-ai/sdk';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs'; // fable: Node para crypto.timingSafeEqual
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -45,28 +47,36 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    // Verify X-Hub-Signature-256 to authenticate Meta payloads
+    // Auditoría fable 2026-06-11 (C10): verificación FAIL-CLOSED de
+    // X-Hub-Signature-256. Antes, sin WHATSAPP_APP_SECRET el webhook procesaba
+    // cualquier payload; ahora en producción se rechaza, y la comparación es
+    // de tiempo constante. Límite de tamaño para evitar abuso.
     const appSecret = process.env.WHATSAPP_APP_SECRET;
     const rawBody = await request.text();
-    if (appSecret) {
-      const signature = request.headers.get('x-hub-signature-256');
-      if (!signature) {
-        return NextResponse.json({ error: 'Missing signature' }, { status: 401 });
+    if (rawBody.length > 256_000) {
+      return NextResponse.json({ error: 'Payload too large' }, { status: 413 });
+    }
+    if (!appSecret) {
+      if (!allowUnsignedInDev()) {
+        console.error('[WEBHOOK] WHATSAPP_APP_SECRET ausente; rechazando webhook (fail-closed)');
+        return NextResponse.json({ error: 'Webhook not configured' }, { status: 401 });
       }
-      const encoder = new TextEncoder();
-      const key = await crypto.subtle.importKey(
-        'raw', encoder.encode(appSecret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
-      );
-      const sigBuffer = await crypto.subtle.sign('HMAC', key, encoder.encode(rawBody));
-      const computed = 'sha256=' + Array.from(new Uint8Array(sigBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
-      if (computed !== signature) {
-        console.error('[WEBHOOK] ❌ Invalid signature');
+    } else {
+      const signature = request.headers.get('x-hub-signature-256');
+      if (!verifyMetaSignature(rawBody, signature, appSecret)) {
+        console.error('[WEBHOOK] ❌ Firma inválida o ausente');
         return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
       }
     }
 
-    const body = JSON.parse(rawBody);
-    console.log('[WEBHOOK] 📨 Mensaje recibido:', JSON.stringify(body, null, 2));
+    let body: any;
+    try {
+      body = JSON.parse(rawBody);
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+    }
+    // No registrar el cuerpo completo: contiene teléfonos y mensajes de pacientes.
+    console.log('[WEBHOOK] 📨 Evento recibido de WhatsApp');
 
     // Verificar que sea un mensaje de texto
     const entry = body.entry?.[0];
@@ -89,7 +99,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ status: 'no_text' });
     }
 
-    console.log(`[WEBHOOK] 💬 De: ${from} - Mensaje: "${messageText}"`);
+    console.log(`[WEBHOOK] 💬 Mensaje entrante de ${maskPhone(from)} (${messageText.length} caracteres)`);
 
     // Obtener metadata de WhatsApp Business
     const metadata = value?.metadata;
@@ -99,42 +109,145 @@ export async function POST(request: NextRequest) {
     console.log(`[WEBHOOK] 📱 Phone Number ID: ${phoneNumberId}`);
 
     // Buscar el doctor que tiene este Phone Number ID configurado
-    const { data: profile, error: profileError } = await supabase
-      .from('user_profiles')
-      .select('user_id, whatsapp_access_token, whatsapp_phone_number_id')
+    // 1) Fuente canónica: messaging_config
+    // 2) Fallback legacy: user_profiles
+    let userId: string | null = null;
+    let accessToken: string | null = null;
+    let clinicNameFromConfig: string | null = null;
+    let clinicAddressFromConfig: string | null = null;
+    let clinicPhoneFromConfig: string | null = null;
+    let customSignatureFromConfig: string | null = null;
+
+    const { data: configRow, error: configError } = await supabase
+      .from('messaging_config')
+      .select('user_id, whatsapp_access_token, whatsapp_phone_number_id, clinic_name, clinic_address, clinic_phone, custom_message_signature')
       .eq('whatsapp_phone_number_id', phoneNumberId)
       .eq('whatsapp_enabled', true)
       .maybeSingle();
 
-    console.log('[WEBHOOK] 🔍 Query result:', { profile, error: profileError });
-
-    if (profileError) {
-      console.error('[WEBHOOK] ❌ Error buscando perfil:', profileError);
-      return NextResponse.json({ status: 'database_error', error: profileError.message });
+    if (configError) {
+      // No bloquea webhook: mantener compatibilidad con installations legacy
+      console.warn('[WEBHOOK] ⚠️ Error consultando messaging_config, usando fallback legacy:', configError.message);
     }
 
-    if (!profile) {
+    if (configRow?.user_id && configRow?.whatsapp_access_token) {
+      userId = configRow.user_id;
+      accessToken = configRow.whatsapp_access_token;
+      clinicNameFromConfig = configRow.clinic_name || null;
+      clinicAddressFromConfig = configRow.clinic_address || null;
+      clinicPhoneFromConfig = configRow.clinic_phone || null;
+      customSignatureFromConfig = configRow.custom_message_signature || null;
+      console.log('[WEBHOOK] ✅ Tenant resuelto por messaging_config');
+    } else {
+      const { data: profile, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('user_id, whatsapp_access_token, whatsapp_phone_number_id')
+        .eq('whatsapp_phone_number_id', phoneNumberId)
+        .eq('whatsapp_enabled', true)
+        .maybeSingle();
+
+      console.log('[WEBHOOK] 🔍 Fallback legacy consultado', { encontrado: Boolean(profile), error: profileError?.code });
+
+      if (profileError) {
+        console.error('[WEBHOOK] ❌ Error buscando perfil legacy:', profileError);
+        return NextResponse.json({ status: 'database_error', error: profileError.message });
+      }
+
+      if (profile?.user_id && profile?.whatsapp_access_token) {
+        userId = profile.user_id;
+        accessToken = profile.whatsapp_access_token;
+      }
+    }
+
+    if (!userId || !accessToken) {
       console.error('[WEBHOOK] ❌ No se encontró perfil para Phone Number ID:', phoneNumberId);
       return NextResponse.json({ status: 'profile_not_found', phoneNumberId });
     }
 
-    const userId = profile.user_id;
-    const accessToken = profile.whatsapp_access_token;
-
     console.log(`[WEBHOOK] 👨‍⚕️ Doctor encontrado: ${userId}`);
 
-    // Obtener información del doctor para personalizar respuestas
-    const { data: doctorProfile } = await supabase
+    // Obtener perfil del doctor con compatibilidad de esquema:
+    // algunos entornos usan `name`, otros `full_name`.
+    let doctorName: string | null = null;
+    let bookingSlug: string | null = null;
+
+    const { data: profileByName, error: profileByNameError } = await supabase
       .from('user_profiles')
-      .select('full_name, booking_slug')
+      .select('name, booking_slug')
       .eq('user_id', userId)
       .maybeSingle();
 
-    const doctorName = doctorProfile?.full_name || 'Tu Doctor';
-    const bookingSlug = doctorProfile?.booking_slug;
+    if (!profileByNameError) {
+      doctorName = profileByName?.name || null;
+      bookingSlug = profileByName?.booking_slug || null;
+    } else {
+      const { data: profileByFullName, error: profileByFullNameError } = await supabase
+        .from('user_profiles')
+        .select('full_name, booking_slug')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (profileByFullNameError) {
+        console.warn('[WEBHOOK] ⚠️ No fue posible leer nombre del doctor en user_profiles:', profileByFullNameError.message);
+      } else {
+        doctorName = profileByFullName?.full_name || null;
+        bookingSlug = profileByFullName?.booking_slug || null;
+      }
+    }
+
+    const resolvedDoctorName = doctorName || 'Tu Doctor';
+    const signatureName = customSignatureFromConfig || resolvedDoctorName;
     const bookingUrl = bookingSlug 
       ? `https://agendamedpro.com/book/${bookingSlug}`
       : 'https://agendamedpro.com/dashboard/settings/booking'; // Fallback si no ha configurado
+
+    // Contexto operativo del consultorio (clínica, equipo, horarios)
+    const { data: mainLocation } = await supabase
+      .from('locations')
+      .select('nombre, direccion, ciudad, telefono, timezone, horarios_laborales, es_principal')
+      .eq('user_id', userId)
+      .eq('activo', true)
+      .order('es_principal', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const { data: doctors } = await supabase
+      .from('doctors')
+      .select('nombre, especialidad')
+      .eq('user_id', userId)
+      .eq('activo', true)
+      .limit(6);
+
+    const { data: schedules } = await supabase
+      .from('doctor_schedules')
+      .select(`
+        dia_semana,
+        hora_inicio,
+        hora_fin,
+        doctor:doctors(nombre)
+      `)
+      .eq('user_id', userId)
+      .eq('activo', true)
+      .order('dia_semana', { ascending: true })
+      .limit(20);
+
+    const dayNames = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+    const scheduleLines = (schedules || []).map((sch: any) => {
+      const dayName = dayNames[sch.dia_semana] || `Día ${sch.dia_semana}`;
+      const doctorLabel = sch.doctor?.nombre ? ` (${sch.doctor.nombre})` : '';
+      return `${dayName}: ${sch.hora_inicio} - ${sch.hora_fin}${doctorLabel}`;
+    });
+
+    const clinicName = clinicNameFromConfig || mainLocation?.nombre || 'Consultorio';
+    const clinicAddress = clinicAddressFromConfig
+      || [mainLocation?.direccion, mainLocation?.ciudad].filter(Boolean).join(', ')
+      || '';
+    const clinicPhone = clinicPhoneFromConfig || mainLocation?.telefono || '';
+    const clinicTimezone = mainLocation?.timezone || 'America/Mexico_City';
+    const doctorsList = (doctors || []).map((d: any) => d.especialidad ? `${d.nombre} (${d.especialidad})` : d.nombre).join(', ');
+    const scheduleSummary = scheduleLines.length > 0
+      ? scheduleLines.slice(0, 10).join('\n')
+      : 'No hay horarios cargados en el sistema.';
 
     // Buscar paciente por teléfono
     const cleanFrom = from.replace(/[\s\-\+]/g, '');
@@ -184,7 +297,7 @@ export async function POST(request: NextRequest) {
       patientContext = `Paciente NO registrado (teléfono ${from})`;
     }
 
-    console.log(`[WEBHOOK] 🔍 Contexto: ${patientContext}`);
+    console.log(`[WEBHOOK] 🔍 Contexto construido (${patientContext.length} caracteres)`);
 
     // Detectar intención del mensaje
     const lowerMessage = messageText.toLowerCase().trim();
@@ -300,7 +413,13 @@ export async function POST(request: NextRequest) {
       lowerMessage.includes('cuando') ||
       lowerMessage.includes('agenda')
     ) {
-      const response = `¡Hola ${patientName}! 📅\n\nPuedes ver los horarios disponibles y agendar tu cita aquí:\n\n${bookingUrl}\n\nEs rápido y fácil. ¿Te ayudo con algo más?\n\n- ${doctorName}`;
+      const locationBlock = clinicAddress ? `📍 ${clinicAddress}\n` : '';
+      const phoneBlock = clinicPhone ? `☎️ ${clinicPhone}\n` : '';
+      const scheduleBlock = scheduleLines.length > 0
+        ? `\nHorarios de atención:\n${scheduleLines.slice(0, 5).map((line) => `• ${line}`).join('\n')}\n`
+        : '';
+
+      const response = `¡Hola ${patientName}! 📅\n\n${clinicName}\n${locationBlock}${phoneBlock}${scheduleBlock}\nPuedes ver horarios disponibles y agendar aquí:\n${bookingUrl}\n\n- ${signatureName}`;
       
       await sendWhatsAppMessage(phoneNumberId, accessToken, from, response);
       
@@ -324,10 +443,19 @@ export async function POST(request: NextRequest) {
 
     // El bookingUrl y doctorName ya están definidos arriba
 
-    const systemPrompt = `Eres un asistente virtual de AgendaMedPro para el consultorio del Dr. ${doctorName}.
+    const systemPrompt = `Eres un asistente virtual de AgendaMedPro para la clínica "${clinicName}".
 
 CONTEXTO DEL PACIENTE:
 ${patientContext}
+
+  CONTEXTO DE LA CLÍNICA:
+  - Nombre: ${clinicName}
+  - Dirección: ${clinicAddress || 'No registrada'}
+  - Teléfono: ${clinicPhone || 'No registrado'}
+  - Zona horaria: ${clinicTimezone}
+  - Doctores activos: ${doctorsList || 'No registrados'}
+  - Horarios disponibles:
+  ${scheduleSummary}
 
 CAPACIDADES QUE TIENES:
 1. 📅 Ver horarios disponibles - Envía este link: ${bookingUrl}
@@ -338,14 +466,14 @@ CAPACIDADES QUE TIENES:
 
 INSTRUCCIONES:
 - Responde de forma amable, profesional y CONCISA (máximo 3 oraciones)
-- Si preguntan "¿Qué horarios hay?" o "Quiero agendar", envía el link: ${bookingUrl}
+- Si preguntan "¿Qué horarios hay?" o "Quiero agendar", menciona brevemente horarios de clínica y envía el link: ${bookingUrl}
 - Si preguntan por citas, muestra las que tiene el paciente del contexto arriba
 - Si confirman (sí/ok/confirmo), agradece: "¡Perfecto! Tu cita está confirmada ✅"
 - Si cancelan (no/cancelar), confirma: "Tu cita ha sido cancelada. Para reagendar: ${bookingUrl}"
 - Usa emojis con moderación (máximo 2 por mensaje)
 - NO inventes información que no tengas en el contexto
 - SIEMPRE proporciona el link si quieren agendar
-- Firma los mensajes como "- Dr. ${doctorName}"`;
+- Firma los mensajes como "- ${signatureName}"`;
 
     const claudeResponse = await anthropic.messages.create({
       model: 'claude-3-5-haiku-20241022',
@@ -363,7 +491,7 @@ INSTRUCCIONES:
       ? claudeResponse.content[0].text 
       : 'Lo siento, no pude procesar tu mensaje. Por favor contacta al consultorio.';
 
-    console.log(`[WEBHOOK] 💬 Respuesta IA: "${aiResponse}"`);
+    console.log(`[WEBHOOK] 💬 Respuesta IA generada (${aiResponse.length} caracteres)`);
 
     // Enviar respuesta por WhatsApp
     await sendWhatsAppMessage(phoneNumberId, accessToken, from, aiResponse);
@@ -403,6 +531,20 @@ async function sendWhatsAppMessage(
   message: string
 ) {
   try {
+    if (process.env.WHATSAPP_DRY_RUN === 'true') {
+      const fakeId = `dryrun_${Date.now()}`;
+      console.log('[WEBHOOK] 🧪 WHATSAPP_DRY_RUN activo, no se envía a Meta:', {
+        phoneNumberId,
+        to,
+        messagePreview: message.slice(0, 120),
+        fakeId,
+      });
+      return {
+        messages: [{ id: fakeId }],
+        dry_run: true,
+      };
+    }
+
     const response = await fetch(
       `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
       {

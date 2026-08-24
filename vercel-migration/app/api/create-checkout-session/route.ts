@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe, STRIPE_PRICES } from '@/lib/stripe/server'
 import { createClient } from '@supabase/supabase-js'
+import {
+  getDemoIntegrationPolicy,
+  logDemoAuditEvent,
+  resolveDemoModeConfig,
+} from '@/lib/demo-mode'
 
 // Usar service role para bypass RLS
 const supabaseAdmin = createClient(
@@ -11,6 +16,7 @@ const supabaseAdmin = createClient(
 export async function POST(request: NextRequest) {
   try {
     const { priceId, planTier } = await request.json()
+    const normalizedPlanTier = planTier === 'enterprise' ? 'enterprise' : 'pro'
 
     if (!priceId) {
       return NextResponse.json(
@@ -43,6 +49,57 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const demoConfig = await resolveDemoModeConfig(supabaseAdmin, user.id)
+    const stripePolicy = getDemoIntegrationPolicy(demoConfig, 'stripe')
+
+    if (stripePolicy.shouldSimulate) {
+      const simulatedSessionId = `demo_cs_checkout_${Date.now()}`
+      const effectivePlanTier =
+        (planTier === 'pro' || planTier === 'enterprise' ? planTier : null) ||
+        (priceId === STRIPE_PRICES.ENTERPRISE_MONTHLY ||
+        priceId === STRIPE_PRICES.ENTERPRISE_ANNUAL ||
+        priceId === STRIPE_PRICES.LIFETIME
+          ? 'enterprise'
+          : 'pro')
+
+      const { error: demoSubscriptionError } = await supabaseAdmin
+        .from('subscriptions')
+        .upsert(
+          {
+            user_id: user.id,
+            plan_tier: effectivePlanTier,
+            status: 'active',
+            stripe_price_id: priceId,
+            stripe_customer_id: `demo_cus_${Date.now()}`,
+            stripe_subscription_id: `demo_sub_${Date.now()}`,
+          },
+          { onConflict: 'user_id' }
+        )
+
+      if (demoSubscriptionError) {
+        console.warn('[DemoMode] No se pudo actualizar suscripción simulada:', demoSubscriptionError)
+      }
+
+      await logDemoAuditEvent(supabaseAdmin, user.id, {
+        eventType: 'stripe_checkout_session_simulated',
+        integration: 'stripe',
+        resourceType: 'checkout_session',
+        resourceId: simulatedSessionId,
+        status: 'simulated',
+        payload: {
+          price_id: priceId,
+          plan_tier: effectivePlanTier,
+        },
+      })
+
+      const appBaseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+      return NextResponse.json({
+        sessionId: simulatedSessionId,
+        url: `${appBaseUrl}/dashboard?checkout=success&demo=1&session_id=${simulatedSessionId}`,
+        demo_mode: true,
+      })
+    }
+
     // Verificar si el usuario ya tiene un customer_id en Stripe
     const { data: subscription } = await supabaseAdmin
       .from('subscriptions')
@@ -69,7 +126,7 @@ export async function POST(request: NextRequest) {
           user_id: user.id,
           stripe_customer_id: customerId,
           stripe_price_id: priceId,
-          plan_tier: planTier || 'basico',
+          plan_tier: normalizedPlanTier,
           status: 'incomplete',
           max_doctors: 2,
           max_locations: 1,
@@ -105,12 +162,12 @@ export async function POST(request: NextRequest) {
       cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/pricing?checkout=canceled`,
       metadata: {
         user_id: user.id,
-        plan_tier: planTier,
+        plan_tier: normalizedPlanTier,
       },
       subscription_data: !isLifetime ? {
         metadata: {
           user_id: user.id,
-          plan_tier: planTier,
+          plan_tier: normalizedPlanTier,
         },
       } : undefined,
     })

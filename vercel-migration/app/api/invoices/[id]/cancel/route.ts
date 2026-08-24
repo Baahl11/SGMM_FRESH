@@ -5,6 +5,11 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import FacturamaClient, { SAT_CANCELLATION_MOTIVES } from '@/lib/facturama/client';
+import {
+  getDemoIntegrationPolicy,
+  logDemoAuditEvent,
+  resolveDemoModeConfig,
+} from '@/lib/demo-mode';
 
 interface CancelInvoiceRequest {
   motive: '01' | '02' | '03' | '04';
@@ -62,6 +67,60 @@ export async function DELETE(
 
     if (!invoice.facturama_id) {
       return NextResponse.json({ error: 'Factura no tiene ID de Facturama' }, { status: 400 });
+    }
+
+    const demoConfig = await resolveDemoModeConfig(supabase, user.id);
+    const facturamaPolicy = getDemoIntegrationPolicy(demoConfig, 'facturama');
+
+    if (facturamaPolicy.shouldSimulate) {
+      const { data: updatedInvoice, error: updateError } = await supabase
+        .from('invoices')
+        .update({
+          status: 'cancelled',
+          cancelled_at: new Date().toISOString(),
+          cancellation_reason: reason || SAT_CANCELLATION_MOTIVES[motive] || '[DEMO] Cancelación simulada',
+        })
+        .eq('id', invoiceId)
+        .select()
+        .single();
+
+      if (updateError || !updatedInvoice) {
+        console.error('Error updating simulated cancelled invoice:', updateError);
+        return NextResponse.json({ error: 'Error al cancelar factura simulada' }, { status: 500 });
+      }
+
+      const { data: invoiceRecords } = await supabase
+        .from('invoice_records')
+        .select('record_id')
+        .eq('invoice_id', invoiceId);
+
+      if (invoiceRecords && invoiceRecords.length > 0) {
+        const recordIds = invoiceRecords.map(ir => ir.record_id);
+        await supabase
+          .from('records')
+          .update({ pendiente_facturar: true })
+          .in('id', recordIds);
+      }
+
+      await logDemoAuditEvent(supabase, user.id, {
+        eventType: 'facturama_invoice_cancel_simulated',
+        integration: 'facturama',
+        resourceType: 'invoice',
+        resourceId: invoiceId,
+        status: 'simulated',
+        payload: {
+          motive,
+          uuid_replacement: uuid_replacement || null,
+          reason: reason || null,
+        },
+      });
+
+      return NextResponse.json({
+        success: true,
+        invoice: updatedInvoice,
+        message: 'Factura cancelada exitosamente (demo mode)',
+        demo_mode: true,
+      });
     }
 
     // 2. Get Facturama configuration

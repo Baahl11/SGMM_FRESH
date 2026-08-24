@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import Script from "next/script";
 import { Suspense } from "react";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { AuthProvider } from "@/components/auth-provider";
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
@@ -29,7 +30,7 @@ export const metadata: Metadata = {
     default: "AgendaMedPro — Más citas, menos inasistencias y más control para tu clínica",
     template: "%s | AgendaMedPro"
   },
-  description: "Reduce inasistencias, organiza tu clínica y cobra mejor. Agenda de citas, recordatorios por WhatsApp, inventario automático y facturación en un solo sistema. Prueba gratis 7 días.",
+  description: "Reduce inasistencias, organiza tu clínica y cobra mejor. Agenda de citas, recordatorios por WhatsApp, inventario automático y facturación en un solo sistema. Prueba gratis 14 días.",
   keywords: [
     "software médico México",
     "agenda médica",
@@ -77,7 +78,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'AgendaMedPro - Software para Consultorios Médicos',
-    description: 'Gestiona tu consultorio médico: citas, pacientes, facturación y WhatsApp. Prueba gratis 7 días.',
+    description: 'Gestiona tu consultorio médico: citas, pacientes, facturación y WhatsApp. Prueba gratis 14 días.',
     images: ['/og-image.png'],
     creator: '@agendamedpro',
   },
@@ -126,6 +127,7 @@ export default function RootLayout({
           <FloatingChatWidget />
           <Toaster />
         </AuthProvider>
+        <Analytics />
         {/* Google Analytics 4 — activar con NEXT_PUBLIC_GA_MEASUREMENT_ID en .env */}
         {GA_ID && (
           <>

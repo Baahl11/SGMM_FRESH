@@ -23,6 +23,10 @@ const PLAN_LIMITS: Record<PlanTier, PlanLimits> = {
   enterprise: { max_doctors: 999, max_locations: 999 }
 }
 
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
 function inferPlanFromPriceId(priceId: string | null): PlanTier {
   if (!priceId) return 'basico'
   if (priceId.includes('pro')) return 'pro'
@@ -89,8 +93,8 @@ async function listTrialUsers() {
       }
       console.log()
     }
-  } catch (error: any) {
-    console.error('❌ Error:', error.message)
+  } catch (error: unknown) {
+    console.error('❌ Error:', getErrorMessage(error))
     console.error(error)
   }
 }
@@ -100,7 +104,7 @@ async function fixUserTrialPlan(email: string) {
 
   try {
     const { data: usersData } = await supabase.auth.admin.listUsers()
-    const user = usersData?.users?.find((u: any) => u.email === email)
+    const user = usersData?.users?.find((candidate) => candidate.email === email)
 
     if (!user) {
       console.log('❌ No se encontró usuario con ese email')
@@ -181,8 +185,8 @@ async function fixUserTrialPlan(email: string) {
     console.log(`   Plan: ${updatedSub.plan_tier}`)
     console.log(`   Límites: ${updatedSub.max_doctors} doctores, ${updatedSub.max_locations} ubicaciones`)
 
-  } catch (error: any) {
-    console.error('❌ Error:', error.message)
+  } catch (error: unknown) {
+    console.error('❌ Error:', getErrorMessage(error))
     console.error(error)
   }
 }

@@ -3,6 +3,99 @@ import { NextRequest, NextResponse } from 'next/server';
 import { addHours, format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 
+type WhatsAppProfile = {
+  user_id: string;
+  whatsapp_phone_number_id: string;
+  whatsapp_access_token: string;
+  source: 'messaging_config' | 'user_profiles';
+};
+
+async function getUserWhatsAppProfile(supabase: any, userId: string): Promise<WhatsAppProfile | null> {
+  // Canonical path
+  const { data: configRow } = await supabase
+    .from('messaging_config')
+    .select('user_id, whatsapp_enabled, whatsapp_phone_number_id, whatsapp_access_token')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (
+    configRow?.whatsapp_enabled &&
+    configRow.whatsapp_phone_number_id &&
+    configRow.whatsapp_access_token
+  ) {
+    return {
+      user_id: configRow.user_id,
+      whatsapp_phone_number_id: configRow.whatsapp_phone_number_id,
+      whatsapp_access_token: configRow.whatsapp_access_token,
+      source: 'messaging_config',
+    };
+  }
+
+  // Legacy fallback
+  const { data: profileRow } = await supabase
+    .from('user_profiles')
+    .select('user_id, whatsapp_enabled, whatsapp_phone_number_id, whatsapp_access_token')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (
+    profileRow?.whatsapp_enabled &&
+    profileRow.whatsapp_phone_number_id &&
+    profileRow.whatsapp_access_token
+  ) {
+    return {
+      user_id: profileRow.user_id,
+      whatsapp_phone_number_id: profileRow.whatsapp_phone_number_id,
+      whatsapp_access_token: profileRow.whatsapp_access_token,
+      source: 'user_profiles',
+    };
+  }
+
+  return null;
+}
+
+async function getAllEnabledWhatsAppProfiles(supabase: any): Promise<WhatsAppProfile[]> {
+  const byUser = new Map<string, WhatsAppProfile>();
+
+  // Prefer canonical config
+  const { data: configRows } = await supabase
+    .from('messaging_config')
+    .select('user_id, whatsapp_phone_number_id, whatsapp_access_token')
+    .eq('whatsapp_enabled', true)
+    .not('whatsapp_phone_number_id', 'is', null)
+    .not('whatsapp_access_token', 'is', null);
+
+  for (const row of configRows || []) {
+    byUser.set(row.user_id, {
+      user_id: row.user_id,
+      whatsapp_phone_number_id: row.whatsapp_phone_number_id,
+      whatsapp_access_token: row.whatsapp_access_token,
+      source: 'messaging_config',
+    });
+  }
+
+  // Legacy fallback only for users not present in messaging_config
+  const { data: legacyRows } = await supabase
+    .from('user_profiles')
+    .select('user_id, whatsapp_phone_number_id, whatsapp_access_token')
+    .eq('whatsapp_enabled', true)
+    .not('whatsapp_phone_number_id', 'is', null)
+    .not('whatsapp_access_token', 'is', null);
+
+  for (const row of legacyRows || []) {
+    if (!byUser.has(row.user_id)) {
+      byUser.set(row.user_id, {
+        user_id: row.user_id,
+        whatsapp_phone_number_id: row.whatsapp_phone_number_id,
+        whatsapp_access_token: row.whatsapp_access_token,
+        source: 'user_profiles',
+      });
+    }
+  }
+
+  return Array.from(byUser.values());
+}
+
 /**
  * AGENT: Reminder Automation
  * POST /api/agents/reminders/send
@@ -56,12 +149,7 @@ export async function POST(req: NextRequest) {
 
     // Si es llamada del cron, procesar TODOS los usuarios con WhatsApp activo
     if (isCronCall && !appointmentId) {
-      const { data: profiles } = await supabase
-        .from('user_profiles')
-        .select('user_id, whatsapp_phone_number_id, whatsapp_access_token')
-        .eq('whatsapp_enabled', true)
-        .not('whatsapp_phone_number_id', 'is', null)
-        .not('whatsapp_access_token', 'is', null);
+      const profiles = await getAllEnabledWhatsAppProfiles(supabase);
 
       if (!profiles || profiles.length === 0) {
         return NextResponse.json({ success: true, type, totalProcessed: 0, sent: 0, failed: 0, results: [] });
@@ -77,20 +165,9 @@ export async function POST(req: NextRequest) {
     }
 
     // Modo usuario individual
-    const { data: profile, error: profileError } = await supabase
-      .from('user_profiles')
-      .select('whatsapp_enabled, whatsapp_phone_number_id, whatsapp_access_token')
-      .eq('user_id', userId!)
-      .maybeSingle();
+    const profile = await getUserWhatsAppProfile(supabase, userId!);
 
-    if (profileError) {
-      return NextResponse.json(
-        { error: 'Error al cargar configuración de WhatsApp' },
-        { status: 500 }
-      );
-    }
-
-    if (!profile?.whatsapp_enabled || !profile.whatsapp_phone_number_id || !profile.whatsapp_access_token) {
+    if (!profile) {
       return NextResponse.json(
         { error: 'WhatsApp no configurado para este usuario' },
         { status: 400 }
@@ -121,7 +198,7 @@ export async function POST(req: NextRequest) {
 async function processUserReminders(
   supabase: any,
   userId: string,
-  profile: { whatsapp_phone_number_id: string; whatsapp_access_token: string },
+  profile: Pick<WhatsAppProfile, 'whatsapp_phone_number_id' | 'whatsapp_access_token'>,
   type: string,
   force: boolean,
   appointmentId: string | null
@@ -137,12 +214,8 @@ async function processUserReminders(
           id,
           fecha_hora,
           duracion_minutos,
-          recordatorio_enviado,
-          recordatorio_24h_at,
-          recordatorio_2h_at,
           patient:patients(id, nombre, apellido, telefono),
-          doctor:doctors(nombre),
-          user:users(name)
+          doctor:doctors(nombre)
         `)
         .eq('id', appointmentId)
         .eq('user_id', userId)
@@ -175,12 +248,8 @@ async function processUserReminders(
           id,
           fecha_hora,
           duracion_minutos,
-          recordatorio_enviado,
-          recordatorio_24h_at,
-          recordatorio_2h_at,
           patient:patients(id, nombre, apellido, telefono),
-          doctor:doctors(nombre),
-          user:users(name)
+          doctor:doctors(nombre)
         `)
         .eq('user_id', userId)
         .in('estado', ['programada', 'confirmada'])
@@ -188,17 +257,29 @@ async function processUserReminders(
         .lte('fecha_hora', endTime.toISOString());
 
       appointmentsToProcess = appointments || [];
+    }
 
-      // Filtrar las que ya tienen recordatorio enviado (si no es force)
-      if (!force) {
-        appointmentsToProcess = appointmentsToProcess.filter(apt => {
-          if (type === '24h') {
-            return !apt.recordatorio_24h_at;
-          } else {
-            return !apt.recordatorio_2h_at;
-          }
-        });
-      }
+    // Filtrar recordatorios existentes desde whatsapp_messages (schema canónico)
+    if (!force && appointmentsToProcess.length > 0) {
+      const appointmentIds = appointmentsToProcess
+        .map((apt: any) => apt.id)
+        .filter(Boolean);
+
+      const { data: existingReminders } = await supabase
+        .from('whatsapp_messages')
+        .select('appointment_id')
+        .eq('user_id', userId)
+        .eq('message_type', `reminder_${type}`)
+        .in('appointment_id', appointmentIds)
+        .in('status', ['pending', 'queued', 'sent', 'delivered', 'read']);
+
+      const existingIds = new Set(
+        (existingReminders || [])
+          .map((row: any) => row.appointment_id)
+          .filter(Boolean)
+      );
+
+      appointmentsToProcess = appointmentsToProcess.filter((apt: any) => !existingIds.has(apt.id));
     }
 
     console.log(`[Reminders] Procesando ${appointmentsToProcess.length} citas para recordatorio ${type}`);
@@ -221,8 +302,8 @@ async function processUserReminders(
         const appointmentDate = parseISO(appointment.fecha_hora);
         const dateStr = format(appointmentDate, "EEEE d 'de' MMMM", { locale: es });
         const timeStr = format(appointmentDate, 'HH:mm');
-        const patientName = `${patient.nombre} ${patient.apellido}`;
-        const doctorName = appointment.doctor?.nombre || appointment.user?.name || 'su doctor';
+        const patientName = `${patient.nombre || ''} ${patient.apellido || ''}`.trim();
+        const doctorName = appointment.doctor?.nombre || 'su doctor';
 
         // Generar mensaje según tipo
         let message: string;
@@ -255,32 +336,18 @@ _Recordatorio automático de AgendaMedPro_`;
         );
 
         if (result.success) {
-          // Actualizar registro de cita
-          const updateData: any = {
-            recordatorio_enviado: true
-          };
-
-          if (type === '24h') {
-            updateData.recordatorio_24h_at = new Date().toISOString();
-          } else {
-            updateData.recordatorio_2h_at = new Date().toISOString();
-          }
-
-          await supabase
-            .from('appointments')
-            .update(updateData)
-            .eq('id', appointment.id);
-
           // Registrar en whatsapp_messages
           await supabase
             .from('whatsapp_messages')
             .insert({
               user_id: userId,
-              to_number: patient.telefono,
-              message: message,
+              patient_id: patient.id || null,
+              appointment_id: appointment.id,
+              to_phone: patient.telefono,
+              message_body: message,
               status: 'sent',
               message_type: `reminder_${type}`,
-              related_appointment_id: appointment.id,
+              meta_message_id: result.messageId || null,
               sent_at: new Date().toISOString()
             });
 
@@ -328,6 +395,22 @@ async function sendMetaWhatsAppMessage(
   const cleanPhone = to.replace(/[^\d]/g, '');
 
   try {
+    if (process.env.WHATSAPP_DRY_RUN === 'true') {
+      const messageId = `dryrun_${Date.now()}`;
+      console.log('[Reminders] 🧪 WHATSAPP_DRY_RUN activo, no se envía a Meta:', {
+        phoneNumberId,
+        to: cleanPhone,
+        messagePreview: message.slice(0, 120),
+        messageId,
+      });
+      return {
+        success: true,
+        messageId,
+        to: cleanPhone,
+        dry_run: true,
+      };
+    }
+
     const response = await fetch(
       `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
       {

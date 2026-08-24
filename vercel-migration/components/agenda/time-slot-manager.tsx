@@ -133,7 +133,7 @@ export default function TimeSlotManager({
     const [endHour, endMinute] = workingHours.end.split(":").map(Number);
     const [breakHour, breakMinute] = workingHours.breakStart.split(":").map(Number);
     
-    let currentTime = new Date(date);
+    const currentTime = new Date(date);
     currentTime.setHours(startHour, startMinute, 0, 0);
     
     const endTime = new Date(date);

@@ -201,12 +201,12 @@ export default function CasosExitoPage() {
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <a
-                href="https://wa.me/522223404585?text=Hola,%20quiero%20una%20demo%20personalizada%20de%20AgendaMedPro"
+                href="https://wa.me/522223404585?text=Hola,%20quiero%20informaci%C3%B3n%20para%20activar%20la%20prueba%20gratis%20de%2014%20d%C3%ADas%20de%20AgendaMedPro"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="aura-cta w-full justify-center sm:w-auto"
               >
-                <PhoneCall className="h-4 w-4" /> Agendar demo personalizada
+                <PhoneCall className="h-4 w-4" /> Hablar con un especialista
               </a>
             </div>
           </div>
@@ -360,7 +360,7 @@ export default function CasosExitoPage() {
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <a
-                href="https://wa.me/522223404585?text=Hola,%20quiero%20una%20demo%20personalizada%20de%20AgendaMedPro"
+                href="https://wa.me/522223404585?text=Hola,%20quiero%20informaci%C3%B3n%20para%20activar%20la%20prueba%20gratis%20de%2014%20d%C3%ADas%20de%20AgendaMedPro"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="aura-cta aura-cta--ghost justify-center px-8 text-base"

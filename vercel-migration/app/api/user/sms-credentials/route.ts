@@ -45,9 +45,6 @@ const VALID_PROVIDERS: MessagingProviderType[] = [
   'twilio',
   'messagebird',
   'plivo',
-  'meta_whatsapp',
-  'sendgrid',
-  'resend',
 ];
 
 function validateProvider(provider: string): provider is MessagingProviderType {

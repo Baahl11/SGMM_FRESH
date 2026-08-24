@@ -13,6 +13,13 @@ import { GlassPanel } from "@/components/ui/glass-panel";
 import GastoVariableModal from "@/components/gastos/gasto-variable-modal";
 import GastoFijoModal from "@/components/gastos/gasto-fijo-modal";
 import {
+  buildSatDeductibilitySummary,
+  evaluateSatDeductibility,
+  type SatDeductibilityStatus,
+  type SatDeductibilitySummary,
+  type SatExpenseEvaluation
+} from '@/lib/fiscal/sat-deductibility';
+import {
   DollarSign,
   TrendingUp,
   Calendar,
@@ -31,7 +38,10 @@ import {
   Trash2,
   Edit,
   Eye,
-  Filter
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+  ExternalLink
 } from 'lucide-react';
 import type { User } from '@supabase/supabase-js';
 
@@ -54,6 +64,7 @@ interface GastoVariable {
   fecha: string;
   metodo_pago?: string;
   proveedor?: string;
+  proveedor_rfc?: string;
   factura_numero?: string;
   factura_url?: string;
   factura_tipo?: string;
@@ -67,10 +78,29 @@ interface GastoVariable {
 interface Stats {
   total: number;
   total_deducible: number;
+  total_deducible_sat?: number;
+  total_no_deducible_sat?: number;
+  total_revision_sat?: number;
   count: number;
   por_categoria: Array<{ categoria: string; total: number; count: number }>;
   promedio: number;
+  sat?: SatDeductibilitySummary;
 }
+
+const SAT_STATUS_STYLES: Record<SatDeductibilityStatus, { badgeClass: string; textClass: string }> = {
+  deducible_probable: {
+    badgeClass: 'border border-emerald-300/60 bg-emerald-500/15 text-emerald-100',
+    textClass: 'text-emerald-100'
+  },
+  no_deducible: {
+    badgeClass: 'border border-rose-300/60 bg-rose-500/15 text-rose-100',
+    textClass: 'text-rose-100'
+  },
+  requiere_revision: {
+    badgeClass: 'border border-amber-300/60 bg-amber-500/15 text-amber-100',
+    textClass: 'text-amber-100'
+  }
+};
 
 const CATEGORIAS_CONFIG = {
   reparacion: { label: 'Reparación', icon: Wrench, chipClass: 'border border-rose-400/40 bg-rose-500/20 text-rose-50' },
@@ -308,6 +338,19 @@ export default function GastosPage() {
       return sum;
     }, 0);
 
+  const satSummary = useMemo(
+    () => stats?.sat ?? buildSatDeductibilitySummary(gastosVariables),
+    [stats, gastosVariables]
+  );
+
+  const satEvaluationsById = useMemo(() => {
+    const evaluations = new Map<number, SatExpenseEvaluation>();
+    gastosVariables.forEach((gasto) => {
+      evaluations.set(gasto.id, evaluateSatDeductibility(gasto));
+    });
+    return evaluations;
+  }, [gastosVariables]);
+
   if (loadingAuth) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -375,7 +418,7 @@ export default function GastosPage() {
           </div>
         </GlassPanel>
 
-        <div className="grid gap-6 md:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-4">
           <GlassPanel className="space-y-2 border-white/10 p-6 text-white">
             <div className="flex items-center justify-between text-white/80">
               <span className="text-sm">Gasto promedio</span>
@@ -386,21 +429,88 @@ export default function GastosPage() {
           </GlassPanel>
           <GlassPanel className="space-y-2 border-white/10 p-6 text-white">
             <div className="flex items-center justify-between text-white/80">
-              <span className="text-sm">Total deducible</span>
-              <Receipt className="h-4 w-4" />
+              <span className="text-sm">Deducible SAT probable</span>
+              <CheckCircle className="h-4 w-4" />
             </div>
-            <p className="text-3xl font-semibold text-emerald-200">{formatCurrency(stats?.total_deducible || 0)}</p>
-            <p className="text-xs text-white/60">Reporte fiscal actualizado</p>
+            <p className="text-3xl font-semibold text-emerald-200">{formatCurrency(satSummary.totalDeducibleProbable)}</p>
+            <p className="text-xs text-white/60">{satSummary.countDeducibleProbable} gastos cumplen validación automática</p>
           </GlassPanel>
           <GlassPanel className="space-y-2 border-white/10 p-6 text-white">
             <div className="flex items-center justify-between text-white/80">
-              <span className="text-sm">Categorías con actividad</span>
-              <Filter className="h-4 w-4" />
+              <span className="text-sm">No deducible SAT</span>
+              <XCircle className="h-4 w-4" />
             </div>
-            <p className="text-3xl font-semibold">{stats?.por_categoria?.length || 0}</p>
-            <p className="text-xs text-white/60">Clasificaciones que registraron consumo</p>
+            <p className="text-3xl font-semibold text-rose-200">{formatCurrency(satSummary.totalNoDeducible)}</p>
+            <p className="text-xs text-white/60">{satSummary.countNoDeducible} gastos no cumplen criterios SAT</p>
+          </GlassPanel>
+          <GlassPanel className="space-y-2 border-white/10 p-6 text-white">
+            <div className="flex items-center justify-between text-white/80">
+              <span className="text-sm">Requiere revisión SAT</span>
+              <AlertTriangle className="h-4 w-4" />
+            </div>
+            <p className="text-3xl font-semibold text-amber-200">{formatCurrency(satSummary.totalRevision)}</p>
+            <p className="text-xs text-white/60">{satSummary.countRevision} gastos necesitan validación contable</p>
           </GlassPanel>
         </div>
+
+        <GlassPanel className="space-y-5 border-white/10 p-6 text-white">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.35em] text-white/50">Panel SAT deducciones</p>
+              <h3 className="mt-1 text-xl font-semibold">Criterios oficiales y recomendaciones</h3>
+            </div>
+            <Badge variant="outline" className="border-white/30 text-white">
+              {satSummary.countTotal} gastos evaluados
+            </Badge>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-3">
+            <div className="space-y-3">
+              <p className="text-sm font-semibold text-white/80">Criterios aplicados</p>
+              {satSummary.criteria.map((criterion) => (
+                <div key={criterion.title} className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                  <p className="text-sm font-medium text-white">{criterion.title}</p>
+                  <p className="mt-1 text-xs text-white/65">{criterion.description}</p>
+                  <p className="mt-1 text-[11px] uppercase tracking-wide text-white/45">{criterion.legalReference}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-sm font-semibold text-white/80">Recomendaciones automáticas</p>
+              {satSummary.recommendations.length > 0 ? (
+                satSummary.recommendations.map((recommendation) => (
+                  <div key={recommendation} className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/80">
+                    {recommendation}
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/70">
+                  No hay recomendaciones pendientes para este periodo.
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-sm font-semibold text-white/80">Fuentes oficiales</p>
+              {satSummary.sources.map((source) => (
+                <a
+                  key={source.url}
+                  href={source.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/80 transition hover:border-white/30"
+                >
+                  <span>{source.title}</span>
+                  <ExternalLink className="h-4 w-4 text-white/60" />
+                </a>
+              ))}
+              <p className="text-xs text-white/55">
+                La clasificación es una guía operativa. La deducción final debe validarse con tu contador conforme al régimen fiscal del contribuyente.
+              </p>
+            </div>
+          </div>
+        </GlassPanel>
 
         <Tabs defaultValue="variables" className="space-y-6">
           <GlassPanel className="border-white/10 bg-white/5 p-2">
@@ -434,6 +544,11 @@ export default function GastosPage() {
                   <Plus className="h-4 w-4" />
                   Nuevo gasto fijo
                 </button>
+              </div>
+
+              <div className="rounded-2xl border border-amber-300/30 bg-amber-500/10 p-4 text-sm text-amber-100">
+                Los gastos fijos aún no capturan CFDI, RFC del proveedor ni método de pago en este módulo.
+                Por ahora se consideran en revisión SAT y conviene respaldarlos en gastos variables con datos fiscales completos.
               </div>
 
               {loadingFijos ? (
@@ -601,6 +716,8 @@ export default function GastosPage() {
                     const categoryConfig = CATEGORIAS_CONFIG[gasto.categoria as keyof typeof CATEGORIAS_CONFIG];
                     const CategoriaIcon = categoryConfig?.icon || MoreHorizontal;
                     const estadoConfig = ESTADO_CONFIG[gasto.estado as keyof typeof ESTADO_CONFIG];
+                    const satEvaluation = satEvaluationsById.get(gasto.id);
+                    const satStyle = satEvaluation ? SAT_STATUS_STYLES[satEvaluation.status] : null;
 
                     return (
                       <div key={gasto.id} className="rounded-3xl border border-white/10 bg-white/5 p-5 transition hover:border-white/30">
@@ -617,9 +734,14 @@ export default function GastosPage() {
                                     {estadoConfig.label}
                                   </Badge>
                                 )}
+                                {satEvaluation && satStyle && (
+                                  <Badge className={`${satStyle.badgeClass} text-xs font-semibold uppercase tracking-wide`}>
+                                    {satEvaluation.statusLabel}
+                                  </Badge>
+                                )}
                                 {gasto.es_deducible && (
-                                  <Badge variant="outline" className="border-white/40 text-xs text-white">
-                                    Deducible
+                                  <Badge variant="outline" className="border-white/20 text-xs text-white/75">
+                                    Marcado deducible (usuario)
                                   </Badge>
                                 )}
                               </div>
@@ -628,8 +750,16 @@ export default function GastosPage() {
                                 {gasto.proveedor && ` • ${gasto.proveedor}`}
                                 {gasto.metodo_pago && ` • ${gasto.metodo_pago}`}
                               </p>
+                              {gasto.proveedor_rfc && (
+                                <p className="mt-1 text-xs text-white/50">RFC proveedor: {gasto.proveedor_rfc}</p>
+                              )}
                               {gasto.descripcion && (
                                 <p className="mt-2 text-sm text-white/70">{gasto.descripcion}</p>
+                              )}
+                              {satEvaluation && (
+                                <p className={`mt-2 text-xs ${satStyle?.textClass || 'text-white/70'}`}>
+                                  {satEvaluation.primaryReason}
+                                </p>
                               )}
                               {gasto.factura_numero && (
                                 <p className="mt-1 text-xs text-white/50">Factura: {gasto.factura_numero}</p>

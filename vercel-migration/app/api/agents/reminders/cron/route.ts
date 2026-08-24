@@ -7,17 +7,23 @@ import { NextRequest, NextResponse } from 'next/server';
  * Este endpoint debe ser llamado por un cron job (por ejemplo, cada hora)
  * Detecta citas próximas y envía recordatorios automáticamente
  * 
- * Query params:
- * ?secret=YOUR_CRON_SECRET
+ * Compatibilidad de autenticación:
+ * - Header: Authorization: Bearer <CRON_SECRET>
+ * - Query param legacy: ?secret=<CRON_SECRET>
  */
 
 export async function GET(req: NextRequest) {
   try {
-    // Validar secret para seguridad
+    // Validar secret para seguridad (header preferido + query legacy)
     const { searchParams } = new URL(req.url);
-    const secret = searchParams.get('secret');
+    const querySecret = searchParams.get('secret');
+    const authHeader = req.headers.get('authorization');
+    const headerToken = authHeader?.startsWith('Bearer ')
+      ? authHeader.slice('Bearer '.length)
+      : null;
+    const cronSecret = process.env.CRON_SECRET;
 
-    if (secret !== process.env.CRON_SECRET) {
+    if (!cronSecret || (querySecret !== cronSecret && headerToken !== cronSecret)) {
       return NextResponse.json(
         { error: 'No autorizado' },
         { status: 401 }

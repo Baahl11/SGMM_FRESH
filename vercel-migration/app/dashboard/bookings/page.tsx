@@ -28,7 +28,8 @@ interface Booking {
   booking_date: string;
   booking_time: string;
   service_name: string;
-  service_duration: number;
+  service_duration_minutes?: number;
+  service_duration?: number;
   service_price: number;
   status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
   notes?: string;
@@ -400,7 +401,9 @@ export default function BookingsPage() {
                     <div className="flex flex-wrap items-center justify-between gap-4 text-sm text-white/80">
                       <div>
                         <p className="text-sm font-semibold text-white">{booking.service_name}</p>
-                        <p className="text-xs uppercase tracking-[0.3em] text-white/50">{booking.service_duration} min</p>
+                        <p className="text-xs uppercase tracking-[0.3em] text-white/50">
+                          {booking.service_duration_minutes ?? booking.service_duration ?? 30} min
+                        </p>
                       </div>
                       <p className="text-lg font-semibold text-emerald-200">
                         ${booking.service_price.toLocaleString('es-MX')}

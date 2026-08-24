@@ -1,6 +1,7 @@
 import { Metadata } from 'next'
 import Link from 'next/link'
 import { HeadphonesIcon, MessageCircle, Mail, Phone, Clock, Book, Video, HelpCircle } from 'lucide-react'
+import { SUPPORT_WHATSAPP_DISPLAY, supportWhatsAppLink } from '@/lib/config/contact' // fable K4
 
 export const metadata: Metadata = {
   title: 'Soporte Técnico | AgendaMedPro',
@@ -67,12 +68,12 @@ export default function SoportePage() {
                       La forma más rápida de obtener ayuda. Envíanos un mensaje y te respondemos en minutos.
                     </p>
                     <div className="space-y-2 text-sm mb-4">
-                      <p><strong>Número:</strong> <a href="https://wa.me/522223404585" target="_blank" rel="noopener" className="text-green-600 hover:underline font-semibold">+52 2223 404585</a></p>
+                      <p><strong>Número:</strong> <a href={supportWhatsAppLink()} target="_blank" rel="noopener" className="text-green-600 hover:underline font-semibold">{SUPPORT_WHATSAPP_DISPLAY}</a></p>
                       <p><strong>Horario:</strong> 7 días a la semana, 8:00 - 22:00 hrs (GMT-6)</p>
                       <p><strong>Ideal para:</strong> Dudas rápidas, problemas urgentes, guías paso a paso con capturas</p>
                     </div>
                     <a 
-                      href="https://wa.me/522223404585?text=Hola,%20necesito%20ayuda%20con%20AgendaMedPro" 
+                      href={supportWhatsAppLink("Hola, necesito ayuda con AgendaMedPro")} 
                       target="_blank"
                       rel="noopener"
                       className="inline-block bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
@@ -124,9 +125,9 @@ export default function SoportePage() {
                       Para emergencias o problemas críticos que requieran atención inmediata.
                     </p>
                     <div className="space-y-2 text-sm mb-4">
-                      <p><strong>Monterrey:</strong> <a href="tel:+528112345678" className="text-purple-600 hover:underline font-semibold">(81) 1234-5678</a></p>
-                      <p><strong>CDMX:</strong> <a href="tel:+525512345678" className="text-purple-600 hover:underline font-semibold">(55) 1234-5678</a></p>
-                      <p><strong>Resto de México:</strong> <a href="tel:+018001234567" className="text-purple-600 hover:underline font-semibold">800-123-4567</a> (sin costo)</p>
+                      {/* fable K4: teléfonos placeholder retirados; OD-6: confirmar líneas reales con negocio */}
+                      <p><strong>WhatsApp:</strong> <a href={supportWhatsAppLink()} className="text-purple-600 hover:underline font-semibold">{SUPPORT_WHATSAPP_DISPLAY}</a></p>
+                      
                       <p><strong>Horario:</strong> Lunes a Viernes, 9:00 - 18:00 hrs (GMT-6)</p>
                       <p><strong>Ideal para:</strong> Problemas críticos, caídas del servicio, emergencias de facturación</p>
                     </div>
@@ -289,9 +290,9 @@ export default function SoportePage() {
                   <span className="text-emerald-600 text-2xl">+</span>
                 </summary>
                 <p className="text-sm text-gray-700 mt-3 pl-4 border-l-2 border-emerald-300">
-                  Depende de tu plan: <strong>Básico</strong> tiene límite de 50 pacientes y 100 citas/mes. 
-                  <strong>Pro, Enterprise y Lifetime</strong> son completamente ilimitados. Puedes ver tu uso actual 
-                  en el dashboard.
+                  Depende de tu plan: <strong>Pro</strong> incluye hasta 10 doctores con operación amplia,
+                  y <strong>Enterprise</strong> escala a operación ilimitada para redes y grupos médicos.
+                  Puedes ver tu uso actual en el dashboard.
                 </p>
               </details>
 
@@ -387,7 +388,7 @@ export default function SoportePage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <a 
-                href="https://wa.me/528112345678?text=Hola,%20necesito%20ayuda%20con%20AgendaMedPro"
+                href={supportWhatsAppLink("Hola, necesito ayuda con AgendaMedPro")}
                 target="_blank"
                 rel="noopener"
                 className="inline-block bg-white text-emerald-600 px-8 py-3 rounded-lg font-semibold hover:bg-emerald-50 transition-colors"

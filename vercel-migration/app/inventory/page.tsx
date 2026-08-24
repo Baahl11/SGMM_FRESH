@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { cn } from "@/lib/utils";
 import { ToastProvider, useToast } from "@/components/ui/toast-container";
+import { parseFlexibleNumberInput } from '@/lib/number-parsing';
 
 interface InventoryItem {
   id: string;
@@ -119,8 +120,35 @@ function InventoryPageContent() {
   };
 
   const handleAddItem = async () => {
-    if (!nombre || !stockActual || !precioUnitario) {
-      toast.warning("Completa los campos requeridos");
+    const missingFields: string[] = [];
+    const nombreValue = nombre.trim();
+
+    if (!nombreValue) missingFields.push('Nombre');
+    if (!stockActual.trim()) missingFields.push('Stock actual');
+    if (!precioUnitario.trim()) missingFields.push('Precio unitario');
+
+    if (missingFields.length > 0) {
+      toast.warning(`Completa los campos requeridos: ${missingFields.join(', ')}`);
+      return;
+    }
+
+    const stockActualNumber = parseFlexibleNumberInput(stockActual);
+    const precioUnitarioNumber = parseFlexibleNumberInput(precioUnitario);
+    const hasStockMinimoValue = stockMinimo.trim() !== '';
+    const stockMinimoNumber = hasStockMinimoValue ? parseFlexibleNumberInput(stockMinimo) : 0;
+
+    if (!Number.isFinite(stockActualNumber) || stockActualNumber < 0) {
+      toast.warning('Stock actual inválido. Usa un número válido (ej. 1500, 1,500 o $1,500).');
+      return;
+    }
+
+    if (!Number.isFinite(precioUnitarioNumber) || precioUnitarioNumber < 0) {
+      toast.warning('Precio unitario inválido. Usa un número válido (ej. 499.99, 499,99 o $499.99).');
+      return;
+    }
+
+    if (hasStockMinimoValue && (!Number.isFinite(stockMinimoNumber) || stockMinimoNumber < 0)) {
+      toast.warning('Stock mínimo inválido. Usa un número válido (ej. 1000 o $1,000) o déjalo vacío.');
       return;
     }
 
@@ -129,11 +157,11 @@ function InventoryPageContent() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          nombre,
+          nombre: nombreValue,
           descripcion,
-          stock_actual: parseFloat(stockActual),
-          stock_minimo: parseFloat(stockMinimo) || 0,
-          precio_unitario: parseFloat(precioUnitario),
+          stock_actual: stockActualNumber,
+          stock_minimo: stockMinimoNumber,
+          precio_unitario: precioUnitarioNumber,
           categoria,
         }),
       });
@@ -150,8 +178,39 @@ function InventoryPageContent() {
   };
 
   const handleEditItem = async () => {
-    if (!editingItem || !nombre || !stockActual || !precioUnitario) {
-      toast.warning("Completa los campos requeridos");
+    if (!editingItem) {
+      return;
+    }
+
+    const missingFields: string[] = [];
+    const nombreValue = nombre.trim();
+
+    if (!nombreValue) missingFields.push('Nombre');
+    if (!stockActual.trim()) missingFields.push('Stock actual');
+    if (!precioUnitario.trim()) missingFields.push('Precio unitario');
+
+    if (missingFields.length > 0) {
+      toast.warning(`Completa los campos requeridos: ${missingFields.join(', ')}`);
+      return;
+    }
+
+    const stockActualNumber = parseFlexibleNumberInput(stockActual);
+    const precioUnitarioNumber = parseFlexibleNumberInput(precioUnitario);
+    const hasStockMinimoValue = stockMinimo.trim() !== '';
+    const stockMinimoNumber = hasStockMinimoValue ? parseFlexibleNumberInput(stockMinimo) : 0;
+
+    if (!Number.isFinite(stockActualNumber) || stockActualNumber < 0) {
+      toast.warning('Stock actual inválido. Usa un número válido (ej. 1500, 1,500 o $1,500).');
+      return;
+    }
+
+    if (!Number.isFinite(precioUnitarioNumber) || precioUnitarioNumber < 0) {
+      toast.warning('Precio unitario inválido. Usa un número válido (ej. 499.99, 499,99 o $499.99).');
+      return;
+    }
+
+    if (hasStockMinimoValue && (!Number.isFinite(stockMinimoNumber) || stockMinimoNumber < 0)) {
+      toast.warning('Stock mínimo inválido. Usa un número válido (ej. 1000 o $1,000) o déjalo vacío.');
       return;
     }
 
@@ -160,11 +219,11 @@ function InventoryPageContent() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          nombre,
+          nombre: nombreValue,
           descripcion,
-          stock_actual: parseFloat(stockActual),
-          stock_minimo: parseFloat(stockMinimo) || 0,
-          precio_unitario: parseFloat(precioUnitario),
+          stock_actual: stockActualNumber,
+          stock_minimo: stockMinimoNumber,
+          precio_unitario: precioUnitarioNumber,
           categoria,
         }),
       });
@@ -484,8 +543,8 @@ function InventoryPageContent() {
                     <Label htmlFor="stock" className="text-white/80">Stock actual *</Label>
                     <Input
                       id="stock"
-                      type="number"
-                      step="0.01"
+                      type="text"
+                      inputMode="decimal"
                       value={stockActual}
                       onChange={(e: any) => setStockActual(e.target.value)}
                       placeholder="0"
@@ -496,8 +555,8 @@ function InventoryPageContent() {
                     <Label htmlFor="minimo" className="text-white/80">Stock mínimo</Label>
                     <Input
                       id="minimo"
-                      type="number"
-                      step="0.01"
+                      type="text"
+                      inputMode="decimal"
                       value={stockMinimo}
                       onChange={(e: any) => setStockMinimo(e.target.value)}
                       placeholder="0"
@@ -509,8 +568,8 @@ function InventoryPageContent() {
                   <Label htmlFor="precio" className="text-white/80">Precio unitario *</Label>
                   <Input
                     id="precio"
-                    type="number"
-                    step="0.01"
+                    type="text"
+                    inputMode="decimal"
                     value={precioUnitario}
                     onChange={(e: any) => setPrecioUnitario(e.target.value)}
                     placeholder="0.00"

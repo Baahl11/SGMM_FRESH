@@ -7,6 +7,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   // Páginas principales (alta prioridad)
   const mainPages = [
     { url: baseUrl, priority: 1.0, changeFrequency: 'weekly' as const },
+    { url: `${baseUrl}/prueba-gratis`, priority: 0.95, changeFrequency: 'weekly' as const },
     { url: `${baseUrl}/pricing`, priority: 0.9, changeFrequency: 'weekly' as const },
     { url: `${baseUrl}/acerca-de`, priority: 0.8, changeFrequency: 'monthly' as const },
     { url: `${baseUrl}/testimonios`, priority: 0.8, changeFrequency: 'monthly' as const },

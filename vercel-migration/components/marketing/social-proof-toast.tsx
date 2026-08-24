@@ -74,7 +74,7 @@ export function SocialProofToast() {
       clearTimeout(initial)
       if (hideTimer.current) clearTimeout(hideTimer.current)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [])
 
   return (

@@ -49,6 +49,7 @@ interface ReportData {
     profit: number;
     costs: number;
   };
+  fixedMonthlyEstimate?: number;
   gastosVariablesByCategory?: Array<{ name: string; value: number; color: string }>;
 }
 
@@ -80,7 +81,15 @@ interface BillingStats {
   };
 }
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
+const COLORS = ['#38bdf8', '#14b8a6', '#fbbf24', '#f472b6', '#818cf8'];
+const PAYMENT_METHOD_COLORS: Record<string, string> = {
+  efectivo: '#14b8a6',
+  tarjeta: '#38bdf8',
+  transferencia: '#fbbf24',
+  mercadopago: '#a78bfa',
+  stripe: '#60a5fa',
+  openpay: '#fb7185',
+};
 type MixedBarLineChartType = "bar" | "line";
 
 export default function ReportsPage() {
@@ -109,7 +118,8 @@ export default function ReportsPage() {
       revenue: 0,
       profit: 0,
       costs: 0,
-    }
+    },
+    fixedMonthlyEstimate: 0,
   });
 
   const [loading, setLoading] = useState(true);
@@ -235,7 +245,8 @@ export default function ReportsPage() {
           revenue: 0,
           profit: 0,
           costs: 0,
-        }
+        },
+        fixedMonthlyEstimate: 0,
       });
     } finally {
       setLoading(false);
@@ -243,205 +254,155 @@ export default function ReportsPage() {
   };
 
   const processReportData = (patients: any[], treatments: any[], records: any[], gastosFijos: any[], gastosVariables: any[]): ReportData => {
-    // Función para calcular gastos fijos diarios
+    const safeRecords = Array.isArray(records) ? records : [];
+    const safeTreatments = Array.isArray(treatments) ? treatments : [];
+    const safePatients = Array.isArray(patients) ? patients : [];
+    const safeGastosFijos = Array.isArray(gastosFijos) ? gastosFijos : [];
+    const safeGastosVariables = Array.isArray(gastosVariables) ? gastosVariables : [];
+
+    const pad2 = (value: number) => String(value).padStart(2, '0');
+    const startOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const toDateKey = (date: Date) => `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+    const toMonthKey = (date: Date) => `${date.getFullYear()}-${pad2(date.getMonth() + 1)}`;
+
+    const parseDateValue = (value: unknown): Date | null => {
+      if (!value) {
+        return null;
+      }
+
+      if (value instanceof Date && Number.isFinite(value.getTime())) {
+        return value;
+      }
+
+      if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (!trimmed) {
+          return null;
+        }
+
+        const dateOnlyMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (dateOnlyMatch) {
+          const [, year, month, day] = dateOnlyMatch;
+          const dateOnly = new Date(Number(year), Number(month) - 1, Number(day));
+          return Number.isFinite(dateOnly.getTime()) ? dateOnly : null;
+        }
+
+        const parsed = new Date(trimmed);
+        return Number.isFinite(parsed.getTime()) ? parsed : null;
+      }
+
+      const parsed = new Date(value as any);
+      return Number.isFinite(parsed.getTime()) ? parsed : null;
+    };
+
     const calculateDailyFixedCosts = (date: Date): number => {
-      if (!Array.isArray(gastosFijos)) {
-        console.warn('gastosFijos is not an array:', typeof gastosFijos, gastosFijos);
+      if (safeGastosFijos.length === 0) {
         return 0;
       }
-      
-      return gastosFijos
-        .filter(gasto => {
-          // Como el backend ya filtra por activo=1, todos los gastos están activos
-          // Verificamos que la fecha del gasto sea anterior o igual a la fecha dada
-          const gastoDate = new Date(gasto.fecha ?? gasto.fecha_inicio ?? Date.now());
-          return gastoDate <= date;
+
+      return safeGastosFijos
+        .filter((gasto) => {
+          const startDate = parseDateValue(gasto?.fecha ?? gasto?.fecha_inicio) ?? new Date(0);
+          return startDate <= date;
         })
         .reduce((total, gasto) => {
-          const frecuencia = gasto.categoria || gasto.frecuencia || 'mensual';
-          const monto = toNumber(gasto.monto);
-          switch (frecuencia) {
+          const frequency = String(gasto?.frecuencia ?? gasto?.categoria ?? 'mensual').toLowerCase();
+          const amount = toNumber(gasto?.monto);
+
+          switch (frequency) {
+            case 'quincenal':
+              return total + amount / 15;
             case 'mensual':
-              return total + monto / 30; // Aproximación diaria
+              return total + amount / 30;
             case 'trimestral':
-              return total + monto / 90; // Aproximación diaria
+              return total + amount / 90;
+            case 'semestral':
+              return total + amount / 180;
             case 'anual':
-              return total + monto / 365; // Aproximación diaria
+              return total + amount / 365;
             default:
-              return total + monto / 30; // Default mensual
+              return total + amount / 30;
           }
         }, 0);
     };
 
-    // Función para calcular gastos variables por fecha
-    const calculateVariableCosts = (startDate: Date, endDate: Date): number => {
-      if (!Array.isArray(gastosVariables)) {
-        console.warn('gastosVariables is not an array:', typeof gastosVariables, gastosVariables);
-        return 0;
-      }
-      
-      return gastosVariables
-        .filter(gasto => {
-          if (!gasto.fecha) return false;
-          const gastoDate = new Date(gasto.fecha);
-          return gastoDate >= startDate && gastoDate <= endDate && !gasto.deleted_at;
-        })
-        .reduce((total, gasto) => total + toNumber(gasto.monto), 0);
+    const fixedMonthlyEstimate = safeGastosFijos
+      .filter((gasto) => gasto?.activo !== false)
+      .reduce((total, gasto) => {
+        const frequency = String(gasto?.frecuencia ?? 'mensual').toLowerCase();
+        const amount = toNumber(gasto?.monto);
+
+        switch (frequency) {
+          case 'quincenal':
+            return total + amount * 2;
+          case 'mensual':
+            return total + amount;
+          case 'trimestral':
+            return total + amount / 3;
+          case 'semestral':
+            return total + amount / 6;
+          case 'anual':
+            return total + amount / 12;
+          default:
+            return total + amount;
+        }
+      }, 0);
+
+    type NormalizedRecord = {
+      treatmentId: string | null;
+      paymentMethod: string;
+      date: Date;
+      dateKey: string;
+      monthKey: string;
+      revenue: number;
+      directCosts: number;
     };
 
-    // Calcular ingresos de hoy con gastos fijos - FIXED timezone handling
-    // Use local date to avoid timezone issues
-    const today = new Date();
-    const todayStr = today.getFullYear() + '-' + 
-                    String(today.getMonth() + 1).padStart(2, '0') + '-' + 
-                    String(today.getDate()).padStart(2, '0');
-    const todayRecords = records.filter(record => {
-      if (!record.fecha) return false;
-      
-      try {
-        // Try different date parsing approaches
-        let recordDate;
-        
-        // If fecha contains 'T', it's datetime format
-        if (record.fecha.includes('T')) {
-          // Parse as datetime and extract date part
-          const date = new Date(record.fecha);
-          recordDate = date.getFullYear() + '-' + 
-                      String(date.getMonth() + 1).padStart(2, '0') + '-' + 
-                      String(date.getDate()).padStart(2, '0');
-        } else {
-          // If it's just a date string
-          recordDate = record.fecha.split(' ')[0]; // Handle "2025-07-04 12:00:00" format
-          if (recordDate.includes('T')) {
-            recordDate = recordDate.split('T')[0];
-          }
+    const normalizedRecords = safeRecords
+      .map((record): NormalizedRecord | null => {
+        const parsedDate = parseDateValue(record?.fecha);
+        if (!parsedDate) {
+          return null;
         }
-        
-        const isToday = recordDate === todayStr;
-        
-        const montoPagado = toNumber(record.monto_pagado);
 
-        if (isToday && montoPagado > 0) {
-        }
-        
-        return isToday;
-      } catch (error) {
-        console.error('❌ Error parsing date for record:', record.id, record.fecha, error);
-        return false;
-      }
-    });
-  const todayRevenue = todayRecords.reduce((sum, record) => sum + toNumber(record.monto_pagado), 0);
-    const todayVariableCosts = todayRecords.reduce((sum, record) => 
-      sum + toNumber(record.costo_unitario) + toNumber(record.comision_monto), 0
-    );
-    const todayFixedCosts = calculateDailyFixedCosts(new Date());
-    
-    // Calcular gastos variables del día
-    const todayStart = new Date(today);
-    todayStart.setHours(0, 0, 0, 0);
-    const todayEnd = new Date(today);
-    todayEnd.setHours(23, 59, 59, 999);
-    const todayGastosVariables = calculateVariableCosts(todayStart, todayEnd);
-    
-    const todayCosts = todayVariableCosts + todayFixedCosts + todayGastosVariables;
-    const todayProfit = todayRevenue - todayCosts;
+        const day = startOfDay(parsedDate);
+        const revenue = toNumber(record?.monto_pagado);
+        const directCosts = toNumber(record?.costo_unitario) + toNumber(record?.comision_monto);
 
-    // Generate sample monthly data for the last 12 months
-    const monthly12Revenue = [];
-    for (let i = 11; i >= 0; i--) {
-      const date = new Date();
-      date.setMonth(date.getMonth() - i);
-      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      
-      const monthRecords = records.filter(record => {
-        if (!record.fecha) return false;
-        const recordDate = new Date(record.fecha);
-        return recordDate.getFullYear() === date.getFullYear() && 
-               recordDate.getMonth() === date.getMonth();
-      });
-      
-  const monthRevenue = monthRecords.reduce((sum, record) => sum + toNumber(record.monto_pagado), 0);
-  const monthVariableCosts = monthRecords.reduce((sum, record) => sum + toNumber(record.costo_unitario), 0);
-      
-      // Calcular gastos fijos del mes (30 días aprox)
-      const monthFixedCosts = calculateDailyFixedCosts(date) * 30;
-      
-      // Calcular gastos variables del mes
-      const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
-      const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59);
-      const monthGastosVariables = calculateVariableCosts(monthStart, monthEnd);
-      
-  const monthCosts = monthVariableCosts + monthFixedCosts + monthGastosVariables;
-      
-      monthly12Revenue.push({
-        month: date.toLocaleDateString('es-MX', { month: 'short', year: 'numeric' }),
-        revenue: monthRevenue,
-        costs: monthCosts,
-        profit: monthRevenue - monthCosts
-      });
-    }
-
-    // Process payment methods
-    const paymentMethodCounts: { [key: string]: number } = {};
-    records.forEach(record => {
-      const method = record.metodo_pago || 'efectivo';
-      paymentMethodCounts[method] = (paymentMethodCounts[method] || 0) + toNumber(record.monto_pagado);
-    });
-
-    const paymentMethods = Object.entries(paymentMethodCounts).map(([name, value], index) => ({
-      name: name.charAt(0).toUpperCase() + name.slice(1),
-      value: toNumber(value),
-      color: COLORS[index % COLORS.length]
-    }));
-
-    // Process top treatments
-    const treatmentStats: { [key: number]: { count: number; revenue: number } } = {};
-    records.forEach(record => {
-      const treatmentId = record.treatment_id;
-      const montoPagado = toNumber(record.monto_pagado);
-      if (treatmentId && montoPagado > 0) {
-        if (!treatmentStats[treatmentId]) {
-          treatmentStats[treatmentId] = { count: 0, revenue: 0 };
-        }
-        treatmentStats[treatmentId].count += 1;
-        treatmentStats[treatmentId].revenue += montoPagado;
-      }
-    });
-
-    const topTreatments = Object.entries(treatmentStats)
-      .map(([id, stats]) => {
-        const treatment = treatments.find(t => String(t.id) === String(id));
         return {
-          name: treatment?.nombre || `Tratamiento ID ${id}`,
-          count: stats.count,
-          revenue: stats.revenue
+          treatmentId: record?.treatment_id != null ? String(record.treatment_id) : null,
+          paymentMethod: String(record?.metodo_pago ?? 'efectivo').trim().toLowerCase() || 'efectivo',
+          date: day,
+          dateKey: toDateKey(day),
+          monthKey: toMonthKey(day),
+          revenue,
+          directCosts,
         };
       })
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 5);
+      .filter((record): record is NormalizedRecord => record !== null);
 
-    // Billing analysis - use mock data if no records
-  const totalRevenue = records.reduce((sum, record) => sum + toNumber(record.monto_pagado), 0);
-    const hasRealData = totalRevenue > 0 && records.length > 0;
-    
-    const billingAnalysis = hasRealData ? {
-      totalRevenue,
-      billedRevenue: totalRevenue * 0.3, // Real calculation would be more complex
-      nonBilledRevenue: totalRevenue * 0.7,
-      billedPercentage: 30,
-      billedPatients: Math.floor(patients.length * 0.3),
-      nonBilledPatients: Math.floor(patients.length * 0.7),
-    } : {
-      // Mock data for demo purposes when no real data exists
-      totalRevenue: 0,
-      billedRevenue: 0,
-      nonBilledRevenue: 0,
-      billedPercentage: 0,
-      billedPatients: 0,
-      nonBilledPatients: 0,
-    };
+    const dailyRecordMetrics = new Map<string, { revenue: number; directCosts: number }>();
+    const paymentMethodTotals: Record<string, number> = {};
+    const treatmentStats: Record<string, { count: number; revenue: number }> = {};
 
-    // Procesar gastos variables por categoría
+    for (const record of normalizedRecords) {
+      const current = dailyRecordMetrics.get(record.dateKey) ?? { revenue: 0, directCosts: 0 };
+      current.revenue += record.revenue;
+      current.directCosts += record.directCosts;
+      dailyRecordMetrics.set(record.dateKey, current);
+
+      paymentMethodTotals[record.paymentMethod] = (paymentMethodTotals[record.paymentMethod] ?? 0) + record.revenue;
+
+      if (record.treatmentId && record.revenue > 0) {
+        if (!treatmentStats[record.treatmentId]) {
+          treatmentStats[record.treatmentId] = { count: 0, revenue: 0 };
+        }
+        treatmentStats[record.treatmentId].count += 1;
+        treatmentStats[record.treatmentId].revenue += record.revenue;
+      }
+    }
+
+    const variableCostsByDay = new Map<string, number>();
     const CATEGORY_COLORS: { [key: string]: string } = {
       reparacion: '#EF4444',
       mantenimiento: '#F97316',
@@ -454,7 +415,6 @@ export default function ReportsPage() {
       viajes: '#FBBF24',
       otros: '#6B7280',
     };
-
     const CATEGORY_LABELS: { [key: string]: string } = {
       reparacion: 'Reparación',
       mantenimiento: 'Mantenimiento',
@@ -468,45 +428,210 @@ export default function ReportsPage() {
       otros: 'Otros',
     };
 
-    const gastosVariablesByCategory = Array.isArray(gastosVariables) 
-      ? Object.entries(
-          gastosVariables
-            .filter(gasto => !gasto.deleted_at)
-            .reduce((acc: { [key: string]: number }, gasto: any) => {
-              const categoria = gasto.categoria || 'otros';
-              const monto = toNumber(gasto.monto);
-              acc[categoria] = (acc[categoria] || 0) + monto;
-              return acc;
-            }, {})
-        )
-        .map(([categoria, total]) => ({
-          name: CATEGORY_LABELS[categoria] || categoria,
-          value: total,
-          color: CATEGORY_COLORS[categoria] || '#6B7280'
-        }))
-        .sort((a, b) => b.value - a.value)
-      : [];
+    const variableCategoryTotals = safeGastosVariables
+      .filter((gasto) => !gasto?.deleted_at)
+      .reduce((acc: Record<string, number>, gasto) => {
+        const parsedDate = parseDateValue(gasto?.fecha);
+        if (parsedDate) {
+          const key = toDateKey(startOfDay(parsedDate));
+          variableCostsByDay.set(key, (variableCostsByDay.get(key) ?? 0) + toNumber(gasto?.monto));
+        }
+
+        const category = String(gasto?.categoria ?? 'otros');
+        acc[category] = (acc[category] ?? 0) + toNumber(gasto?.monto);
+        return acc;
+      }, {});
+
+    const gastosVariablesByCategory = Object.entries(variableCategoryTotals)
+      .map(([category, total]) => ({
+        name: CATEGORY_LABELS[category] || category,
+        value: total,
+        color: CATEGORY_COLORS[category] || '#6B7280'
+      }))
+      .sort((a, b) => b.value - a.value);
+
+    const today = startOfDay(new Date());
+    const firstMonthInRange = new Date(today.getFullYear(), today.getMonth() - 23, 1);
+    const dayMetricsByKey = new Map<string, { revenue: number; costs: number; profit: number }>();
+    const monthMetricsByKey = new Map<string, { revenue: number; costs: number; profit: number }>();
+
+    for (let cursor = new Date(firstMonthInRange); cursor <= today; cursor.setDate(cursor.getDate() + 1)) {
+      const day = startOfDay(cursor);
+      const dayKey = toDateKey(day);
+      const monthKey = toMonthKey(day);
+
+      const recordMetrics = dailyRecordMetrics.get(dayKey) ?? { revenue: 0, directCosts: 0 };
+      const fixedCosts = calculateDailyFixedCosts(day);
+      const variableCosts = variableCostsByDay.get(dayKey) ?? 0;
+      const costs = recordMetrics.directCosts + fixedCosts + variableCosts;
+      const profit = recordMetrics.revenue - costs;
+
+      dayMetricsByKey.set(dayKey, {
+        revenue: recordMetrics.revenue,
+        costs,
+        profit,
+      });
+
+      const monthMetrics = monthMetricsByKey.get(monthKey) ?? { revenue: 0, costs: 0, profit: 0 };
+      monthMetrics.revenue += recordMetrics.revenue;
+      monthMetrics.costs += costs;
+      monthMetrics.profit += profit;
+      monthMetricsByKey.set(monthKey, monthMetrics);
+    }
+
+    const buildDailySeries = (days: number) => {
+      const series: Array<{ date: string; revenue: number; costs: number; profit: number }> = [];
+      for (let i = days - 1; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(today.getDate() - i);
+        const key = toDateKey(date);
+        const metrics = dayMetricsByKey.get(key) ?? { revenue: 0, costs: 0, profit: 0 };
+        series.push({
+          date: date.toLocaleDateString('es-MX', { day: '2-digit', month: 'short' }),
+          revenue: metrics.revenue,
+          costs: metrics.costs,
+          profit: metrics.profit,
+        });
+      }
+      return series;
+    };
+
+    const buildMonthlySeries = (months: number) => {
+      const series: Array<{ month: string; revenue: number; costs: number; profit: number }> = [];
+      for (let i = months - 1; i >= 0; i--) {
+        const monthDate = new Date(today.getFullYear(), today.getMonth() - i, 1);
+        const key = toMonthKey(monthDate);
+        const metrics = monthMetricsByKey.get(key) ?? { revenue: 0, costs: 0, profit: 0 };
+        series.push({
+          month: monthDate.toLocaleDateString('es-MX', { month: 'short', year: 'numeric' }),
+          revenue: metrics.revenue,
+          costs: metrics.costs,
+          profit: metrics.profit,
+        });
+      }
+      return series;
+    };
+
+    const buildWeeklySeries = (weeks: number) => {
+      const series: Array<{ week: string; revenue: number; costs: number; profit: number }> = [];
+
+      for (let i = weeks - 1; i >= 0; i--) {
+        const weekEnd = new Date(today);
+        weekEnd.setDate(today.getDate() - (i * 7));
+        const weekStart = new Date(weekEnd);
+        weekStart.setDate(weekEnd.getDate() - 6);
+
+        let revenue = 0;
+        let costs = 0;
+        let profit = 0;
+
+        for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+          const day = new Date(weekStart);
+          day.setDate(weekStart.getDate() + dayOffset);
+          const key = toDateKey(day);
+          const metrics = dayMetricsByKey.get(key);
+
+          if (metrics) {
+            revenue += metrics.revenue;
+            costs += metrics.costs;
+            profit += metrics.profit;
+          }
+        }
+
+        series.push({
+          week: `Sem ${weekStart.toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })}`,
+          revenue,
+          costs,
+          profit,
+        });
+      }
+
+      return series;
+    };
+
+    const buildYearlySeries = (years: number) => {
+      const series: Array<{ year: string; revenue: number; costs: number; profit: number }> = [];
+
+      for (let i = years - 1; i >= 0; i--) {
+        const year = today.getFullYear() - i;
+        let revenue = 0;
+        let costs = 0;
+        let profit = 0;
+
+        monthMetricsByKey.forEach((metrics, monthKey) => {
+          if (monthKey.startsWith(`${year}-`)) {
+            revenue += metrics.revenue;
+            costs += metrics.costs;
+            profit += metrics.profit;
+          }
+        });
+
+        series.push({ year: String(year), revenue, costs, profit });
+      }
+
+      return series;
+    };
+
+    const topTreatments = Object.entries(treatmentStats)
+      .map(([id, stats]) => {
+        const treatment = safeTreatments.find((item: any) => String(item?.id) === String(id));
+        return {
+          name: treatment?.nombre || `Tratamiento ID ${id}`,
+          count: stats.count,
+          revenue: stats.revenue,
+        };
+      })
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5);
+
+    const paymentMethods = Object.entries(paymentMethodTotals)
+      .map(([name, value], index) => ({
+        name: name.charAt(0).toUpperCase() + name.slice(1),
+        value: toNumber(value),
+        color: PAYMENT_METHOD_COLORS[name] || COLORS[index % COLORS.length]
+      }))
+      .sort((a, b) => b.value - a.value);
+
+    const totalRevenue = normalizedRecords.reduce((sum, record) => sum + record.revenue, 0);
+    const hasRealData = totalRevenue > 0 && normalizedRecords.length > 0;
+    const billingAnalysis = hasRealData
+      ? {
+          totalRevenue,
+          billedRevenue: totalRevenue * 0.3,
+          nonBilledRevenue: totalRevenue * 0.7,
+          billedPercentage: 30,
+          billedPatients: Math.floor(safePatients.length * 0.3),
+          nonBilledPatients: Math.floor(safePatients.length * 0.7),
+        }
+      : {
+          totalRevenue: 0,
+          billedRevenue: 0,
+          nonBilledRevenue: 0,
+          billedPercentage: 0,
+          billedPatients: 0,
+          nonBilledPatients: 0,
+        };
+
+    const todayKey = toDateKey(today);
+    const todayMetrics = dayMetricsByKey.get(todayKey) ?? { revenue: 0, costs: 0, profit: 0 };
 
     return {
-      daily7Revenue: [],
-      daily15Revenue: [],
-      daily30Revenue: [],
-      daily90Revenue: [],
-      weeklyRevenue: [],
-      monthly6Revenue: [],
-      monthly12Revenue,
-      monthly24Revenue: [],
-      yearlyRevenue: [],
+      daily7Revenue: buildDailySeries(7),
+      daily15Revenue: buildDailySeries(15),
+      daily30Revenue: buildDailySeries(30),
+      daily90Revenue: buildDailySeries(90),
+      weeklyRevenue: buildWeeklySeries(12),
+      monthly6Revenue: buildMonthlySeries(6),
+      monthly12Revenue: buildMonthlySeries(12),
+      monthly24Revenue: buildMonthlySeries(24),
+      yearlyRevenue: buildYearlySeries(5),
       paymentMethods,
       topTreatments,
       patientActivity: [],
       billingAnalysis,
-      todayMetrics: {
-        revenue: todayRevenue,
-        profit: todayProfit,
-        costs: todayCosts,
-      },
-      gastosVariablesByCategory
+      todayMetrics,
+      fixedMonthlyEstimate,
+      gastosVariablesByCategory,
     };
   };
 
@@ -626,21 +751,25 @@ export default function ReportsPage() {
         type: "bar" as const,
         label: revenueLegendLabels.costs,
         data: currentData.map((item) => toNumber(item.costs)),
-        backgroundColor: "rgba(249, 115, 22, 0.35)",
-        borderRadius: 12,
+        backgroundColor: "rgba(249, 115, 22, 0.32)",
+        borderColor: "rgba(251, 146, 60, 0.8)",
+        borderWidth: 1,
+        borderRadius: 14,
         borderSkipped: false,
-        maxBarThickness: 28
+        maxBarThickness: 30
       },
       {
         type: "line" as const,
         label: revenueLegendLabels.revenue,
         data: currentData.map((item) => toNumber(item.revenue)),
-        borderColor: "#4f46e5",
-        backgroundColor: "rgba(99, 102, 241, 0.2)",
-        tension: 0.35,
-        pointRadius: 4,
-        pointBackgroundColor: "#312e81",
+        borderColor: "#6366f1",
+        backgroundColor: "rgba(99, 102, 241, 0.26)",
+        tension: 0.38,
+        pointRadius: 4.5,
+        pointHoverRadius: 6,
+        pointBackgroundColor: "#6366f1",
         pointBorderColor: "#ffffff",
+        pointHoverBackgroundColor: "#818cf8",
         fill: true,
         borderWidth: 3
       },
@@ -649,11 +778,13 @@ export default function ReportsPage() {
         label: revenueLegendLabels.profit,
         data: currentData.map((item) => toNumber(item.profit)),
         borderColor: "#10b981",
-        backgroundColor: "rgba(16, 185, 129, 0.15)",
-        tension: 0.35,
+        backgroundColor: "rgba(16, 185, 129, 0.2)",
+        tension: 0.38,
         pointRadius: 4,
+        pointHoverRadius: 6,
         pointBackgroundColor: "#10b981",
         pointBorderColor: "#ecfdf5",
+        pointHoverBackgroundColor: "#34d399",
         fill: false,
         borderWidth: 3
       }
@@ -665,14 +796,14 @@ export default function ReportsPage() {
       x: {
         grid: { display: false },
         ticks: {
-          color: "#475569",
+          color: "rgba(226, 232, 240, 0.85)",
           font: { size: 12, weight: 500 }
         }
       },
       y: {
-        grid: { color: "rgba(148, 163, 184, 0.25)" },
+        grid: { color: "rgba(226, 232, 240, 0.14)" },
         ticks: {
-          color: "#475569",
+          color: "rgba(226, 232, 240, 0.8)",
           callback: (value: number | string) => formatCurrencyCompact(Number(value))
         }
       }
@@ -682,11 +813,33 @@ export default function ReportsPage() {
       responsive: true,
       maintainAspectRatio: false,
       interaction: { mode: "index", intersect: false },
+      animation: {
+        duration: 1100,
+        easing: "easeOutQuart"
+      },
+      animations: {
+        x: {
+          duration: 600,
+          easing: "easeOutCubic"
+        },
+        y: {
+          duration: 1100,
+          easing: "easeOutQuart"
+        }
+      },
+      elements: {
+        line: {
+          cubicInterpolationMode: "monotone"
+        },
+        point: {
+          hitRadius: 14
+        }
+      },
       scales,
       plugins: {
         legend: {
           labels: {
-            color: "#475569",
+            color: "rgba(241, 245, 249, 0.9)",
             usePointStyle: true,
             boxWidth: 10
           }
@@ -715,8 +868,11 @@ export default function ReportsPage() {
       {
         data: reportData.paymentMethods.map((method) => toNumber(method.value)),
         backgroundColor: reportData.paymentMethods.map((method) => method.color),
-        borderColor: "#ffffff",
-        borderWidth: 2
+        borderColor: "rgba(248, 250, 252, 0.9)",
+        borderWidth: 2,
+        borderRadius: 10,
+        spacing: 4,
+        hoverOffset: 16
       }
     ]
   }), [reportData.paymentMethods]);
@@ -724,7 +880,21 @@ export default function ReportsPage() {
   const paymentChartOptions = useMemo<ChartOptions<'doughnut'>>(() => ({
     responsive: true,
     maintainAspectRatio: false,
-    cutout: "58%",
+    cutout: "72%",
+    rotation: -95,
+    layout: {
+      padding: 8
+    },
+    animation: {
+      duration: 1200,
+      easing: "easeOutQuart"
+    },
+    elements: {
+      arc: {
+        borderColor: "rgba(255, 255, 255, 0.8)",
+        borderWidth: 2
+      }
+    },
     plugins: {
       legend: { display: false },
       tooltip: {
@@ -774,24 +944,24 @@ export default function ReportsPage() {
   const billingTrendChartOptions = useMemo<ChartOptions<'line'>>(() => {
     const scales = {
       x: {
-        ticks: { color: "#475569" },
-        grid: { color: "rgba(148, 163, 184, 0.12)" }
+        ticks: { color: "rgba(226, 232, 240, 0.85)" },
+        grid: { color: "rgba(226, 232, 240, 0.12)" }
       },
       y: {
         type: "linear",
         position: "left",
         ticks: {
-          color: "#475569",
+          color: "rgba(226, 232, 240, 0.85)",
           callback: (value: number | string) => formatCurrencyCompact(Number(value))
         },
-        grid: { color: "rgba(148, 163, 184, 0.25)" }
+        grid: { color: "rgba(226, 232, 240, 0.14)" }
       },
       y1: {
         type: "linear",
         position: "right",
         grid: { drawOnChartArea: false },
         ticks: {
-          color: "#6366f1",
+          color: "rgba(191, 219, 254, 0.95)",
           callback: (value: number | string) => `${Number(value).toFixed(0)} casos`
         }
       }
@@ -801,20 +971,24 @@ export default function ReportsPage() {
       responsive: true,
       maintainAspectRatio: false,
       interaction: { mode: "index", intersect: false },
+      animation: {
+        duration: 1100,
+        easing: "easeOutQuart"
+      },
       scales,
       plugins: {
         legend: {
           labels: {
-            color: "#475569",
+            color: "rgba(241, 245, 249, 0.9)",
             usePointStyle: true
           }
         },
         tooltip: {
-          backgroundColor: "rgba(255, 255, 255, 0.95)",
-          borderColor: "rgba(148, 163, 184, 0.35)",
+          backgroundColor: "rgba(15, 23, 42, 0.95)",
+          borderColor: "rgba(99, 102, 241, 0.35)",
           borderWidth: 1,
-          titleColor: "#0f172a",
-          bodyColor: "#0f172a",
+          titleColor: "#f8fafc",
+          bodyColor: "#f8fafc",
           callbacks: {
             label: (context: TooltipItem<'line'>) => {
               const value = context.parsed.y ?? Number(context.raw ?? 0);
@@ -829,10 +1003,49 @@ export default function ReportsPage() {
     } satisfies ChartOptions<'line'>;
   }, [formatCurrency, formatCurrencyCompact]);
 
-  const renderChartLoading = (message = "Cargando visualización…") => (
-    <div className="flex h-full items-center justify-center text-sm text-slate-400">
-      {message}
-    </div>
+  const renderChartLoading = (
+    message = "Cargando visualización…",
+    variant: "line" | "donut" = "line"
+  ) => (
+    <motion.div
+      className="flex h-full flex-col items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] px-6 py-8 backdrop-blur-xl"
+      initial={{ opacity: 0.3 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.35, ease: "easeOut" }}
+    >
+      <div className="relative mb-5 w-full max-w-sm">
+        {variant === "line" ? (
+          <div className="flex h-24 items-end gap-2">
+            {[0.38, 0.52, 0.45, 0.68, 0.54, 0.73, 0.48].map((heightFactor, index) => (
+              <motion.div
+                key={`loader-bar-${index}`}
+                className="flex-1 rounded-t-xl bg-gradient-to-t from-indigo-500/35 via-cyan-400/45 to-indigo-200/55"
+                style={{ transformOrigin: "bottom", height: "100%" }}
+                initial={{ scaleY: 0.24 }}
+                animate={{ scaleY: [0.24, heightFactor, 0.3] }}
+                transition={{
+                  duration: 1.5,
+                  delay: index * 0.06,
+                  repeat: Infinity,
+                  repeatType: "reverse",
+                  ease: "easeInOut"
+                }}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="mx-auto flex h-28 w-28 items-center justify-center">
+            <motion.div
+              className="h-28 w-28 rounded-full border-[10px] border-indigo-300/20 border-t-indigo-300/80 border-r-cyan-300/70"
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1.8, repeat: Infinity, ease: "linear" }}
+            />
+            <div className="absolute h-12 w-12 rounded-full border border-white/15 bg-[#020617]/85" />
+          </div>
+        )}
+      </div>
+      <p className="text-sm text-white/70">{message}</p>
+    </motion.div>
   );
 
   const renderRevenueChart = () => {
@@ -847,9 +1060,15 @@ export default function ReportsPage() {
     }
 
     return (
-      <div className="h-full">
+      <motion.div
+        key={`revenue-chart-${selectedPeriod}-${currentData.length}`}
+        className="h-full"
+        initial={{ opacity: 0, y: 8, scale: 0.99 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.45, ease: "easeOut" }}
+      >
         <ChartJSChart type="bar" data={revenueChartData} options={revenueChartOptions} />
-      </div>
+      </motion.div>
     );
   };
 
@@ -865,8 +1084,20 @@ export default function ReportsPage() {
     }
 
     return (
-      <div className="grid h-full gap-6 md:grid-cols-[1.2fr_1fr]">
+      <motion.div
+        key={`payments-chart-${reportData.paymentMethods.length}-${paymentMethodsTotal}`}
+        className="grid h-full gap-6 md:grid-cols-[1.2fr_1fr]"
+        initial={{ opacity: 0, y: 8, scale: 0.99 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.45, ease: "easeOut" }}
+      >
         <div className="relative h-full">
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+            <div className="rounded-full border border-white/15 bg-[#020617]/85 px-5 py-4 text-center shadow-[0_18px_55px_rgba(2,6,23,0.55)] backdrop-blur-xl">
+              <p className="text-[11px] uppercase tracking-[0.22em] text-white/60">Total cobrado</p>
+              <p className="mt-1 text-lg font-semibold text-cyan-100">{formatCurrency(paymentMethodsTotal)}</p>
+            </div>
+          </div>
           <Doughnut data={paymentChartData} options={paymentChartOptions} />
         </div>
         <div className="flex flex-col justify-center gap-3">
@@ -878,26 +1109,27 @@ export default function ReportsPage() {
                 initial={{ opacity: 0, x: 12 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.3, delay: 0.1 * index }}
-                className="flex items-center justify-between rounded-2xl bg-white/70 px-4 py-3 shadow-inner shadow-slate-200/50 backdrop-blur"
+                className="relative overflow-hidden rounded-2xl border border-white/15 bg-gradient-to-r from-white/10 via-white/[0.06] to-white/5 px-4 py-3 shadow-inner shadow-black/30 backdrop-blur"
               >
+                <span className="absolute bottom-0 left-0 h-[3px] rounded-r-full" style={{ width: `${Math.max(4, percentage)}%`, backgroundColor: method.color }} />
                 <div className="flex items-center gap-3">
                   <span
                     className="h-3.5 w-3.5 rounded-full"
                     style={{ backgroundColor: method.color }}
                   />
-                  <span className="text-sm font-medium text-slate-600">{method.name}</span>
+                  <span className="text-sm font-medium text-white/80">{method.name}</span>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-semibold text-slate-900">
+                  <p className="text-sm font-semibold text-white">
                     {formatCurrency(method.value)}
                   </p>
-                  <p className="text-xs text-slate-500">{percentage.toFixed(1)}%</p>
+                  <p className="text-xs font-medium text-white/70">{percentage.toFixed(1)}%</p>
                 </div>
               </motion.div>
             );
           })}
         </div>
-      </div>
+      </motion.div>
     );
   };
 
@@ -913,9 +1145,15 @@ export default function ReportsPage() {
     }
 
     return (
-      <div className="h-full">
+      <motion.div
+        key={`billing-trend-${billingStats.monthlyTrend.length}`}
+        className="h-full"
+        initial={{ opacity: 0, y: 8, scale: 0.99 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.45, ease: "easeOut" }}
+      >
         <Line data={billingTrendChartData} options={billingTrendChartOptions} />
-      </div>
+      </motion.div>
     );
   };
 
@@ -948,18 +1186,18 @@ export default function ReportsPage() {
                 </div>
               </div>
               
-              <select 
-                value={selectedPeriod} 
-                onChange={(e) => setSelectedPeriod(e.target.value)}
-                className="backdrop-blur-xl bg-white/10 border border-white/20 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500/50 hover:bg-white/15 transition-colors"
-                style={{ colorScheme: 'dark' }}
-              >
-                <option value="daily7" style={{ backgroundColor: '#1a1a2e', color: 'white' }}>Última semana</option>
-                <option value="daily30" style={{ backgroundColor: '#1a1a2e', color: 'white' }}>Últimos 30 días</option>
-                <option value="monthly6" style={{ backgroundColor: '#1a1a2e', color: 'white' }}>Últimos 6 meses</option>
-                <option value="monthly12" style={{ backgroundColor: '#1a1a2e', color: 'white' }}>Últimos 12 meses</option>
-                <option value="monthly24" style={{ backgroundColor: '#1a1a2e', color: 'white' }}>Últimos 24 meses</option>
-              </select>
+              <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+                <SelectTrigger className="min-w-[220px] border-white/20 bg-white/10 text-white shadow-[0_20px_55px_rgba(2,6,23,0.45)]">
+                  <SelectValue placeholder="Selecciona período" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="daily7">Última semana</SelectItem>
+                  <SelectItem value="daily30">Últimos 30 días</SelectItem>
+                  <SelectItem value="monthly6">Últimos 6 meses</SelectItem>
+                  <SelectItem value="monthly12">Últimos 12 meses</SelectItem>
+                  <SelectItem value="monthly24">Últimos 24 meses</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </GlassPanel>
@@ -1030,6 +1268,7 @@ export default function ReportsPage() {
                   <div>
                     <p className="text-sm uppercase tracking-[0.3em] text-white/50">Ganancia neta</p>
                     <p className="text-3xl font-semibold text-fuchsia-200">{formatCurrency(totalProfitSelected)}</p>
+                    <p className="mt-1 text-xs text-white/55">Incluye costos fijos recurrentes + variables</p>
                   </div>
                   <div className="rounded-2xl border border-white/20 bg-gradient-to-br from-fuchsia-500/40 to-purple-500/40 p-3">
                     <TrendingUp className="h-5 w-5" />
@@ -1065,6 +1304,9 @@ export default function ReportsPage() {
                       <p className="text-xs uppercase tracking-[0.2em] text-white/60">Rendimiento consolidado</p>
                       <h3 className="text-2xl font-semibold">Ingresos — {getPeriodLabel()}</h3>
                       <p className="text-sm text-white/70">Comparativa de ingresos, costos y utilidad neta</p>
+                      <p className="mt-2 text-xs text-white/55">
+                        Costos consideran fijos recurrentes (~{formatCurrency(reportData.fixedMonthlyEstimate ?? 0)} / mes) + variables.
+                      </p>
                     </div>
                     {hasRevenueData && (
                       <div className="grid gap-2 text-right text-xs font-medium text-white/70">
@@ -1084,7 +1326,7 @@ export default function ReportsPage() {
                     )}
                   </div>
                   <div className="relative h-72">
-                    {isClient ? renderRevenueChart() : renderChartLoading()}
+                    {isClient ? renderRevenueChart() : renderChartLoading("Preparando serie de ingresos…", "line")}
                   </div>
                 </GlassPanel>
               </motion.div>
@@ -1103,7 +1345,7 @@ export default function ReportsPage() {
                     <p className="text-sm text-white/70">Distribución y pesos relativos por canal de cobro</p>
                   </div>
                   <div className="relative h-72">
-                    {isClient ? renderPaymentMethodsChart() : renderChartLoading()}
+                    {isClient ? renderPaymentMethodsChart() : renderChartLoading("Construyendo mix de pagos…", "donut")}
                   </div>
                 </GlassPanel>
               </motion.div>
@@ -1297,7 +1539,7 @@ export default function ReportsPage() {
             <GlassPanel className="border-white/10 p-6 text-white">
               <h3 className="text-xl font-semibold">Tendencia de facturación (últimos 6 meses)</h3>
               <div className="mt-4 h-80">
-                {isClient ? renderBillingTrendChart() : renderChartLoading()}
+                {isClient ? renderBillingTrendChart() : renderChartLoading("Cargando tendencia de facturación…", "line")}
               </div>
             </GlassPanel>
 

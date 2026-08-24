@@ -1,11 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ArrowRight, MessageCircle, TrendingDown, TrendingUp, Clock, DollarSign } from 'lucide-react'
-import { trackCtaClick, trackWhatsAppDemoClick } from '@/lib/analytics/funnel-events'
-import { WHATSAPP_CALCULATOR_URL } from '@/lib/marketing/constants'
+import { ArrowRight, TrendingDown, TrendingUp, Clock, DollarSign } from 'lucide-react'
+import { trackCalculatorCompleted, trackCtaClick } from '@/lib/analytics/funnel-events'
+import { trackFunnelEvent } from '@/lib/analytics/funnel-client'
+import { captureMarketingAttribution } from '@/lib/marketing/attribution'
 
+const PRO_MONTHLY_PRICE = 1499
 function currency(n: number) {
   return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(n)
 }
@@ -22,6 +24,38 @@ export default function CalculadoraInasistenciasPage() {
   const perdidaAnual = perdidaMes * 12
   const recuperable = Math.round(perdidaMes * 0.7) // conservador: 70% recuperable con anticipos
   const horasPerdidas = Math.round(noShowsMes * 0.5) // ~30min admin por no-show
+  const citasParaCubrirPlan = Math.max(1, Math.ceil(PRO_MONTHLY_PRICE / ticket))
+
+  useEffect(() => {
+    captureMarketingAttribution(new URLSearchParams(window.location.search))
+    trackFunnelEvent('calculator_view')
+  }, [])
+
+  const trialLandingHref = '/prueba-gratis?source=calculator'
+
+  const handleTrialCta = () => {
+    const attributionParams = new URLSearchParams(window.location.search)
+    attributionParams.set('monthly_loss', String(perdidaMes))
+    attributionParams.set('monthly_no_shows', String(noShowsMes))
+    attributionParams.set('average_ticket', String(ticket))
+    attributionParams.set('recoverable_monthly', String(recuperable))
+    attributionParams.set('appointments_to_cover_plan', String(citasParaCubrirPlan))
+    captureMarketingAttribution(attributionParams)
+    trackFunnelEvent('calculator_cta', {
+      monthly_loss: perdidaMes,
+      monthly_no_shows: noShowsMes,
+      average_ticket: ticket,
+      appointments_to_cover_plan: citasParaCubrirPlan,
+    })
+
+    trackCalculatorCompleted({
+      monthlyLoss: perdidaMes,
+      monthlyNoShows: noShowsMes,
+      averageTicket: ticket,
+      appointmentsToCoverPlan: citasParaCubrirPlan,
+    })
+    trackCtaClick('calculadora_trial_landing', trialLandingHref)
+  }
 
   const sliderClass =
     'w-full accent-emerald-400 cursor-pointer h-2 rounded-full bg-white/10 appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-emerald-400'
@@ -118,6 +152,17 @@ export default function CalculadoraInasistenciasPage() {
               <p className="text-3xl font-semibold text-emerald-300">{currency(recuperable)}<span className="text-base font-normal text-white/40">/mes</span></p>
               <p className="mt-1 text-xs text-white/40">Estimado conservador: 70% de no-shows evitados con depósito previo</p>
             </div>
+
+            <div className="rounded-3xl border border-sky-400/20 bg-sky-400/5 p-6">
+              <p className="text-sm uppercase tracking-[0.25em] text-sky-200/70">Para cubrir el plan Pro</p>
+              <p className="mt-2 text-3xl font-semibold text-sky-200">
+                {citasParaCubrirPlan} {citasParaCubrirPlan === 1 ? 'cita' : 'citas'}
+                <span className="text-base font-normal text-white/40">/mes</span>
+              </p>
+              <p className="mt-1 text-xs text-white/40">
+                Calculado con tu ticket promedio y el precio mensual de $1,499 MXN.
+              </p>
+            </div>
           </div>
         </div>
 
@@ -127,29 +172,36 @@ export default function CalculadoraInasistenciasPage() {
             Recupera <span className="text-emerald-300">{currency(recuperable)}</span> al mes con AgendaMedPro
           </h2>
           <p className="mt-3 text-white/60 max-w-md mx-auto">
-            Activando anticipos online y recordatorios automáticos por WhatsApp, la mayoría de clínicas reducen sus no-shows en 70–78% en el primer mes.
+            Evalúa si recordatorios y anticipos digitales pueden ayudarte a reducir inasistencias y recuperar capacidad de atención.
           </p>
-          <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
+          <div className="mt-8 flex justify-center">
             <Link
-              href="/auth/signup"
+              href={trialLandingHref}
               className="aura-cta aura-cta--primary px-8 py-4 text-base"
-              onClick={() => trackCtaClick('calculadora_signup', '/auth/signup')}
+              onClick={handleTrialCta}
             >
-              Prueba gratis 7 días
+              Ver cómo recuperar estas citas
               <ArrowRight className="h-5 w-5" />
             </Link>
-            <a
-              href={WHATSAPP_CALCULATOR_URL}
-              className="aura-cta px-8 py-4 text-base"
-              rel="noreferrer"
-              target="_blank"
-              onClick={trackWhatsAppDemoClick}
-            >
-              <MessageCircle className="h-5 w-5" /> Hablar con un asesor
-            </a>
           </div>
-          <p className="mt-6 text-xs text-white/40">Activa con tarjeta · Sin cobro 7 días · Soporte en español</p>
+          <p className="mt-6 text-xs leading-relaxed text-white/40">
+            Estimación orientativa basada en los datos ingresados. Los resultados reales dependen de la operación de cada clínica.
+          </p>
         </div>
+      </div>
+
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-emerald-300/20 bg-[#030614]/92 px-4 py-3 shadow-[0_-18px_60px_rgba(2,6,23,0.65)] backdrop-blur-xl sm:hidden">
+        <Link
+          href={trialLandingHref}
+          className="aura-cta aura-cta--primary w-full justify-center px-5 py-3 text-sm"
+          onClick={handleTrialCta}
+        >
+          Recuperar {currency(recuperable)}/mes
+          <ArrowRight className="h-4 w-4" />
+        </Link>
+        <p className="mt-2 text-center text-[11px] text-white/45">
+          Ver plan de acción con tus resultados.
+        </p>
       </div>
     </main>
   )

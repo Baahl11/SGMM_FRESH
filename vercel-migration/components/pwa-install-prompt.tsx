@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { X, Download, Smartphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -10,12 +11,22 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 export function PWAInstallPrompt() {
+  const pathname = usePathname();
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
 
   useEffect(() => {
+    if (
+      pathname === '/prueba-gratis' ||
+      pathname === '/calculadora-inasistencias' ||
+      pathname.startsWith('/auth/') ||
+      pathname === '/select-trial-plan'
+    ) {
+      return;
+    }
+
     // Check if running in standalone mode
     const standalone = window.matchMedia('(display-mode: standalone)').matches;
     setIsStandalone(standalone);
@@ -57,7 +68,7 @@ export function PWAInstallPrompt() {
     return () => {
       window.removeEventListener('beforeinstallprompt', handler);
     };
-  }, []);
+  }, [pathname]);
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
@@ -83,7 +94,14 @@ export function PWAInstallPrompt() {
   };
 
   // Don't show if already installed or dismissed
-  if (!showPrompt || isStandalone) {
+  if (
+    pathname === '/prueba-gratis' ||
+    pathname === '/calculadora-inasistencias' ||
+    pathname.startsWith('/auth/') ||
+    pathname === '/select-trial-plan' ||
+    !showPrompt ||
+    isStandalone
+  ) {
     return null;
   }
 

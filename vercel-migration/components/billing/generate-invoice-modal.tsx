@@ -14,7 +14,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Plus, Download } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Loader2, Plus, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   SAT_FORMA_PAGO,
@@ -40,6 +41,14 @@ interface GenerateInvoiceModalProps {
   }>;
   onSuccess?: (invoiceId: string, xmlUrl?: string, pdfUrl?: string) => void;
 }
+
+const currencyFormatter = new Intl.NumberFormat('es-MX', {
+  style: 'currency',
+  currency: 'MXN',
+  minimumFractionDigits: 2,
+});
+
+const formatCurrency = (value: number) => currencyFormatter.format(value || 0);
 
 export default function GenerateInvoiceModal({
   open,
@@ -80,8 +89,24 @@ export default function GenerateInvoiceModal({
       loadFiscalData();
       setStep('fiscal-data');
       setShowNewFiscalForm(false);
+      setInvoiceData({
+        forma_pago: '04',
+        metodo_pago: 'PUE',
+        notas: '',
+        send_email: true,
+      });
+      setNewFiscalData({
+        patient_id: patientId,
+        rfc: '',
+        razon_social: patientName,
+        regimen_fiscal: '612',
+        codigo_postal: '',
+        uso_cfdi: 'D01',
+        email_facturacion: patientEmail || '',
+        is_default: true,
+      });
     }
-  }, [open, patientId]);
+  }, [open, patientId, patientName, patientEmail]);
 
   const loadFiscalData = async () => {
     setLoading(true);
@@ -197,13 +222,29 @@ export default function GenerateInvoiceModal({
   };
 
   const { subtotal, iva, total } = calculateTotal();
+  const selectedFiscalData = fiscalDataList.find((fd) => fd.id === selectedFiscalDataId) || null;
+
+  const applyDemoFiscalTemplate = () => {
+    setNewFiscalData((previous) => ({
+      ...previous,
+      patient_id: patientId,
+      rfc: 'XAXX010101000',
+      razon_social: patientName,
+      regimen_fiscal: '612',
+      codigo_postal: '01000',
+      uso_cfdi: 'D01',
+      email_facturacion: patientEmail || previous.email_facturacion || '',
+      is_default: true,
+    }));
+    toast.success('Plantilla demo cargada');
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto border border-white/15 bg-[#061025]/95 text-white backdrop-blur-2xl">
         <DialogHeader>
-          <DialogTitle>Generar Factura (CFDI)</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-xl text-white">Generar Factura (CFDI)</DialogTitle>
+          <DialogDescription className="text-white/70">
             Paciente: {patientName} • {records.length} tratamiento{records.length !== 1 ? 's' : ''}
           </DialogDescription>
         </DialogHeader>
@@ -211,7 +252,7 @@ export default function GenerateInvoiceModal({
         {step === 'fiscal-data' && (
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Datos Fiscales del Paciente</Label>
+              <Label className="text-white/80">Datos Fiscales del Paciente</Label>
               {loading ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-6 w-6 animate-spin" />
@@ -220,10 +261,10 @@ export default function GenerateInvoiceModal({
                 <>
                   {fiscalDataList.length > 0 && !showNewFiscalForm && (
                     <Select value={selectedFiscalDataId || ''} onValueChange={setSelectedFiscalDataId}>
-                      <SelectTrigger>
+                      <SelectTrigger className="border-white/20 bg-white/5 text-white">
                         <SelectValue placeholder="Seleccione datos fiscales" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="border-white/20 bg-slate-950 text-white">
                         {fiscalDataList.map((fd) => (
                           <SelectItem key={fd.id} value={fd.id}>
                             {fd.rfc} - {fd.razon_social}
@@ -240,6 +281,7 @@ export default function GenerateInvoiceModal({
                       variant="outline"
                       size="sm"
                       onClick={() => setShowNewFiscalForm(true)}
+                      className="border-white/20 bg-white/5 text-white hover:bg-white/10"
                     >
                       <Plus className="h-4 w-4 mr-2" />
                       Agregar Nuevos Datos Fiscales
@@ -247,54 +289,69 @@ export default function GenerateInvoiceModal({
                   )}
 
                   {showNewFiscalForm && (
-                    <div className="space-y-4 border p-4 rounded-lg">
-                      <h3 className="font-semibold">Nuevos Datos Fiscales</h3>
+                    <div className="space-y-4 rounded-2xl border border-white/15 bg-white/5 p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <h3 className="font-semibold text-white">Nuevos Datos Fiscales</h3>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={applyDemoFiscalTemplate}
+                          className="border-cyan-300/40 bg-cyan-500/10 text-cyan-100 hover:bg-cyan-500/20"
+                        >
+                          <Sparkles className="mr-2 h-4 w-4" />
+                          Usar plantilla demo
+                        </Button>
+                      </div>
                       
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="rfc">RFC *</Label>
+                          <Label htmlFor="rfc" className="text-white/80">RFC *</Label>
                           <Input
                             id="rfc"
                             value={newFiscalData.rfc}
                             onChange={(e) => setNewFiscalData({ ...newFiscalData, rfc: e.target.value.toUpperCase() })}
                             placeholder="XAXX010101000"
                             maxLength={13}
+                            className="border-white/20 bg-white/5 text-white placeholder:text-white/40"
                           />
                         </div>
 
                         <div className="space-y-2">
-                          <Label htmlFor="codigo_postal">Código Postal *</Label>
+                          <Label htmlFor="codigo_postal" className="text-white/80">Código Postal *</Label>
                           <Input
                             id="codigo_postal"
                             value={newFiscalData.codigo_postal}
                             onChange={(e) => setNewFiscalData({ ...newFiscalData, codigo_postal: e.target.value })}
                             placeholder="12345"
                             maxLength={5}
+                            className="border-white/20 bg-white/5 text-white placeholder:text-white/40"
                           />
                         </div>
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="razon_social">Razón Social / Nombre *</Label>
+                        <Label htmlFor="razon_social" className="text-white/80">Razón Social / Nombre *</Label>
                         <Input
                           id="razon_social"
                           value={newFiscalData.razon_social}
                           onChange={(e) => setNewFiscalData({ ...newFiscalData, razon_social: e.target.value })}
                           placeholder="Nombre completo o razón social"
+                          className="border-white/20 bg-white/5 text-white placeholder:text-white/40"
                         />
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="regimen_fiscal">Régimen Fiscal *</Label>
+                          <Label htmlFor="regimen_fiscal" className="text-white/80">Régimen Fiscal *</Label>
                           <Select
                             value={newFiscalData.regimen_fiscal}
                             onValueChange={(value) => setNewFiscalData({ ...newFiscalData, regimen_fiscal: value })}
                           >
-                            <SelectTrigger>
+                            <SelectTrigger className="border-white/20 bg-white/5 text-white">
                               <SelectValue />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent className="border-white/20 bg-slate-950 text-white">
                               {Object.entries(SAT_REGIMEN_FISCAL).map(([code, desc]) => (
                                 <SelectItem key={code} value={code}>
                                   {code} - {desc.substring(0, 40)}...
@@ -305,15 +362,15 @@ export default function GenerateInvoiceModal({
                         </div>
 
                         <div className="space-y-2">
-                          <Label htmlFor="uso_cfdi">Uso de CFDI *</Label>
+                          <Label htmlFor="uso_cfdi" className="text-white/80">Uso de CFDI *</Label>
                           <Select
                             value={newFiscalData.uso_cfdi}
                             onValueChange={(value) => setNewFiscalData({ ...newFiscalData, uso_cfdi: value })}
                           >
-                            <SelectTrigger>
+                            <SelectTrigger className="border-white/20 bg-white/5 text-white">
                               <SelectValue />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent className="border-white/20 bg-slate-950 text-white">
                               {Object.entries(SAT_USO_CFDI).map(([code, desc]) => (
                                 <SelectItem key={code} value={code}>
                                   {code} - {desc}
@@ -325,18 +382,19 @@ export default function GenerateInvoiceModal({
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="email_facturacion">Email para Facturación</Label>
+                        <Label htmlFor="email_facturacion" className="text-white/80">Email para Facturación</Label>
                         <Input
                           id="email_facturacion"
                           type="email"
                           value={newFiscalData.email_facturacion}
                           onChange={(e) => setNewFiscalData({ ...newFiscalData, email_facturacion: e.target.value })}
                           placeholder="email@example.com"
+                          className="border-white/20 bg-white/5 text-white placeholder:text-white/40"
                         />
                       </div>
 
                       <div className="flex gap-2">
-                        <Button type="button" onClick={handleSaveNewFiscalData} disabled={loading}>
+                        <Button type="button" onClick={handleSaveNewFiscalData} disabled={loading} className="border-0 bg-gradient-to-r from-emerald-300 via-cyan-300 to-sky-300 text-black hover:from-emerald-200 hover:via-cyan-200 hover:to-sky-200">
                           {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                           Guardar Datos Fiscales
                         </Button>
@@ -345,10 +403,24 @@ export default function GenerateInvoiceModal({
                             type="button"
                             variant="outline"
                             onClick={() => setShowNewFiscalForm(false)}
+                            className="border-white/20 bg-white/5 text-white hover:bg-white/10"
                           >
                             Cancelar
                           </Button>
                         )}
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedFiscalData && !showNewFiscalForm && (
+                    <div className="rounded-2xl border border-white/15 bg-white/5 p-4 text-sm text-white/80">
+                      <p className="text-xs uppercase tracking-[0.3em] text-white/50">Vista previa fiscal</p>
+                      <div className="mt-3 grid gap-2 md:grid-cols-2">
+                        <p><span className="text-white/55">RFC:</span> {selectedFiscalData.rfc}</p>
+                        <p><span className="text-white/55">CP:</span> {selectedFiscalData.codigo_postal}</p>
+                        <p className="md:col-span-2"><span className="text-white/55">Razón social:</span> {selectedFiscalData.razon_social}</p>
+                        <p><span className="text-white/55">Uso CFDI:</span> {selectedFiscalData.uso_cfdi}</p>
+                        <p><span className="text-white/55">Régimen:</span> {selectedFiscalData.regimen_fiscal}</p>
                       </div>
                     </div>
                   )}
@@ -357,7 +429,7 @@ export default function GenerateInvoiceModal({
             </div>
 
             {selectedFiscalDataId && !showNewFiscalForm && (
-              <Button onClick={() => setStep('invoice')} className="w-full">
+              <Button onClick={() => setStep('invoice')} className="w-full border-0 bg-gradient-to-r from-emerald-300 via-cyan-300 to-sky-300 text-black hover:from-emerald-200 hover:via-cyan-200 hover:to-sky-200">
                 Continuar
               </Button>
             )}
@@ -371,47 +443,56 @@ export default function GenerateInvoiceModal({
               variant="ghost"
               size="sm"
               onClick={() => setStep('fiscal-data')}
+              className="text-white/70 hover:bg-white/10 hover:text-white"
             >
               ← Volver
             </Button>
 
             {/* Treatment Summary */}
-            <div className="border rounded-lg p-4 space-y-2">
-              <h3 className="font-semibold">Tratamientos a Facturar</h3>
+            <div className="space-y-2 rounded-2xl border border-white/15 bg-white/5 p-4">
+              <h3 className="font-semibold text-white">Tratamientos a Facturar</h3>
               {records.map((record) => (
                 <div key={record.id} className="flex justify-between text-sm">
-                  <span>{record.treatment_name}</span>
-                  <span className="font-mono">${record.price.toFixed(2)}</span>
+                  <span className="text-white/80">{record.treatment_name}</span>
+                  <span className="font-mono text-white">{formatCurrency(record.price)}</span>
                 </div>
               ))}
-              <div className="border-t pt-2 space-y-1">
+              <div className="space-y-1 border-t border-white/10 pt-2">
                 <div className="flex justify-between text-sm">
-                  <span>Subtotal:</span>
-                  <span className="font-mono">${subtotal.toFixed(2)}</span>
+                  <span className="text-white/70">Subtotal:</span>
+                  <span className="font-mono text-white">{formatCurrency(subtotal)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span>IVA (16%):</span>
-                  <span className="font-mono">${iva.toFixed(2)}</span>
+                  <span className="text-white/70">IVA (16%):</span>
+                  <span className="font-mono text-white">{formatCurrency(iva)}</span>
                 </div>
                 <div className="flex justify-between font-semibold">
-                  <span>Total:</span>
-                  <span className="font-mono">${total.toFixed(2)}</span>
+                  <span className="text-white">Total:</span>
+                  <span className="font-mono text-cyan-200">{formatCurrency(total)}</span>
                 </div>
               </div>
             </div>
 
+            {selectedFiscalData && (
+              <div className="rounded-2xl border border-cyan-300/30 bg-cyan-500/10 p-4 text-sm text-white/80">
+                <p className="text-xs uppercase tracking-[0.3em] text-cyan-100/80">Se facturará a</p>
+                <p className="mt-2 text-base font-semibold text-white">{selectedFiscalData.razon_social}</p>
+                <p className="text-cyan-100">{selectedFiscalData.rfc} • CP {selectedFiscalData.codigo_postal}</p>
+              </div>
+            )}
+
             {/* Invoice Options */}
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="forma_pago">Forma de Pago *</Label>
+                <Label htmlFor="forma_pago" className="text-white/80">Forma de Pago *</Label>
                 <Select
                   value={invoiceData.forma_pago}
                   onValueChange={(value) => setInvoiceData({ ...invoiceData, forma_pago: value })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="border-white/20 bg-white/5 text-white">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="border-white/20 bg-slate-950 text-white">
                     {Object.entries(SAT_FORMA_PAGO).map(([code, desc]) => (
                       <SelectItem key={code} value={code}>
                         {code} - {desc}
@@ -422,15 +503,15 @@ export default function GenerateInvoiceModal({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="metodo_pago">Método de Pago *</Label>
+                <Label htmlFor="metodo_pago" className="text-white/80">Método de Pago *</Label>
                 <Select
                   value={invoiceData.metodo_pago}
                   onValueChange={(value) => setInvoiceData({ ...invoiceData, metodo_pago: value })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="border-white/20 bg-white/5 text-white">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="border-white/20 bg-slate-950 text-white">
                     {Object.entries(SAT_METODO_PAGO).map(([code, desc]) => (
                       <SelectItem key={code} value={code}>
                         {code} - {desc}
@@ -441,13 +522,25 @@ export default function GenerateInvoiceModal({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="notas">Notas / Observaciones</Label>
+                <Label htmlFor="notas" className="text-white/80">Notas / Observaciones</Label>
                 <Textarea
                   id="notas"
                   value={invoiceData.notas}
                   onChange={(e) => setInvoiceData({ ...invoiceData, notas: e.target.value })}
                   placeholder="Información adicional..."
                   rows={3}
+                  className="border-white/20 bg-white/5 text-white placeholder:text-white/40"
+                />
+              </div>
+
+              <div className="flex items-center justify-between rounded-2xl border border-white/15 bg-white/5 p-4">
+                <div>
+                  <p className="text-sm font-semibold text-white">Enviar CFDI por email</p>
+                  <p className="text-xs text-white/65">Si el paciente tiene correo fiscal, se enviará PDF/XML automáticamente.</p>
+                </div>
+                <Switch
+                  checked={invoiceData.send_email}
+                  onCheckedChange={(checked) => setInvoiceData({ ...invoiceData, send_email: checked })}
                 />
               </div>
             </div>
@@ -456,7 +549,7 @@ export default function GenerateInvoiceModal({
               <Button
                 onClick={handleGenerateInvoice}
                 disabled={generating}
-                className="w-full"
+                className="w-full border-0 bg-gradient-to-r from-emerald-300 via-cyan-300 to-sky-300 text-black hover:from-emerald-200 hover:via-cyan-200 hover:to-sky-200"
               >
                 {generating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Generar Factura (CFDI)

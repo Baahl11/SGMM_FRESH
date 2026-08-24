@@ -6,6 +6,19 @@
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 
+const AUTH_DEBUG_LOGS = process.env.AUTH_DEBUG_LOGS === 'true'
+
+function authDebugLog(message: string, meta?: Record<string, unknown>) {
+  if (!AUTH_DEBUG_LOGS) return
+
+  if (meta) {
+    console.log(`[Auth] ${message}`, meta)
+    return
+  }
+
+  console.log(`[Auth] ${message}`)
+}
+
 export interface AuthUser {
   id: string
   email: string
@@ -32,7 +45,7 @@ export async function getAuthUser(): Promise<AuthUser | null> {
       cookies: {
         get(name: string) {
           const value = cookieStore.get(name)?.value
-          console.log(`[Auth] Getting cookie: ${name} = ${value ? 'EXISTS' : 'MISSING'}`)
+          authDebugLog(`Getting cookie: ${name} = ${value ? 'EXISTS' : 'MISSING'}`)
           return value
         },
         set(name: string, value: string, options: any) {
@@ -56,14 +69,17 @@ export async function getAuthUser(): Promise<AuthUser | null> {
 
   const { data: { user }, error } = await supabase.auth.getUser()
 
-  console.log('[Auth] getAuthUser result:', { 
-    hasUser: !!user, 
-    userId: user?.id, 
-    error: error?.message 
+  authDebugLog('getAuthUser result', {
+    hasUser: !!user,
+    userId: user?.id,
+    error: error?.message,
   })
 
   if (error || !user) {
-    console.log('[Auth] No user found or error:', error?.message)
+    if (error) {
+      console.error('[Auth] getAuthUser failed:', error.message)
+    }
+
     return null
   }
 

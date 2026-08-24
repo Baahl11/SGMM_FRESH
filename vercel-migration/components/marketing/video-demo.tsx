@@ -5,14 +5,14 @@ import { motion } from 'framer-motion'
 import { Play, X } from 'lucide-react'
 import { trackCtaClick } from '@/lib/analytics/funnel-events'
 
-// Replace this with the real YouTube/Vimeo video ID when the demo is recorded
+// Replace this with the real YouTube/Vimeo video ID when the product video is recorded
 const VIDEO_ID = process.env.NEXT_PUBLIC_DEMO_VIDEO_ID ?? ''
 
 export function VideoDemo() {
   const [open, setOpen] = useState(false)
 
   const handleOpen = () => {
-    trackCtaClick('demo_video', 'youtube')
+    trackCtaClick('product_video', 'youtube')
     setOpen(true)
   }
 
@@ -49,7 +49,7 @@ export function VideoDemo() {
             style={{ aspectRatio: '16/9', maxWidth: 768 }}
             onClick={VIDEO_ID ? handleOpen : undefined}
             role={VIDEO_ID ? 'button' : undefined}
-            aria-label="Ver demo de AgendaMedPro"
+            aria-label="Ver video de AgendaMedPro"
           >
             {/* Gradient background without actual video until ID is set */}
             <div className="absolute inset-0 bg-gradient-to-br from-[#0a1628] via-[#0d0f2a] to-[#060a1e]" />
@@ -85,7 +85,7 @@ export function VideoDemo() {
             {/* "Próximamente" badge if no video yet */}
             {!VIDEO_ID && (
               <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs text-white/60 backdrop-blur">
-                Demo completo próximamente · Mientras tanto, agenda una demo por WhatsApp
+                Video completo próximamente · Mientras tanto, activa tu prueba gratis de 14 días
               </div>
             )}
           </div>
@@ -115,7 +115,7 @@ export function VideoDemo() {
               allow="autoplay; encrypted-media"
               allowFullScreen
               className="h-full w-full"
-              title="Demo AgendaMedPro"
+              title="Video AgendaMedPro"
             />
           </div>
         </div>

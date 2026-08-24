@@ -84,12 +84,10 @@ export async function fetchApi(endpoint: string, options: RequestInit = {}): Pro
         || localStorage.getItem('sgmm_token');
       
       if (authToken) {
-        console.log(`🔑 fetchApi: Found auth token (length: ${authToken.length})`);
       } else {
-        console.log(`⚠️ fetchApi: No auth token found`);
       }
     } catch (error) {
-      console.log(`❌ fetchApi: Error getting auth token:`, error);
+      console.warn('fetchApi: error obteniendo token de auth');
       authToken = null;
     }
   }
@@ -105,9 +103,7 @@ export async function fetchApi(endpoint: string, options: RequestInit = {}): Pro
   // Add authorization header if token is available
   if (authToken) {
     defaultHeaders['Authorization'] = `Bearer ${authToken}`;
-    console.log(`🔑 fetchApi: Adding auth token to request (${endpoint})`);
   } else {
-    console.log(`⚠️ fetchApi: No auth token available for request (${endpoint})`);
   }
   
   console.log(`🚀 fetchApi PRIMARY: ${endpoint} → ${primaryUrl}`);
@@ -196,7 +192,6 @@ if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
       const localToken = localStorage.getItem('auth_token');
       
       console.log('🔍 Auth Debug:');
-      console.log('  Cookie token:', cookieToken ? `${cookieToken.substring(0, 20)}...` : 'None');
       console.log('  LocalStorage token:', localToken ? `${localToken.substring(0, 20)}...` : 'None');
       console.log('  Active token:', cookieToken || localToken || 'None');
       

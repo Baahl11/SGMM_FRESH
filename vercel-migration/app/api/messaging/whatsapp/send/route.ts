@@ -1,6 +1,11 @@
 import { createClient } from '@/lib/supabase/server';
 import { getAuthUser } from '@/lib/auth-server';
 import { NextResponse } from 'next/server';
+import {
+  getDemoIntegrationPolicy,
+  logDemoAuditEvent,
+  resolveDemoModeConfig,
+} from '@/lib/demo-mode';
 
 /**
  * POST /api/messaging/whatsapp/send
@@ -42,12 +47,76 @@ export async function POST(request: Request) {
       }
     }
 
+    const demoConfig = await resolveDemoModeConfig(supabase, user.id);
+    const whatsappPolicy = getDemoIntegrationPolicy(demoConfig, 'whatsapp');
+
+    // Format phone number (ensure it has country code)
+    let formattedPhone = to_phone.replace(/\D/g, ''); // Remove non-digits
+    if (!formattedPhone.startsWith('52') && formattedPhone.length === 10) {
+      formattedPhone = '52' + formattedPhone; // Add Mexico country code
+    }
+
+    if (whatsappPolicy.shouldSimulate) {
+      const simulatedMetaMessageId = `demo_wa_${Date.now()}`;
+
+      const { data: simulatedRecord, error: simulatedInsertError } = await supabase
+        .from('whatsapp_messages')
+        .insert([
+          {
+            user_id: user.id,
+            patient_id,
+            appointment_id,
+            to_phone: '+' + formattedPhone,
+            message_type: template_name ? 'template' : 'text',
+            template_name,
+            message_body,
+            status: 'sent',
+            meta_message_id: simulatedMetaMessageId,
+            sent_at: new Date().toISOString(),
+          },
+        ])
+        .select()
+        .single();
+
+      if (simulatedInsertError || !simulatedRecord) {
+        console.error('Error creating simulated WhatsApp message record:', simulatedInsertError);
+        return NextResponse.json(
+          { error: 'Error al registrar mensaje simulado', success: false },
+          { status: 500 }
+        );
+      }
+
+      await supabase.rpc('increment_message_usage', { p_user_id: user.id });
+
+      await logDemoAuditEvent(supabase, user.id, {
+        eventType: 'whatsapp_message_simulated',
+        integration: 'whatsapp',
+        resourceType: 'whatsapp_message',
+        resourceId: simulatedRecord.id,
+        status: 'simulated',
+        payload: {
+          to_phone: '+' + formattedPhone,
+          template_name: template_name || null,
+          appointment_id: appointment_id || null,
+          patient_id: patient_id || null,
+        },
+      });
+
+      return NextResponse.json({
+        success: true,
+        message_id: simulatedRecord.id,
+        meta_message_id: simulatedMetaMessageId,
+        demo_mode: true,
+        message: 'Mensaje simulado exitosamente (demo mode)',
+      });
+    }
+
     // Get user's WhatsApp configuration
     const { data: config, error: configError } = await supabase
       .from('messaging_config')
       .select('*')
       .eq('user_id', user.id)
-      .single();
+      .maybeSingle();
 
     if (configError || !config) {
       return NextResponse.json(
@@ -70,12 +139,6 @@ export async function POST(request: Request) {
         { error: `Has alcanzado el límite diario de ${config.daily_message_limit} mensajes` },
         { status: 429 }
       );
-    }
-
-    // Format phone number (ensure it has country code)
-    let formattedPhone = to_phone.replace(/\D/g, ''); // Remove non-digits
-    if (!formattedPhone.startsWith('52') && formattedPhone.length === 10) {
-      formattedPhone = '52' + formattedPhone; // Add Mexico country code
     }
 
     // Create message record in database (pending status)
@@ -128,43 +191,56 @@ export async function POST(request: Request) {
       };
     }
 
-    const whatsappResponse = await fetch(whatsappApiUrl, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${config.whatsapp_access_token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(messagePayload),
-    });
+    let metaMessageId: string | undefined;
 
-    const whatsappData = await whatsappResponse.json();
-
-    if (!whatsappResponse.ok) {
-      console.error('WhatsApp API error:', whatsappData);
-
-      // Update message status to failed
-      await supabase
-        .from('whatsapp_messages')
-        .update({
-          status: 'failed',
-          error_code: whatsappData.error?.code || 'unknown',
-          error_message: whatsappData.error?.message || 'Error desconocido',
-          failed_at: new Date().toISOString(),
-        })
-        .eq('id', messageRecord.id);
-
-      return NextResponse.json(
-        {
-          error: 'Error al enviar mensaje',
-          details: whatsappData.error?.message || 'Error de WhatsApp API',
-          success: false,
+    if (process.env.WHATSAPP_DRY_RUN === 'true') {
+      metaMessageId = `dryrun_${Date.now()}`;
+      console.log('[WhatsApp Send] 🧪 WHATSAPP_DRY_RUN activo, no se envía a Meta:', {
+        userId: user.id,
+        to: formattedPhone,
+        template: template_name || null,
+        messagePreview: String(message_body).slice(0, 120),
+        metaMessageId,
+      });
+    } else {
+      const whatsappResponse = await fetch(whatsappApiUrl, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${config.whatsapp_access_token}`,
+          'Content-Type': 'application/json',
         },
-        { status: 400 }
-      );
-    }
+        body: JSON.stringify(messagePayload),
+      });
 
-    // Message sent successfully
-    const metaMessageId = whatsappData.messages?.[0]?.id;
+      const whatsappData = await whatsappResponse.json();
+
+      if (!whatsappResponse.ok) {
+        console.error('WhatsApp API error:', whatsappData);
+
+        // Update message status to failed
+        await supabase
+          .from('whatsapp_messages')
+          .update({
+            status: 'failed',
+            error_code: whatsappData.error?.code || 'unknown',
+            error_message: whatsappData.error?.message || 'Error desconocido',
+            failed_at: new Date().toISOString(),
+          })
+          .eq('id', messageRecord.id);
+
+        return NextResponse.json(
+          {
+            error: 'Error al enviar mensaje',
+            details: whatsappData.error?.message || 'Error de WhatsApp API',
+            success: false,
+          },
+          { status: 400 }
+        );
+      }
+
+      // Message sent successfully
+      metaMessageId = whatsappData.messages?.[0]?.id;
+    }
 
     // Update message status to sent
     await supabase
@@ -183,6 +259,8 @@ export async function POST(request: Request) {
       success: true,
       message_id: messageRecord.id,
       meta_message_id: metaMessageId,
+      dry_run: process.env.WHATSAPP_DRY_RUN === 'true',
+      demo_mode: false,
       message: 'Mensaje enviado exitosamente',
     });
   } catch (error) {

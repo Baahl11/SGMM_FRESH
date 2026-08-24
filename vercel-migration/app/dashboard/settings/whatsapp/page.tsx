@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import { MessageSquare, ArrowRight, CheckCircle, ExternalLink, AlertCircle, ArrowLeft, Sparkles } from 'lucide-react';
 import { GlassPanel } from '@/components/ui/glass-panel';
+import Link from 'next/link';
 
 export default function WhatsAppMetaSettings() {
   const supabase = createClient();
@@ -551,6 +552,32 @@ export default function WhatsAppMetaSettings() {
               <p className="text-xs text-white/60">BYOK Model</p>
             </div>
           </div>
+        </div>
+      </GlassPanel>
+
+      <GlassPanel className="space-y-4 border-white/10 bg-white/5 p-6">
+        <p className="text-xs uppercase tracking-[0.35em] text-white/50">Guia Rapida en 4 Pasos</p>
+        <ol className="list-decimal space-y-1 pl-5 text-sm text-white/75">
+          <li>Abre Meta Developers y agrega el producto WhatsApp a tu app.</li>
+          <li>Copia el Phone Number ID.</li>
+          <li>Genera un Access Token permanente (System User).</li>
+          <li>Pega ambos datos, usa Probar Conexion y luego Guardar y Activar WhatsApp.</li>
+        </ol>
+        <div className="flex flex-wrap items-center gap-3 pt-1">
+          <button
+            onClick={() => setShowWizard(true)}
+            className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/40 bg-emerald-500/10 px-4 py-2 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-500/20"
+          >
+            Abrir asistente paso a paso
+            <ArrowRight className="h-4 w-4" />
+          </button>
+
+          <Link
+            href="/dashboard/settings/whatsapp/guide"
+            className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
+          >
+            Ver guia detallada
+          </Link>
         </div>
       </GlassPanel>
 

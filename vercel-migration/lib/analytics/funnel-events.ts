@@ -11,6 +11,7 @@
 declare global {
   interface Window {
     gtag?: (...args: unknown[]) => void
+    fbq?: (...args: unknown[]) => void
     dataLayer?: unknown[]
   }
 }
@@ -43,6 +44,59 @@ export function trackSignupIntent() {
   track('signup_intent', { event_category: 'conversion', event_label: 'free_trial' })
 }
 
+/** Visitor views the dedicated paid-traffic trial landing page */
+export function trackTrialLandingView() {
+  track('view_item', {
+    event_category: 'conversion',
+    event_label: 'trial_landing',
+    item_name: 'AgendaMedPro 14-day trial',
+  })
+
+  if (typeof window !== 'undefined' && typeof window.fbq === 'function') {
+    window.fbq('track', 'ViewContent', {
+      content_name: 'AgendaMedPro 14-day trial',
+      content_category: 'SaaS trial',
+    })
+  }
+}
+
+/** Visitor starts the signup flow from the dedicated trial landing page */
+export function trackTrialLandingCta(placement: string) {
+  track('begin_checkout', {
+    event_category: 'conversion',
+    event_label: 'trial_landing',
+    cta_placement: placement,
+    currency: 'MXN',
+    value: 0,
+  })
+
+  if (typeof window !== 'undefined' && typeof window.fbq === 'function') {
+    window.fbq('track', 'InitiateCheckout', {
+      content_name: 'AgendaMedPro 14-day trial',
+      content_category: 'SaaS trial',
+      currency: 'MXN',
+      value: 0,
+    })
+  }
+}
+
+/** Visitor finishes the no-show calculator and continues to the trial landing */
+export function trackCalculatorCompleted(params: {
+  monthlyLoss: number
+  monthlyNoShows: number
+  averageTicket: number
+  appointmentsToCoverPlan: number
+}) {
+  track('calculator_completed', {
+    event_category: 'conversion',
+    event_label: 'no_show_calculator',
+    monthly_loss: params.monthlyLoss,
+    monthly_no_shows: params.monthlyNoShows,
+    average_ticket: params.averageTicket,
+    appointments_to_cover_plan: params.appointmentsToCoverPlan,
+  })
+}
+
 /** Visitor clicks pricing link */
 export function trackPricingView() {
   track('pricing_view', { event_category: 'interest', event_label: 'pricing' })
@@ -58,6 +112,13 @@ export function trackTestimonialsView() {
 /** User completes the signup form */
 export function trackSignupCompleted(method: 'email' | 'google') {
   track('sign_up', { method })
+
+  if (typeof window !== 'undefined' && typeof window.fbq === 'function') {
+    window.fbq('track', 'CompleteRegistration', {
+      content_name: 'AgendaMedPro account',
+      status: true,
+    })
+  }
 }
 
 /** Trial period activated for a user */

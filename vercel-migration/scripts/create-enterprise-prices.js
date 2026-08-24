@@ -50,7 +50,7 @@ async function createEnterprisePrices() {
       unit_amount: 299900, // $2,999 MXN
       recurring: {
         interval: 'month',
-        trial_period_days: 7,
+        trial_period_days: 14,
       },
       metadata: {
         tier: 'enterprise',
@@ -58,7 +58,7 @@ async function createEnterprisePrices() {
       },
     })
     console.log(`   ✅ Precio mensual creado: ${monthlyPrice.id}`)
-    console.log(`   💰 Precio: $2,999 MXN/mes + 7 días de prueba`)
+    console.log(`   💰 Precio: $2,999 MXN/mes + 14 días de prueba`)
 
     // 3. Crear precio anual
     console.log('\n3️⃣  Creando precio anual Enterprise...')
@@ -68,7 +68,7 @@ async function createEnterprisePrices() {
       unit_amount: 2999000, // $29,990 MXN
       recurring: {
         interval: 'year',
-        trial_period_days: 7,
+        trial_period_days: 14,
       },
       metadata: {
         tier: 'enterprise',
@@ -76,7 +76,7 @@ async function createEnterprisePrices() {
       },
     })
     console.log(`   ✅ Precio anual creado: ${annualPrice.id}`)
-    console.log(`   💰 Precio: $29,990 MXN/año + 7 días de prueba`)
+    console.log(`   💰 Precio: $29,990 MXN/año + 14 días de prueba`)
 
     // 4. Mostrar resumen
     console.log('\n' + '=' .repeat(70))

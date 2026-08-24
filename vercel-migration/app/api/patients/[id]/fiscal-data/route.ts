@@ -92,6 +92,7 @@ export async function POST(
       .from('patient_fiscal_data')
       .insert({
         patient_id: patientId,
+        user_id: user.id, // fable C3: tenant explícito para RLS
         rfc: body.rfc.toUpperCase(),
         razon_social: body.razon_social,
         regimen_fiscal: body.regimen_fiscal,
@@ -102,6 +103,7 @@ export async function POST(
         direccion: body.direccion,
         ciudad: body.ciudad,
         estado: body.estado,
+        pais: 'MX',
         is_default: body.is_default !== false,
       })
       .select()

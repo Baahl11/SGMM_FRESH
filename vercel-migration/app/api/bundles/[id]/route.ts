@@ -25,7 +25,7 @@ export async function GET(
           treatment:treatments (
             id,
             nombre,
-            precio
+            precio_base
           )
         )
       `)
@@ -44,7 +44,7 @@ export async function GET(
       tratamientos: bundle.bundle_treatments?.map((bt: any) => ({
         id: bt.treatment?.id,
         nombre: bt.treatment?.nombre,
-        precio: bt.precio_individual || bt.treatment?.precio,
+        precio: bt.precio_individual ?? bt.treatment?.precio_base,
         cantidad: bt.cantidad
       })).filter((t: any) => t.id) || []
     };

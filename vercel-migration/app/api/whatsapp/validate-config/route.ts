@@ -9,6 +9,16 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { phone_number_id, access_token } = body;
 
+    if (process.env.WHATSAPP_DRY_RUN === 'true') {
+      return NextResponse.json({
+        success: true,
+        phone_number: phone_number_id || 'dry-run-number',
+        verified_name: 'Dry Run Mode',
+        quality_rating: 'N/A',
+        dry_run: true,
+      });
+    }
+
     if (!phone_number_id || !access_token) {
       return NextResponse.json({
         success: false,

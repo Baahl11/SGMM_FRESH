@@ -16,12 +16,7 @@ build
 dist
 
 # Environment files
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-.env.production
+.env*
 
 # Vercel
 .vercel
@@ -58,6 +53,17 @@ venv/
 *.bak
 *.backup
 backup_*
+backups/
+
+# Local tooling and non-runtime artifacts
+.tools/
+docs/
+tests/
+PLANS/
+TODO/
+mcp-server/
+scripts/apply-profile-migration.ts
+scripts/apply-messaging-migrations.ts
 
 # Large files
 *.zip

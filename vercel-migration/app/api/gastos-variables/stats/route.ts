@@ -5,6 +5,7 @@
  */
 
 import { createClient } from '@/lib/supabase/server';
+import { buildSatDeductibilitySummary } from '@/lib/fiscal/sat-deductibility';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
@@ -88,17 +89,22 @@ export async function GET(request: Request) {
     }
 
     if (!gastos || gastos.length === 0) {
+      const sat = buildSatDeductibilitySummary([]);
       return NextResponse.json({
         total: 0,
         total_deducible: 0,
         total_no_deducible: 0,
+        total_deducible_sat: 0,
+        total_no_deducible_sat: 0,
+        total_revision_sat: 0,
         count: 0,
         por_categoria: [],
         por_estado: { pendiente: 0, aprobado: 0, rechazado: 0, pagado: 0 },
         por_mes: [],
         promedio: 0,
         mayor_gasto: null,
-        proveedores_frecuentes: []
+        proveedores_frecuentes: [],
+        sat
       });
     }
 
@@ -167,10 +173,15 @@ export async function GET(request: Request) {
       .sort((a: any, b: any) => b.total - a.total)
       .slice(0, 10);
 
+    const sat = buildSatDeductibilitySummary(gastos);
+
     const stats = {
       total: Math.round(total * 100) / 100,
       total_deducible: Math.round(total_deducible * 100) / 100,
       total_no_deducible: Math.round(total_no_deducible * 100) / 100,
+      total_deducible_sat: sat.totalDeducibleProbable,
+      total_no_deducible_sat: sat.totalNoDeducible,
+      total_revision_sat: sat.totalRevision,
       count: gastos.length,
       por_categoria,
       por_estado,
@@ -183,7 +194,8 @@ export async function GET(request: Request) {
         fecha: mayor_gasto.fecha,
         categoria: mayor_gasto.categoria
       },
-      proveedores_frecuentes
+      proveedores_frecuentes,
+      sat
     };
     return NextResponse.json(stats);
 

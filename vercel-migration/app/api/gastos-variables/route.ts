@@ -6,6 +6,9 @@
  */
 
 import { createClient } from '@/lib/supabase/server';
+import { getSupabaseAdmin } from '@/lib/supabase/admin';
+import { signStoredObject } from '@/lib/storage/signed';
+import { isValidRFC } from '@/lib/types/facturama';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
@@ -108,9 +111,21 @@ export async function GET(request: Request) {
         { status: 500 }
       );
     }
+    // fable C4: firmar factura_url en lectura (bucket privado). Compatible
+    // con filas históricas que guardaron la URL pública completa.
+    const admin = getSupabaseAdmin();
+    const dataSigned = await Promise.all(
+      (data ?? []).map(async (row) => ({
+        ...row,
+        factura_url: row.factura_url
+          ? await signStoredObject(admin, 'gastos-facturas', row.factura_url)
+          : row.factura_url,
+      }))
+    );
+
     return NextResponse.json({
-      data,
-      count: data?.length || 0,
+      data: dataSigned,
+      count: dataSigned.length,
       limit,
       offset
     });
@@ -165,6 +180,15 @@ export async function POST(request: Request) {
 
     // Parsear body
     const body = await request.json();
+    const proveedorRFC = body.proveedor_rfc ? String(body.proveedor_rfc).trim().toUpperCase() : null;
+
+    if (proveedorRFC && !isValidRFC(proveedorRFC)) {
+      return NextResponse.json(
+        { error: 'RFC de proveedor inválido' },
+        { status: 400 }
+      );
+    }
+
     // Validar campos requeridos
     if (!body.concepto) {
       return NextResponse.json(
@@ -228,7 +252,7 @@ export async function POST(request: Request) {
       fecha: body.fecha,
       metodo_pago: body.metodo_pago || null,
       proveedor: body.proveedor || null,
-      proveedor_rfc: body.proveedor_rfc || null,
+      proveedor_rfc: proveedorRFC,
       proveedor_telefono: body.proveedor_telefono || null,
       proveedor_email: body.proveedor_email || null,
       factura_numero: body.factura_numero || null,

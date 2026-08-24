@@ -7,7 +7,7 @@ import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { Sparkles, CreditCard } from 'lucide-react'
 
-type SupportedPlan = 'basico' | 'pro'
+type SupportedPlan = 'pro' | 'enterprise'
 type BillingCycle = 'monthly' | 'annual'
 
 const cleanStripeId = (id: string | undefined): string => {
@@ -20,13 +20,13 @@ const cleanStripeId = (id: string | undefined): string => {
 }
 
 const STRIPE_PRICES = {
-  basico: {
-    monthly: cleanStripeId(process.env.NEXT_PUBLIC_STRIPE_PRICE_BASICO_MONTHLY),
-    annual: cleanStripeId(process.env.NEXT_PUBLIC_STRIPE_PRICE_BASICO_ANNUAL),
-  },
   pro: {
     monthly: cleanStripeId(process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_MONTHLY),
     annual: cleanStripeId(process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_ANNUAL),
+  },
+  enterprise: {
+    monthly: cleanStripeId(process.env.NEXT_PUBLIC_STRIPE_PRICE_ENTERPRISE_MONTHLY),
+    annual: cleanStripeId(process.env.NEXT_PUBLIC_STRIPE_PRICE_ENTERPRISE_ANNUAL),
   },
 } as const
 
@@ -52,7 +52,9 @@ function SignInContent() {
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false)
+  const [isSessionSwitchLoading, setIsSessionSwitchLoading] = useState(false)
   const [hasAutoStartedCheckout, setHasAutoStartedCheckout] = useState(false)
+  const [activeSessionEmail, setActiveSessionEmail] = useState<string | null>(null)
   const [message, setMessage] = useState('')
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -61,11 +63,12 @@ function SignInContent() {
   // Obtener parámetros del plan seleccionado
   const planParam = searchParams.get('plan')
   const billingParam = searchParams.get('billing')
+  const shouldAutoStartCheckout = searchParams.get('autostart') === '1'
   const normalizedPlan: SupportedPlan | null =
-    planParam === 'basico' || planParam === 'pro' ? planParam : null
+    planParam === 'pro' || planParam === 'enterprise' ? planParam : null
   const normalizedBilling: BillingCycle = billingParam === 'annual' ? 'annual' : 'monthly'
 
-  const planDisplayName = normalizedPlan === 'pro' ? 'Pro' : 'Básico'
+  const planDisplayName = normalizedPlan === 'enterprise' ? 'Enterprise' : 'Pro'
   const billingDisplayName = normalizedBilling === 'annual' ? 'anual' : 'mensual'
 
   const signupParams = new URLSearchParams()
@@ -100,6 +103,22 @@ function SignInContent() {
 
       if (!response.ok) {
         const data = await response.json()
+
+        if (response.status === 403 && data?.code === 'email_not_verified') {
+          const verifyParams = new URLSearchParams({
+            next: `/select-trial-plan?plan=${plan}&billing=${billing}`,
+            plan,
+            billing,
+          })
+
+          if (data?.email || email) {
+            verifyParams.set('email', data?.email || email)
+          }
+
+          router.push(`/auth/verify-email-required?${verifyParams.toString()}`)
+          return false
+        }
+
         throw new Error(data.error || 'No se pudo crear la sesión de checkout')
       }
 
@@ -120,30 +139,29 @@ function SignInContent() {
   }
 
   useEffect(() => {
-    // Si ya hay sesión y llegó con plan, lanzar checkout automáticamente.
+    // Si hay sesión, mantener la pantalla de login para permitir cambio de cuenta.
+    // Solo autoiniciar checkout cuando viene explícitamente con autostart=1.
     const checkUser = async () => {
       const { data: { user } } = await supabase.auth.getUser()
 
       if (!user) {
+        setActiveSessionEmail(null)
         return
       }
 
-      if (normalizedPlan && !hasAutoStartedCheckout) {
+      setActiveSessionEmail(user.email ?? null)
+
+      if (normalizedPlan && shouldAutoStartCheckout && !hasAutoStartedCheckout) {
         setHasAutoStartedCheckout(true)
         const started = await startCheckoutFromPlan(normalizedPlan, normalizedBilling)
         if (!started) {
           setMessage('No pudimos abrir el checkout. Selecciona tu plan nuevamente para activar el trial.')
           router.push(`/select-trial-plan?plan=${normalizedPlan}&billing=${normalizedBilling}`)
         }
-        return
-      }
-
-      if (!normalizedPlan) {
-        router.push('/dashboard')
       }
     }
     checkUser()
-  }, [router, normalizedPlan, normalizedBilling, hasAutoStartedCheckout])
+  }, [router, normalizedPlan, normalizedBilling, hasAutoStartedCheckout, shouldAutoStartCheckout])
 
   useEffect(() => {
     rememberTrialSelection(planParam, billingParam)
@@ -151,6 +169,12 @@ function SignInContent() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!email.trim() || !password) {
+      setMessage('Ingresa email y contraseña para continuar.')
+      return
+    }
+
     setIsLoading(true)
     setMessage('')
 
@@ -216,6 +240,22 @@ function SignInContent() {
     }
   }
 
+  const handleSignOutCurrentSession = async () => {
+    setMessage('')
+    setIsSessionSwitchLoading(true)
+    try {
+      await supabase.auth.signOut()
+      setActiveSessionEmail(null)
+      setHasAutoStartedCheckout(false)
+      setMessage('Sesión actual cerrada. Ahora puedes iniciar con otra cuenta.')
+    } catch (error) {
+      console.error('Sign out error:', error)
+      setMessage('No se pudo cerrar la sesión actual. Intenta nuevamente.')
+    } finally {
+      setIsSessionSwitchLoading(false)
+    }
+  }
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#030614] text-white">
       <div className="pointer-events-none absolute inset-0">
@@ -236,7 +276,7 @@ function SignInContent() {
             Inicia sesión y continúa tu activación
           </h1>
           <p className="mt-4 text-lg text-white/70">
-            Mantén tu plan seleccionado y completa el checkout para iniciar tu trial de 7 días.
+            Mantén tu plan seleccionado y completa el checkout para iniciar tu trial de 14 días.
           </p>
 
           {normalizedPlan && (
@@ -264,7 +304,23 @@ function SignInContent() {
               <p className="text-white/70 text-sm">Sistema de Gestión Médica Integral</p>
             </div>
 
-            <form className="space-y-6" onSubmit={handleSubmit}>
+            {activeSessionEmail && (
+              <div className="mb-6 rounded-xl border border-amber-300/30 bg-amber-400/10 p-4 text-amber-100">
+                <p className="text-sm">
+                  Hay una sesión activa con <span className="font-semibold">{activeSessionEmail}</span>.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleSignOutCurrentSession}
+                  disabled={isSessionSwitchLoading || isLoading || isCheckoutLoading}
+                  className="mt-3 w-full rounded-lg border border-amber-200/40 bg-amber-200/20 px-3 py-2 text-sm font-semibold text-amber-100 transition hover:bg-amber-200/30 disabled:opacity-60"
+                >
+                  {isSessionSwitchLoading ? 'Cerrando sesión actual...' : 'Cerrar sesión actual para cambiar de cuenta'}
+                </button>
+              </div>
+            )}
+
+            <form className="space-y-6" onSubmit={handleSubmit} autoComplete="off" data-lpignore="true" data-1p-ignore="true">
             <div className="space-y-4">
               <div>
                 <label className="block text-white/90 text-sm font-medium mb-2">
@@ -272,15 +328,19 @@ function SignInContent() {
                 </label>
                 <input
                   id="email"
-                  name="email"
+                  name="signin_email_manual"
                   type="email"
-                  autoComplete="email"
+                  autoComplete="off"
+                  autoCapitalize="none"
+                  spellCheck={false}
                   required
                   className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent backdrop-blur-sm"
                   placeholder="tu@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={isLoading}
+                  data-lpignore="true"
+                  data-1p-ignore="true"
                 />
               </div>
               <div>
@@ -289,15 +349,17 @@ function SignInContent() {
                 </label>
                 <input
                   id="password"
-                  name="password"
+                  name="signin_password_manual"
                   type="password"
-                  autoComplete="current-password"
+                  autoComplete="off"
                   required
                   className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent backdrop-blur-sm"
                   placeholder="Tu contraseña"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={isLoading}
+                  data-lpignore="true"
+                  data-1p-ignore="true"
                 />
               </div>
             </div>

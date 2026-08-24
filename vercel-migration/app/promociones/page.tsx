@@ -4,10 +4,11 @@ import { useEffect, useMemo, useState } from "react"
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { CreatePromotionDialog } from "@/components/promociones/create-promotion-dialog"
 import AppLayout from '@/components/layout/app-layout'
 import { GlassPanel } from "@/components/ui/glass-panel";
-import { Plus, Pencil, Trash2, Package, Loader2, Tag } from 'lucide-react'
+import { Plus, Pencil, Trash2, Package, Loader2, Tag, Search, SlidersHorizontal } from 'lucide-react'
 import { cn } from "@/lib/utils";
 
 interface Treatment {
@@ -42,6 +43,12 @@ const currencyFormatter = new Intl.NumberFormat("es-MX", {
 
 const formatCurrency = (value?: number | null) => currencyFormatter.format(value ?? 0)
 
+function calculateTotalNormalPrice(promotion: Promotion) {
+  return promotion.promotion_treatments.reduce((sum, pt) => {
+    return sum + (pt.treatment.precio_base * pt.cantidad)
+  }, 0)
+}
+
 export default function PromocionesPage() {
   const supabase = createClient();
   const router = useRouter();
@@ -51,6 +58,8 @@ export default function PromocionesPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
 
   const heroStats = useMemo(() => {
     if (!promotions.length) {
@@ -78,6 +87,44 @@ export default function PromocionesPage() {
       totalSavings: accumulatedSavings
     }
   }, [promotions])
+
+  const filteredPromotions = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase()
+
+    return promotions.filter((promotion) => {
+      const matchesStatus = statusFilter === 'all'
+        ? true
+        : statusFilter === 'active'
+          ? promotion.activo
+          : !promotion.activo
+
+      if (!matchesStatus) {
+        return false
+      }
+
+      if (!normalizedQuery) {
+        return true
+      }
+
+      const treatmentNames = promotion.promotion_treatments
+        .map((item) => item.treatment.nombre)
+        .join(' ')
+
+      const searchableText = `${promotion.nombre} ${promotion.descripcion ?? ''} ${treatmentNames}`.toLowerCase()
+      return searchableText.includes(normalizedQuery)
+    })
+  }, [promotions, searchQuery, statusFilter])
+
+  const filteredStats = useMemo(() => {
+    const activeCount = filteredPromotions.filter((promotion) => promotion.activo).length
+    const projectedRevenue = filteredPromotions.reduce((sum, promotion) => sum + (promotion.precio_total ?? 0), 0)
+
+    return {
+      totalVisible: filteredPromotions.length,
+      activeCount,
+      projectedRevenue,
+    }
+  }, [filteredPromotions])
 
   useEffect(() => {
     const getUser = async () => {
@@ -136,12 +183,6 @@ export default function PromocionesPage() {
       console.error('Error deleting promotion:', error)
       alert('Error al eliminar la promoción')
     }
-  }
-
-  const calculateTotalNormalPrice = (promotion: Promotion) => {
-    return promotion.promotion_treatments.reduce((sum, pt) => {
-      return sum + (pt.treatment.precio_base * pt.cantidad)
-    }, 0)
   }
 
   if (loadingAuth || isLoading) {
@@ -244,8 +285,107 @@ export default function PromocionesPage() {
               </Button>
             </GlassPanel>
           ) : (
-            <div className="grid gap-5 lg:grid-cols-2">
-              {promotions.map((promotion) => {
+            <>
+              <GlassPanel className="space-y-5 border-white/10 p-6 text-white">
+                <div className="flex flex-wrap items-center gap-3 text-white/80">
+                  <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-fuchsia-400/40 to-violet-500/40 p-2">
+                    <SlidersHorizontal className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <p className="text-lg font-semibold">Filtra tu laboratorio comercial</p>
+                    <p className="text-sm text-white/60">Encuentra campañas por nombre, tratamiento o estatus en segundos.</p>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-[1fr_auto]">
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
+                    <Input
+                      value={searchQuery}
+                      onChange={(event) => setSearchQuery(event.target.value)}
+                      placeholder="Buscar por promoción o tratamiento..."
+                      className="h-12 rounded-full border-white/15 bg-white/5 pl-11 text-white placeholder:text-white/40"
+                    />
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setStatusFilter('all')}
+                      className={cn(
+                        'glass-chip border px-4 py-2 text-sm font-semibold',
+                        statusFilter === 'all'
+                          ? 'border-white/70 bg-white/20 text-white'
+                          : 'border-white/20 bg-white/5 text-white/70 hover:text-white'
+                      )}
+                    >
+                      Todas
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStatusFilter('active')}
+                      className={cn(
+                        'glass-chip border px-4 py-2 text-sm font-semibold',
+                        statusFilter === 'active'
+                          ? 'border-emerald-300/70 bg-emerald-400/20 text-emerald-100'
+                          : 'border-white/20 bg-white/5 text-white/70 hover:text-white'
+                      )}
+                    >
+                      Activas
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStatusFilter('inactive')}
+                      className={cn(
+                        'glass-chip border px-4 py-2 text-sm font-semibold',
+                        statusFilter === 'inactive'
+                          ? 'border-amber-300/70 bg-amber-400/20 text-amber-100'
+                          : 'border-white/20 bg-white/5 text-white/70 hover:text-white'
+                      )}
+                    >
+                      Inactivas
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 sm:grid-cols-3">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.3em] text-white/50">Visibles</p>
+                    <p className="text-2xl font-semibold">{filteredStats.totalVisible}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.3em] text-white/50">Activas</p>
+                    <p className="text-2xl font-semibold text-emerald-100">{filteredStats.activeCount}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.3em] text-white/50">Ingresos proyectados</p>
+                    <p className="text-2xl font-semibold">{formatCurrency(filteredStats.projectedRevenue)}</p>
+                  </div>
+                </div>
+              </GlassPanel>
+
+              {filteredPromotions.length === 0 ? (
+                <GlassPanel className="flex flex-col items-center gap-4 px-6 py-12 text-center text-white/75">
+                  <Search className="h-10 w-10 text-white/50" />
+                  <div>
+                    <p className="text-xl font-semibold text-white">Sin coincidencias con tus filtros</p>
+                    <p className="mt-2 text-sm text-white/65">
+                      Ajusta la búsqueda o cambia el estado para volver a ver promociones.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery('')
+                      setStatusFilter('all')
+                    }}
+                    className="aura-cta aura-cta--ghost"
+                  >
+                    Limpiar filtros
+                  </Button>
+                </GlassPanel>
+              ) : (
+                <div className="grid gap-5 lg:grid-cols-2">
+                  {filteredPromotions.map((promotion) => {
                 const normalPrice = calculateTotalNormalPrice(promotion)
                 const savings = Math.max(normalPrice - promotion.precio_total, 0)
                 const savingsPercent = normalPrice > 0 ? ((savings / normalPrice) * 100) : 0
@@ -327,8 +467,10 @@ export default function PromocionesPage() {
                     </div>
                   </GlassPanel>
                 )
-              })}
-            </div>
+                  })}
+                </div>
+              )}
+            </>
           )
         )}
       </div>

@@ -46,14 +46,15 @@ export function AIChat({ compact = false }: AIChatProps) {
         method: 'POST',
         headers,
         body: JSON.stringify({
-          messages: [...messages, userMessage].map(m => ({ role: m.role, content: m.content }))
+          messages: [...messages, userMessage].map(m => ({ role: m.role, content: m.content })),
+          userId: session?.user?.id ?? null,
         })
       });
 
-      console.log('Response status:', response.status);
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-
-      if (!response.ok) throw new Error('API error');
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `API error (${response.status})`);
+      }
 
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
@@ -69,15 +70,23 @@ export function AIChat({ compact = false }: AIChatProps) {
             if (done) break;
             
             const chunk = decoder.decode(value, { stream: true });
-            
-            console.log('Received chunk:', chunk);
-            
+
             // Stream de texto plano directo
             assistantMessage += chunk;
             
             // Actualizar el mensaje en tiempo real
             setMessages(prev => 
               prev.map(m => m.id === assistantId ? { ...m, content: assistantMessage } : m)
+            );
+          }
+
+          if (!assistantMessage.trim()) {
+            setMessages(prev => 
+              prev.map(m => m.id === assistantId ? {
+                ...m,
+                content: 'No pude generar una respuesta en este momento. Intenta nuevamente en unos segundos.',
+                error: true,
+              } : m)
             );
           }
         } catch (streamError) {

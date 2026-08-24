@@ -6,7 +6,6 @@ import { useEffect } from 'react'
 import { MarketingNav } from '@/components/marketing/nav'
 import { MarketingHero } from '@/components/marketing/hero'
 import { MomentumStats } from '@/components/marketing/stats'
-import { VideoDemo } from '@/components/marketing/video-demo'
 import { PainPoints } from '@/components/marketing/pain-points'
 import { FeatureNarrative } from '@/components/marketing/features'
 import { WorkflowTimeline } from '@/components/marketing/workflow'
@@ -34,7 +33,6 @@ export default function Home() {
       <MarketingNav />
       <MarketingHero />
       <MomentumStats />
-      <VideoDemo />
       <PainPoints />
       <FeatureNarrative />
       <WorkflowTimeline />

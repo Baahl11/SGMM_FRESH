@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
+import { clearAppCaches } from '@/lib/pwa/clear-caches' // fable C6
 
 export default function SignOutPage() {
   const router = useRouter()
@@ -11,6 +12,7 @@ export default function SignOutPage() {
 
   useEffect(() => {
     const signOut = async () => {
+      await clearAppCaches() // fable C6: purgar caches del SW antes de cerrar sesión
       await supabase.auth.signOut()
       // Clear all cookies and redirect
       router.push('/')

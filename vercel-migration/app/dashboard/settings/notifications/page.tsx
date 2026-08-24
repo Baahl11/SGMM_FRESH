@@ -6,12 +6,15 @@ import {
   Mail,
   Send,
   CheckCircle,
+  ArrowRight,
+  MessageSquare,
   Eye,
   EyeOff,
   Loader2,
   Info,
   HelpCircle
 } from 'lucide-react';
+import Link from 'next/link';
 import { TwilioCredentialsSection } from '@/components/settings/twilio-credentials-section';
 import { GlassPanel } from '@/components/ui/glass-panel';
 
@@ -31,12 +34,14 @@ interface EmailConfig {
   use_resend_fallback: boolean;
   resend_api_key: string;
   // New fields for provider selection
-  primary_provider?: 'smtp' | 'twilio';
+  primary_provider?: 'smtp' | 'sendgrid';
   enable_fallback?: boolean;
-  fallback_provider?: 'smtp' | 'twilio';
+  fallback_provider?: 'smtp' | 'sendgrid';
   sendgrid_api_key?: string;
   sendgrid_from_email?: string;
   sendgrid_from_name?: string;
+  has_smtp_password?: boolean;
+  has_sendgrid_api_key?: boolean;
 }
 
 export default function EmailConfigPage() {
@@ -46,7 +51,7 @@ export default function EmailConfigPage() {
     email_enabled: false,
     daily_email_limit: 500,
     use_resend_fallback: false,
-    primary_provider: 'twilio', // Default to Twilio since user already has it
+    primary_provider: 'smtp',
     enable_fallback: false,
   });
   
@@ -116,8 +121,20 @@ export default function EmailConfigPage() {
   };
 
   const handleSave = async () => {
-    if (!config.from_email || !config.smtp_user || !config.smtp_password) {
-      toast.error('Por favor completa todos los campos requeridos');
+    if (config.primary_provider === 'smtp') {
+      if (
+        !config.from_email ||
+        !config.smtp_user ||
+        (!config.smtp_password && !config.has_smtp_password)
+      ) {
+        toast.error('Completa el remitente, usuario y contraseña de aplicación SMTP');
+        return;
+      }
+    } else if (
+      !config.sendgrid_from_email ||
+      (!config.sendgrid_api_key && !config.has_sendgrid_api_key)
+    ) {
+      toast.error('Completa el remitente y API key de SendGrid');
       return;
     }
 
@@ -181,8 +198,8 @@ export default function EmailConfigPage() {
     );
   }
 
-  const primaryProviderLabel = config.primary_provider === 'twilio' ? 'Twilio / SendGrid' : 'SMTP Tradicional';
-  const fallbackProviderLabel = config.fallback_provider === 'twilio' ? 'Twilio / SendGrid' : 'SMTP Tradicional';
+  const primaryProviderLabel = config.primary_provider === 'sendgrid' ? 'SendGrid' : 'SMTP / Gmail';
+  const fallbackProviderLabel = config.fallback_provider === 'sendgrid' ? 'SendGrid' : 'SMTP / Gmail';
 
   return (
     <div className="space-y-6 text-white">
@@ -221,6 +238,39 @@ export default function EmailConfigPage() {
         </div>
       </GlassPanel>
 
+      <GlassPanel className="space-y-4 border-white/10 bg-white/5 p-6">
+        <p className="text-xs uppercase tracking-[0.35em] text-white/50">Guia Rapida de Credenciales</p>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+            <p className="text-sm font-semibold text-white">SMS con Twilio (2-3 minutos)</p>
+            <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-white/75">
+              <li>Copia Account SID, Auth Token y Numero Twilio desde Twilio Console.</li>
+              <li>Pega los 3 datos en la seccion Twilio SMS de esta pagina.</li>
+              <li>Haz clic en Guardar credenciales y valida que quede en estado Configurado.</li>
+            </ol>
+          </div>
+
+          <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-4">
+            <div className="flex items-center gap-2 text-sm font-semibold text-emerald-100">
+              <MessageSquare className="h-4 w-4" />
+              WhatsApp Business (Wizard)
+            </div>
+            <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-emerald-50/90">
+              <li>Abre el asistente de WhatsApp.</li>
+              <li>Pega Phone Number ID y Access Token permanente.</li>
+              <li>Probar Conexion y despues Guardar y Activar.</li>
+            </ol>
+            <Link
+              href="/dashboard/settings/whatsapp"
+              className="mt-3 inline-flex items-center gap-2 rounded-xl border border-emerald-300/40 bg-emerald-500/20 px-4 py-2 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-500/30"
+            >
+              Abrir configuracion de WhatsApp
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </div>
+      </GlassPanel>
+
       <GlassPanel className="space-y-6 border-white/10 bg-white/5 p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -243,10 +293,10 @@ export default function EmailConfigPage() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
-          {['twilio', 'smtp'].map((provider) => (
+          {['sendgrid', 'smtp'].map((provider) => (
             <button
               key={provider}
-              onClick={() => setConfig((prev) => ({ ...prev, primary_provider: provider as 'twilio' | 'smtp' }))}
+              onClick={() => setConfig((prev) => ({ ...prev, primary_provider: provider as 'sendgrid' | 'smtp' }))}
               className={`rounded-3xl border p-5 text-left transition ${
                 config.primary_provider === provider
                   ? 'border-white/50 bg-white/10'
@@ -256,12 +306,12 @@ export default function EmailConfigPage() {
               <div className="flex items-center gap-3">
                 <span className={`h-3 w-3 rounded-full ${config.primary_provider === provider ? 'bg-emerald-300' : 'bg-white/30'}`} />
                 <p className="text-lg font-semibold text-white">
-                  {provider === 'twilio' ? 'Twilio (SendGrid)' : 'SMTP Tradicional'}
+                  {provider === 'sendgrid' ? 'SendGrid' : 'SMTP / Gmail'}
                 </p>
               </div>
               <p className="mt-2 text-sm text-white/70">
-                {provider === 'twilio'
-                  ? 'API segura + SMS integrado desde tu cuenta Twilio.'
+                {provider === 'sendgrid'
+                  ? 'Usa la API key y remitente verificado de tu cuenta SendGrid.'
                   : 'Usa Gmail, Outlook o tu servidor para disparar correos.'}
               </p>
             </button>
@@ -269,7 +319,7 @@ export default function EmailConfigPage() {
         </div>
       </GlassPanel>
 
-      {config.primary_provider === 'twilio' && (
+      {config.primary_provider === 'sendgrid' && (
         <GlassPanel className="space-y-5 border-white/10 bg-white/5 p-6">
           <div className="flex items-center gap-3">
             <div className="rounded-2xl border border-violet-400/40 bg-violet-500/15 p-3">
@@ -300,7 +350,7 @@ export default function EmailConfigPage() {
                 type="password"
                 value={config.sendgrid_api_key || ''}
                 onChange={(e) => setConfig((prev) => ({ ...prev, sendgrid_api_key: e.target.value }))}
-                placeholder="SG.••••••••••••••••••••••"
+                placeholder={config.has_sendgrid_api_key ? 'API key guardada. Déjalo vacío para conservarla.' : 'SG.••••••••••••••••••••••'}
                 className={`${inputClass} mt-2`}
               />
             </div>
@@ -416,7 +466,7 @@ export default function EmailConfigPage() {
                   type={showPassword ? 'text' : 'password'}
                   value={config.smtp_password || ''}
                   onChange={(e) => setConfig((prev) => ({ ...prev, smtp_password: e.target.value }))}
-                  placeholder="••••••••••"
+                  placeholder={config.has_smtp_password ? 'Contraseña guardada. Déjalo vacío para conservarla.' : 'Contraseña de aplicación'}
                   className={`${inputClass} pr-12`}
                 />
                 <button
@@ -463,7 +513,7 @@ export default function EmailConfigPage() {
               enable_fallback: !prev.enable_fallback,
               fallback_provider: !prev.enable_fallback
                 ? prev.primary_provider === 'smtp'
-                  ? 'twilio'
+                  ? 'sendgrid'
                   : 'smtp'
                 : prev.fallback_provider
             }))}

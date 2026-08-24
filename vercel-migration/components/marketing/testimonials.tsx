@@ -8,19 +8,19 @@ const testimonials = [
     name: 'Dra. Mariana Ramírez',
     role: 'Medicina estética, CDMX',
     quote:
-      'Antes perdíamos 15 mil pesos al mes en no-shows. Desde que cobramos anticipos, las cancelaciones bajaron 78% y las que quedan nos dejan el depósito. El inventario de medicamentos se actualiza solo.',
+      'Antes perdíamos 15 mil pesos al mes en no-shows. Desde que cobramos anticipos, las cancelaciones bajaron 78% y las que quedan nos dejan el depósito. Además dejamos de quedarnos sin insumos en días críticos.',
   },
   {
     name: 'Dr. Luis Sandoval',
     role: 'Traumatología deportiva, GDL',
     quote:
-      'Mi asistente ya no pasa 3 horas al día confirmando citas por teléfono. Los recordatorios automáticos por WhatsApp hicieron todo el trabajo y ahorramos 18 horas semanales.',
+      'Mi asistente ya no pasa 3 horas al día confirmando citas por teléfono. Los recordatorios automáticos por WhatsApp nos ahorran 18 horas semanales y recuperamos tiempo para pacientes nuevos.',
   },
   {
     name: 'Dra. Karla Torres',
     role: 'Clínica multidisciplinaria, MTY',
     quote:
-      'Aumentamos nuestra facturación 32% porque la lista de espera automática llena los huecos que antes se quedaban vacíos. Cero intervención manual, todo funciona solo.',
+      'Aumentamos nuestra facturación 32% porque la lista de espera automática llena los huecos que antes se quedaban vacíos. Ahora también vemos rentabilidad por doctor y por servicio en tiempo real.',
   },
 ]
 

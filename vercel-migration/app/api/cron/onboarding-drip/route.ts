@@ -53,13 +53,12 @@ export async function GET(request: NextRequest) {
       .select(`
         id,
         user_id,
-        trial_start_date,
-        onboarding_emails_sent,
-        users!inner( id, email, raw_user_meta_data )
+        trial_start,
+        onboarding_emails_sent
       `)
       .eq('status', 'trialing')
-      .gte('trial_start_date', windowStart.toISOString())
-      .lte('trial_start_date', windowEnd.toISOString())
+      .gte('trial_start', windowStart.toISOString())
+      .lte('trial_start', windowEnd.toISOString())
 
     if (error) {
       console.error(`[onboarding-drip] DB error for ${dripId}:`, error)
@@ -67,7 +66,16 @@ export async function GET(request: NextRequest) {
     }
 
     for (const sub of subs ?? []) {
-      const user = sub.users as any
+      const { data: user } = await supabaseAdmin
+        .from('users')
+        .select('email, name')
+        .eq('id', sub.user_id)
+        .maybeSingle()
+
+      if (!user?.email) {
+        console.warn(`[onboarding-drip] No email found for ${sub.user_id}`)
+        continue
+      }
       const alreadySent: string[] = sub.onboarding_emails_sent ?? []
 
       if (alreadySent.includes(dripId)) {
@@ -78,7 +86,7 @@ export async function GET(request: NextRequest) {
       }
 
       const template = DRIP_BY_ID[dripId]
-      const name = user.raw_user_meta_data?.full_name ?? user.email?.split('@')[0] ?? 'Doctor'
+      const name = user.name ?? user.email?.split('@')[0] ?? 'Doctor'
 
       try {
         await emailService.sendCustomEmail(user.email, template.subject, template.html({ name, email: user.email }), true)

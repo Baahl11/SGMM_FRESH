@@ -2,7 +2,7 @@ import sgMail from '@sendgrid/mail';
 import nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
 
-interface SMTPConfig {
+export interface SMTPConfig {
   smtp_host: string;
   smtp_port: number;
   smtp_secure: boolean;
@@ -10,6 +10,18 @@ interface SMTPConfig {
   smtp_password: string;
   from_email: string;
   from_name: string;
+}
+
+export interface SendGridConfig {
+  api_key: string;
+  from_email: string;
+  from_name: string;
+}
+
+export interface EmailAttachment {
+  filename: string;
+  content: Buffer;
+  contentType?: string;
 }
 
 class EmailService {
@@ -292,7 +304,14 @@ class EmailService {
   /**
    * Send email via SMTP (doctor's own email)
    */
-  async sendViaSMTP(config: SMTPConfig, to: string, subject: string, html: string, text?: string) {
+  async sendViaSMTP(
+    config: SMTPConfig,
+    to: string,
+    subject: string,
+    html: string,
+    text?: string,
+    attachments?: EmailAttachment[]
+  ) {
     try {
       // Create transporter
       const transporter = nodemailer.createTransport({
@@ -323,6 +342,11 @@ class EmailService {
         subject,
         html,
         text,
+        attachments: attachments?.map((attachment) => ({
+          filename: attachment.filename,
+          content: attachment.content,
+          contentType: attachment.contentType,
+        })),
       });
 
       console.log('✅ Email sent via SMTP:', info.messageId);
@@ -348,6 +372,55 @@ class EmailService {
 
       throw error;
     }
+  }
+
+  async sendViaSendGrid(
+    config: SendGridConfig,
+    options: {
+      to: string;
+      subject: string;
+      html: string;
+      text?: string;
+      attachments?: EmailAttachment[];
+    }
+  ) {
+    const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${config.api_key}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        personalizations: [{ to: [{ email: options.to }] }],
+        from: {
+          email: config.from_email,
+          name: config.from_name,
+        },
+        subject: options.subject,
+        content: [
+          ...(options.text ? [{ type: 'text/plain', value: options.text }] : []),
+          { type: 'text/html', value: options.html },
+        ],
+        attachments: options.attachments?.map((attachment) => ({
+          filename: attachment.filename,
+          type: attachment.contentType,
+          disposition: 'attachment',
+          content: attachment.content.toString('base64'),
+        })),
+      }),
+    });
+
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`SendGrid rechazó el envío (${response.status}): ${body}`);
+    }
+
+    return {
+      success: true,
+      messageId: response.headers.get('x-message-id') || `sendgrid_${Date.now()}`,
+      provider: 'sendgrid',
+      to: options.to,
+    };
   }
 
   /**
@@ -484,13 +557,13 @@ class EmailService {
       day: 'numeric'
     });
 
-    const subject = '🎉 ¡Bienvenido a SGMM Pro! - Tu prueba gratis de 7 días comienza ahora';
+    const subject = '🎉 ¡Bienvenido a SGMM Pro! - Tu prueba gratis de 14 días comienza ahora';
     
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px 30px; text-align: center; border-radius: 10px 10px 0 0;">
           <h1 style="margin: 0 0 10px 0; font-size: 32px;">🎉 ¡Bienvenido a SGMM Pro!</h1>
-          <p style="margin: 0; font-size: 18px; opacity: 0.95;">Tu prueba gratuita de 7 días comienza ahora</p>
+          <p style="margin: 0; font-size: 18px; opacity: 0.95;">Tu prueba gratuita de 14 días comienza ahora</p>
         </div>
         
         <div style="background: white; padding: 40px 30px; border: 1px solid #e1e5e9; border-top: none; border-radius: 0 0 10px 10px;">
@@ -504,7 +577,7 @@ class EmailService {
           <div style="background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%); padding: 25px; border-radius: 10px; margin: 30px 0; border-left: 4px solid #667eea;">
             <p style="margin: 0 0 10px 0; color: #667eea; font-weight: bold; font-size: 14px;">📅 TU PERÍODO DE PRUEBA</p>
             <p style="margin: 0; color: #333; font-size: 20px; font-weight: bold;">${formattedDate}</p>
-            <p style="margin: 10px 0 0 0; color: #666; font-size: 14px;">7 días completos para explorar todas las funciones</p>
+            <p style="margin: 10px 0 0 0; color: #666; font-size: 14px;">14 días completos para explorar todas las funciones</p>
           </div>
 
           <h3 style="color: #333; margin: 30px 0 20px 0;">🚀 Comienza en 4 pasos simples:</h3>
@@ -591,7 +664,7 @@ class EmailService {
       </div>
     `;
 
-    const text = `¡Bienvenido a SGMM Pro! Tu prueba gratis de 7 días comienza ahora.
+    const text = `¡Bienvenido a SGMM Pro! Tu prueba gratis de 14 días comienza ahora.
 
 Hola ${userName},
 
@@ -707,7 +780,7 @@ Equipo SGMM Pro`;
             </p>
             <ul style="margin: 0; padding-left: 20px; color: #666; line-height: 1.8;">
               <li>✅ Plan ${planName} con todas las funciones</li>
-              <li>✅ 7 días completos de acceso ilimitado</li>
+              <li>✅ 14 días completos de acceso ilimitado</li>
               <li>✅ Soporte técnico incluido</li>
             </ul>
           </div>
@@ -720,7 +793,7 @@ Equipo SGMM Pro`;
             <ul style="margin: 0; padding-left: 20px; color: #555; line-height: 1.8;">
               <li>📧 Email: soporte@sgmm.pro</li>
               <li>💬 Chat en vivo disponible ahora</li>
-              <li>📞 Llámanos para una demostración personalizada</li>
+              <li>📞 Llámanos para resolver dudas de activación</li>
             </ul>
           </div>
           

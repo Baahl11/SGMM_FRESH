@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createClient } from '@supabase/supabase-js';
+import {
+  getDemoIntegrationPolicy,
+  logDemoAuditEvent,
+  resolveDemoModeConfig,
+} from '@/lib/demo-mode';
 
 const GOOGLE_CALENDAR_API = 'https://www.googleapis.com/calendar/v3';
 
@@ -103,6 +108,38 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
+    const demoConfig = await resolveDemoModeConfig(supabase, user.id);
+    const calendarPolicy = getDemoIntegrationPolicy(demoConfig, 'google_calendar');
+
+    if (calendarPolicy.shouldSimulate) {
+      const { count } = await supabase
+        .from('appointments')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .gte('fecha_hora', new Date().toISOString());
+
+      const eventsExported = Math.min(Math.max(count || 3, 1), 25);
+
+      await logDemoAuditEvent(supabase, user.id, {
+        eventType: 'google_calendar_sync_simulated',
+        integration: 'google_calendar',
+        resourceType: 'sync',
+        resourceId: `demo_sync_${Date.now()}`,
+        status: 'simulated',
+        payload: {
+          events_exported: eventsExported,
+          events_updated: 0,
+        },
+      });
+
+      return NextResponse.json({
+        success: true,
+        eventsExported,
+        eventsUpdated: 0,
+        demo_mode: true,
+      });
+    }
+
     const accessToken = await getValidAccessToken(user.id);
     if (!accessToken) {
       return NextResponse.json({ error: 'No conectado a Google Calendar' }, { status: 401 });
@@ -148,7 +185,7 @@ export async function POST(request: NextRequest) {
 
     let eventsExported = 0;
     let eventsUpdated = 0;
-    let errors: string[] = [];
+    const errors: string[] = [];
 
     // Process each appointment
     for (const apt of appointments || []) {
@@ -264,6 +301,28 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
+    const demoConfig = await resolveDemoModeConfig(supabase, user.id);
+    const calendarPolicy = getDemoIntegrationPolicy(demoConfig, 'google_calendar');
+
+    if (calendarPolicy.shouldSimulate) {
+      const { count } = await supabase
+        .from('appointments')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+
+      return NextResponse.json({
+        connected: true,
+        googleEmail: 'demo.calendar@agendamedpro.com',
+        calendarId: 'primary',
+        syncEnabled: true,
+        autoSync: true,
+        syncIntervalMinutes: 15,
+        lastSyncAt: new Date().toISOString(),
+        syncedEventsCount: count || 0,
+        demo_mode: true,
+      });
+    }
+
     const serviceClient = getServiceClient();
     
     const { data: tokenData, error } = await serviceClient
@@ -306,6 +365,21 @@ export async function DELETE(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
+    const demoConfig = await resolveDemoModeConfig(supabase, user.id);
+    const calendarPolicy = getDemoIntegrationPolicy(demoConfig, 'google_calendar');
+
+    if (calendarPolicy.shouldSimulate) {
+      await logDemoAuditEvent(supabase, user.id, {
+        eventType: 'google_calendar_disconnect_simulated',
+        integration: 'google_calendar',
+        resourceType: 'disconnect',
+        resourceId: user.id,
+        status: 'simulated',
+      });
+
+      return NextResponse.json({ success: true, demo_mode: true });
     }
 
     const serviceClient = getServiceClient();

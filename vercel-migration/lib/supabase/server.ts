@@ -1,18 +1,10 @@
+import 'server-only'
 import { createServerClient } from '@supabase/ssr'
-import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 
-// Admin client for bypassing RLS (use carefully!)
-export const supabaseAdmin = createSupabaseClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-)
+// Auditoría fable 2026-06-11 (C7): el admin client ya no se crea aquí de forma
+// ansiosa con asserts `!`; se re-exporta el singleton perezoso y fail-closed.
+export { supabaseAdmin, getSupabaseAdmin } from './admin'
 
 export async function createClient() {
   const cookieStore = await cookies()

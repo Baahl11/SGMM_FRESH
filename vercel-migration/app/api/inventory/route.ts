@@ -1,6 +1,20 @@
 import { createClient } from '@/lib/supabase/server'
 import { getAuthUser } from '@/lib/auth-server'
 import { NextRequest, NextResponse } from 'next/server'
+import { parseFlexibleNumberInput } from '@/lib/number-parsing'
+
+function inferInventoryCategory(nombre?: string | null, descripcion?: string | null) {
+  const value = `${nombre || ''} ${descripcion || ''}`.toLowerCase()
+
+  if (value.includes('toxina') || value.includes('relleno') || value.includes('hialuron')) return 'Inyectables'
+  if (value.includes('aguja') || value.includes('jeringa') || value.includes('cánula') || value.includes('canula')) return 'Desechables'
+  if (value.includes('vitamina') || value.includes('hidrat') || value.includes('booster')) return 'Activos'
+  if (value.includes('limpieza') || value.includes('desinfect') || value.includes('toall')) return 'Higiene'
+  if (value.includes('guante') || value.includes('cubreboca') || value.includes('bata')) return 'Protección'
+  if (value.includes('crema') || value.includes('serum') || value.includes('gel') || value.includes('peeling')) return 'Dermocosmética'
+
+  return 'General'
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -47,6 +61,7 @@ export async function GET(request: NextRequest) {
       stock_minimo: item.stock_minimo || 0,
       stock_maximo: item.stock_maximo || 0,
       precio_unitario: item.precio_unitario || 0,
+      categoria: item.categoria || inferInventoryCategory(item.nombre, item.descripcion),
       activo: item.activo !== false, // Default to true if null/undefined
       created_at: item.created_at,
       updated_at: item.updated_at
@@ -69,15 +84,43 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient()
     const body = await request.json()
 
+    const nombre = String(body?.nombre ?? '').trim()
+    const stockActual = parseFlexibleNumberInput(body?.stock_actual)
+    const precioUnitario = parseFlexibleNumberInput(body?.precio_unitario)
+    const hasStockMinimo = body?.stock_minimo !== undefined && body?.stock_minimo !== null && String(body.stock_minimo).trim() !== ''
+    const stockMinimo = hasStockMinimo ? parseFlexibleNumberInput(body?.stock_minimo) : 0
+    const hasStockMaximo = body?.stock_maximo !== undefined && body?.stock_maximo !== null && String(body.stock_maximo).trim() !== ''
+    const stockMaximo = hasStockMaximo ? parseFlexibleNumberInput(body?.stock_maximo) : 0
+
+    if (!nombre) {
+      return NextResponse.json({ error: 'Nombre es requerido' }, { status: 400 })
+    }
+
+    if (!Number.isFinite(stockActual) || stockActual < 0) {
+      return NextResponse.json({ error: 'Stock actual inválido' }, { status: 400 })
+    }
+
+    if (!Number.isFinite(precioUnitario) || precioUnitario < 0) {
+      return NextResponse.json({ error: 'Precio unitario inválido' }, { status: 400 })
+    }
+
+    if (hasStockMinimo && (!Number.isFinite(stockMinimo) || stockMinimo < 0)) {
+      return NextResponse.json({ error: 'Stock mínimo inválido' }, { status: 400 })
+    }
+
+    if (hasStockMaximo && (!Number.isFinite(stockMaximo) || stockMaximo < 0)) {
+      return NextResponse.json({ error: 'Stock máximo inválido' }, { status: 400 })
+    }
+
     const { data, error } = await supabase
       .from('inventory_items')
       .insert([{
-        nombre: body.nombre,
+        nombre,
         descripcion: body.descripcion || '',
-        stock_actual: body.stock_actual || 0,
-        stock_minimo: body.stock_minimo || 0,
-        stock_maximo: body.stock_maximo || 0,
-        precio_unitario: body.precio_unitario || 0,
+        stock_actual: stockActual,
+        stock_minimo: stockMinimo,
+        stock_maximo: stockMaximo,
+        precio_unitario: precioUnitario,
         activo: body.activo !== undefined ? body.activo : true,
         user_id: user.id // ✅ AGREGAR EL USER_ID
       }])

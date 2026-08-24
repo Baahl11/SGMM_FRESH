@@ -3,6 +3,14 @@ import { headers } from 'next/headers'
 import { stripe, getPlanTierFromPriceId, PLAN_FEATURES } from '@/lib/stripe/server'
 import { getAddonConfig, type AddonType } from '@/lib/stripe/addons'
 import { createClient } from '@/lib/supabase/server'
+import { sendTrialWelcomeEmail } from '@/lib/email/trial-welcome'
+import { persistFunnelEvent } from '@/lib/analytics/funnel-server'
+import { persistMarketingAttribution } from '@/lib/marketing/attribution-server'
+import {
+  getStripeInvoiceSubscriptionId,
+  getStripeSubscriptionPeriod,
+  stripeTimestampToIso,
+} from '@/lib/stripe/billing-period'
 import Stripe from 'stripe'
 
 export async function POST(request: NextRequest) {
@@ -172,14 +180,11 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   }
 
   // Determinar features y límites según el tier
-  const tierLimits = {
-    basico: { max_doctors: 1, max_locations: 1 },
-    pro: { max_doctors: 10, max_locations: 5 },
-    enterprise: { max_doctors: 999, max_locations: 999 },
-    lifetime: { max_doctors: 999, max_locations: 999 },
-  }
-
-  const limits = tierLimits[tier]
+  const normalizedTier = tier === 'lifetime' ? 'enterprise' : tier
+  const planConfig = PLAN_FEATURES[normalizedTier]
+  const stripePeriod = stripeSubscription
+    ? getStripeSubscriptionPeriod(stripeSubscription as any)
+    : { start: null, end: null }
 
   // 🔥 Extraer metadata de ventas (sales team y application fee)
   const salesTeam = session.metadata?.sales_team || 'internal'
@@ -196,21 +201,18 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   // Actualizar o crear registro en la tabla subscriptions
   const subscriptionData: any = {
     user_id: userId,
-    plan_tier: tier === 'lifetime' ? 'enterprise' : tier,
+    plan_tier: normalizedTier,
     status: subscriptionStatus,
     stripe_customer_id: customerId,
     stripe_subscription_id: stripeSubscription?.id || null,
     stripe_price_id: priceId,
-    max_doctors: limits.max_doctors,
-    max_locations: limits.max_locations,
+    max_doctors: planConfig.max_doctors,
+    max_locations: planConfig.max_locations,
+    features: [...planConfig.features],
     trial_start: trialStart?.toISOString() || null,
     trial_end: trialEnd?.toISOString() || null,
-    current_period_start: stripeSubscription 
-      ? new Date((stripeSubscription as any).current_period_start * 1000).toISOString() 
-      : null,
-    current_period_end: stripeSubscription 
-      ? new Date((stripeSubscription as any).current_period_end * 1000).toISOString() 
-      : null,
+    current_period_start: stripeTimestampToIso(stripePeriod.start),
+    current_period_end: stripeTimestampToIso(stripePeriod.end),
     sales_team: salesTeam,                           // ← NUEVO
     referral_source: referralSource,                 // ← NUEVO
     application_fee_percent: applicationFeePercent,  // ← NUEVO
@@ -219,16 +221,55 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     updated_at: new Date().toISOString(),
   }
 
-  // Usar upsert para crear o actualizar
-  const { error: subError } = await supabaseAdmin
-    .from('subscriptions')
-    .upsert(subscriptionData, {
-      onConflict: 'user_id',
-      ignoreDuplicates: false,
-    })
+  const stripeSubscriptionId = stripeSubscription?.id || null
+  let subscriptionWriteError: any = null
 
-  if (subError) {
-    console.error('❌ Error upserting subscription:', subError)
+  if (stripeSubscriptionId) {
+    const { data: existingByStripeSub, error: existingByStripeSubError } = await supabaseAdmin
+      .from('subscriptions')
+      .select('id')
+      .eq('stripe_subscription_id', stripeSubscriptionId)
+      .maybeSingle()
+
+    if (existingByStripeSubError) {
+      console.error('❌ Error checking existing subscription by stripe_subscription_id:', existingByStripeSubError)
+      subscriptionWriteError = existingByStripeSubError
+    } else if (existingByStripeSub?.id) {
+      const { error } = await supabaseAdmin
+        .from('subscriptions')
+        .update(subscriptionData)
+        .eq('id', existingByStripeSub.id)
+      subscriptionWriteError = error
+    }
+  }
+
+  if (!subscriptionWriteError) {
+    const { data: existingByUser, error: existingByUserError } = await supabaseAdmin
+      .from('subscriptions')
+      .select('id')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (existingByUserError) {
+      subscriptionWriteError = existingByUserError
+    } else if (existingByUser?.id) {
+      const { error } = await supabaseAdmin
+        .from('subscriptions')
+        .update(subscriptionData)
+        .eq('id', existingByUser.id)
+      subscriptionWriteError = error
+    } else {
+      const { error } = await supabaseAdmin
+        .from('subscriptions')
+        .insert(subscriptionData)
+      subscriptionWriteError = error
+    }
+  }
+
+  if (subscriptionWriteError) {
+    console.error('❌ Error persisting subscription:', subscriptionWriteError)
   } else {
     console.log(`✅ Subscription updated for user ${userId}: ${tier} (${subscriptionStatus})`)
   }
@@ -243,8 +284,8 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   if (stripeSubscription) {
     updateUserData.stripe_subscription_id = stripeSubscription.id
-    updateUserData.subscription_start_date = new Date((stripeSubscription as any).current_period_start * 1000).toISOString()
-    updateUserData.subscription_end_date = new Date((stripeSubscription as any).current_period_end * 1000).toISOString()
+    updateUserData.subscription_start_date = stripeTimestampToIso(stripePeriod.start)
+    updateUserData.subscription_end_date = stripeTimestampToIso(stripePeriod.end)
   } else if (mode === 'payment') {
     // Lifetime - pago único
     updateUserData.subscription_start_date = new Date().toISOString()
@@ -260,6 +301,61 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     console.error('❌ Error updating user:', error)
   } else {
     console.log(`✅ User ${userId} upgraded to ${tier}`)
+  }
+
+  // Transactional confirmation email for newly activated trial/subscription.
+  // Idempotency is handled by subscriptions.onboarding_emails_sent.
+  try {
+    const { data: appUser } = await supabaseAdmin
+      .from('users')
+      .select('email, name')
+      .eq('id', userId)
+      .maybeSingle()
+
+    const recipientEmail = appUser?.email || session.customer_details?.email || undefined
+    if (recipientEmail && subscriptionStatus === 'trialing') {
+      await sendTrialWelcomeEmail({
+        userId,
+        email: recipientEmail,
+        name: appUser?.name,
+        planTier: tier,
+        priceId,
+        trialStart: trialStart?.toISOString() ?? null,
+        trialEnd: trialEnd?.toISOString() ?? null,
+        billingCycle: stripeSubscription?.items?.data?.[0]?.price?.recurring?.interval === 'year' ? 'annual' : 'monthly',
+        amountCents: stripeSubscription?.items?.data?.[0]?.price?.unit_amount ?? null,
+        currency: stripeSubscription?.items?.data?.[0]?.price?.currency ?? 'mxn',
+      })
+    }
+  } catch (welcomeError) {
+    console.error('[Stripe Webhook] Failed to send welcome trial email', welcomeError)
+  }
+
+  if (subscriptionStatus === 'trialing') {
+    try {
+      await persistMarketingAttribution({
+        userId,
+        event: 'trial_started',
+        stripeCheckoutSessionId: session.id,
+        stripeSubscriptionId: stripeSubscription?.id ?? null,
+      })
+      await persistFunnelEvent({
+        eventName: 'trial_started',
+        path: '/api/stripe/webhook',
+        userId,
+        metadata: {
+          plan: tier,
+          stripe_checkout_session_id: session.id,
+          stripe_subscription_id: stripeSubscription?.id ?? null,
+        },
+      })
+    } catch (attributionError) {
+      console.error('[Stripe Webhook] Failed to mark trial attribution', {
+        userId,
+        sessionId: session.id,
+        errorMessage: (attributionError as Error).message,
+      })
+    }
   }
 }
 
@@ -287,6 +383,9 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
+  const subscriptionPeriod = getStripeSubscriptionPeriod(subscription as any)
+  const periodStartIso = stripeTimestampToIso(subscriptionPeriod.start)
+  const periodEndIso = stripeTimestampToIso(subscriptionPeriod.end)
   
   // Actualizar tabla users (legacy)
   const updateData: any = {
@@ -294,11 +393,11 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
     updated_at: new Date().toISOString(),
   }
   
-  if ((subscription as any).current_period_start) {
-    updateData.subscription_start_date = new Date((subscription as any).current_period_start * 1000).toISOString()
+  if (periodStartIso) {
+    updateData.subscription_start_date = periodStartIso
   }
-  if ((subscription as any).current_period_end) {
-    updateData.subscription_end_date = new Date((subscription as any).current_period_end * 1000).toISOString()
+  if (periodEndIso) {
+    updateData.subscription_end_date = periodEndIso
   }
   if ((subscription as any).canceled_at) {
     updateData.subscription_status = 'cancelled'
@@ -318,10 +417,11 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
   const subscriptionUpdateData: any = {
     status: subscription.status,
     stripe_price_id: priceId,
-    current_period_start: new Date((subscription as any).current_period_start * 1000).toISOString(),
-    current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString(),
     updated_at: new Date().toISOString(),
   }
+
+  if (periodStartIso) subscriptionUpdateData.current_period_start = periodStartIso
+  if (periodEndIso) subscriptionUpdateData.current_period_end = periodEndIso
 
   // Si la suscripción pasó de trialing a active, actualizar
   if (subscription.status === 'active' && (subscription as any).trial_end) {
@@ -433,7 +533,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
  * Handle invoice.payment_succeeded
  */
 async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
-  const subscriptionId = (invoice as any).subscription as string
+  const subscriptionId = getStripeInvoiceSubscriptionId(invoice as any)
   if (!subscriptionId) return
 
   const subscription = await stripe.subscriptions.retrieve(subscriptionId)
@@ -519,8 +619,8 @@ async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
         user_id: userId,
         month_number: monthsDiff,
         billing_date: new Date().toISOString(),
-        period_start: new Date((subscription as any).current_period_start * 1000).toISOString(),
-        period_end: new Date((subscription as any).current_period_end * 1000).toISOString(),
+        period_start: stripeTimestampToIso(getStripeSubscriptionPeriod(subscription as any).start),
+        period_end: stripeTimestampToIso(getStripeSubscriptionPeriod(subscription as any).end),
         commission_stage: commissionStage,
         gross_amount: grossAmount,
         commission_amount: commissionAmount,
@@ -541,7 +641,7 @@ async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
  * Handle invoice.payment_failed
  */
 async function handlePaymentFailed(invoice: Stripe.Invoice) {
-  const subscriptionId = (invoice as any).subscription as string
+  const subscriptionId = getStripeInvoiceSubscriptionId(invoice as any)
   if (!subscriptionId) return
 
   const subscription = await stripe.subscriptions.retrieve(subscriptionId)

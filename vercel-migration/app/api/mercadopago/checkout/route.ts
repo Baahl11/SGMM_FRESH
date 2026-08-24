@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { preferenceClient, PLAN_PRICES } from '@/lib/mercadopago/server'
 import { createClient } from '@/lib/supabase/server'
+import {
+  getDemoIntegrationPolicy,
+  logDemoAuditEvent,
+  resolveDemoModeConfig,
+} from '@/lib/demo-mode'
 
 export async function POST(request: NextRequest) {
   try {
@@ -34,11 +39,41 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'planTier es requerido' }, { status: 400 })
     }
 
+    if (user) {
+      const demoConfig = await resolveDemoModeConfig(supabase, user.id)
+      const mercadopagoPolicy = getDemoIntegrationPolicy(demoConfig, 'mercadopago')
+
+      if (mercadopagoPolicy.shouldSimulate) {
+        const simulatedPreferenceId = `demo_mp_pref_${Date.now()}`
+        const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+
+        await logDemoAuditEvent(supabase, user.id, {
+          eventType: 'mercadopago_checkout_simulated',
+          integration: 'mercadopago',
+          resourceType: 'checkout_preference',
+          resourceId: simulatedPreferenceId,
+          status: 'simulated',
+          payload: {
+            plan_tier: planTier,
+            billing_cycle: billingCycle,
+          },
+        })
+
+        const simulatedCheckoutUrl = `${origin}/dashboard?mp_status=approved&demo=1&preference_id=${simulatedPreferenceId}`
+        return NextResponse.json({
+          init_point: simulatedCheckoutUrl,
+          sandbox_init_point: simulatedCheckoutUrl,
+          id: simulatedPreferenceId,
+          demo_mode: true,
+        })
+      }
+    }
+
     // 3. Determinar el precio
     let amount: number
     let title: string
     let frequency = 1
-    let frequency_type: 'months' | 'days' = 'months'
+    const frequency_type: 'months' | 'days' = 'months'
     let auto_recurring: any = undefined
 
     if (planTier === 'lifetime') {

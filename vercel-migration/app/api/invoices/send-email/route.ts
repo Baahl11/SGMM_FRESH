@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { sendInvoiceEmail } from '@/lib/email/resend';
+import { supabaseAdmin } from '@/lib/supabase/server';
+import { sendWithUserEmailConfig } from '@/lib/email/user-config';
+import { signStoredObject } from '@/lib/storage/signed';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -82,6 +84,19 @@ export async function POST(request: NextRequest) {
     const clinicName = config?.emisor_razon_social || 'Su Clínica';
     const clinicEmail = config?.emisor_email || undefined;
 
+    const { data: emailConfig } = await supabase
+      .from('email_config')
+      .select('*')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (!emailConfig?.email_enabled) {
+      return NextResponse.json(
+        { error: 'Configura y activa un proveedor de email antes de enviar facturas' },
+        { status: 400 }
+      );
+    }
+
     // Format invoice data for email
     const patientName = `${invoice.patient?.nombre || ''} ${invoice.patient?.apellido || ''}`.trim() || 'Cliente';
     const invoiceDate = format(new Date(invoice.fecha_emision), 'dd/MM/yyyy', { locale: es });
@@ -90,25 +105,51 @@ export async function POST(request: NextRequest) {
       currency: 'MXN',
     }).format(invoice.total);
 
-    // Send email
-    const result = await sendInvoiceEmail({
-      to: recipientEmail,
-      patientName,
-      invoiceNumber: `${invoice.serie}-${invoice.folio_number}`,
-      invoiceDate,
-      total,
-      xmlUrl: invoice.xml_url,
-      pdfUrl: invoice.pdf_url,
-      clinicName,
-      clinicEmail,
-    });
-
-    if (!result.success) {
+    const [xmlUrl, pdfUrl] = await Promise.all([
+      signStoredObject(supabaseAdmin, 'invoices', invoice.xml_url),
+      signStoredObject(supabaseAdmin, 'invoices', invoice.pdf_url),
+    ]);
+    if (!xmlUrl || !pdfUrl) {
       return NextResponse.json(
-        { error: result.error || 'Failed to send email' },
+        { error: 'No se pudieron preparar los archivos de la factura' },
         { status: 500 }
       );
     }
+
+    const [xmlResponse, pdfResponse] = await Promise.all([
+      fetch(xmlUrl),
+      fetch(pdfUrl),
+    ]);
+    if (!xmlResponse.ok || !pdfResponse.ok) {
+      return NextResponse.json(
+        { error: 'No se pudieron descargar los archivos de la factura' },
+        { status: 500 }
+      );
+    }
+
+    const [xmlBuffer, pdfBuffer] = await Promise.all([
+      xmlResponse.arrayBuffer(),
+      pdfResponse.arrayBuffer(),
+    ]);
+
+    const result = await sendWithUserEmailConfig(emailConfig, {
+      to: recipientEmail,
+      subject: `Factura electrónica ${invoice.serie}-${invoice.folio_number} - ${clinicName}`,
+      html: `<p>Hola ${patientName},</p><p>Adjuntamos tu factura electrónica ${invoice.serie}-${invoice.folio_number}, emitida el ${invoiceDate}, por un total de <strong>${total}</strong>.</p><p>Atentamente,<br>${clinicName}</p>`,
+      text: `Hola ${patientName}. Adjuntamos tu factura electrónica ${invoice.serie}-${invoice.folio_number}, emitida el ${invoiceDate}, por un total de ${total}.`,
+      attachments: [
+        {
+          filename: `Factura_${invoice.serie}-${invoice.folio_number}.xml`,
+          content: Buffer.from(xmlBuffer),
+          contentType: 'application/xml',
+        },
+        {
+          filename: `Factura_${invoice.serie}-${invoice.folio_number}.pdf`,
+          content: Buffer.from(pdfBuffer),
+          contentType: 'application/pdf',
+        },
+      ],
+    });
 
     // Update invoice to mark as emailed
     await supabase
@@ -123,7 +164,8 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'Invoice sent successfully',
       recipient: recipientEmail,
-      data: result.data,
+      provider: result.provider,
+      messageId: result.messageId,
     });
 
   } catch (error) {

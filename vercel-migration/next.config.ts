@@ -5,9 +5,8 @@ import withPWA from 'next-pwa';
 const nextConfig: NextConfig = {
   // Configuración Turbopack vacía para Next.js 16+
   turbopack: {},
-  typescript: {
-    ignoreBuildErrors: true,
-  },
+  // Auditoría fable 2026-06-11 (B2): ignoreBuildErrors eliminado.
+  // El build DEBE fallar si TypeScript falla; `npm run typecheck` es required check en CI.
   serverExternalPackages: ['@supabase/supabase-js'],
   images: {
     remotePatterns: [
@@ -23,10 +22,10 @@ const nextConfig: NextConfig = {
   },
   // Ensure Next uses this folder as the workspace root in a multi-lockfile repo
   outputFileTracingRoot: path.join(__dirname),
-  env: {
-    NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'http://localhost:3000',
-    NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
-  },
+  // Auditoría fable 2026-06-11 (C5): bloque env retirado. Las entradas de `env`
+  // en next.config se inyectan en el bundle del cliente; NEXTAUTH_SECRET es
+  // server-side y NextAuth lo lee de process.env directamente.
+  // ACCIÓN OPERATIVA: rotar NEXTAUTH_SECRET (doc 16_RELEASE..., paso previo al deploy).
   // Security headers
   async headers() {
     return [
@@ -73,16 +72,12 @@ const pwaConfig = withPWA({
       }
     },
     {
+      // Auditoría fable 2026-06-11 (C6): antes NetworkFirst con caché de 24h sobre
+      // TODO *.supabase.co (REST/Auth/Storage) — datos clínicos y fiscales quedaban
+      // persistidos en el navegador y visibles tras cambiar de usuario.
+      // Ahora NetworkOnly: el service worker no cachea nada de Supabase.
       urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
-      handler: 'NetworkFirst',
-      options: {
-        cacheName: 'supabase-api',
-        networkTimeoutSeconds: 10,
-        expiration: {
-          maxEntries: 50,
-          maxAgeSeconds: 24 * 60 * 60 // 24 hours
-        }
-      }
+      handler: 'NetworkOnly',
     },
     {
       urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp|ico)$/i,

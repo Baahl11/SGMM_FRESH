@@ -17,9 +17,9 @@ BEGIN
   -- Ensure RLS policies that rely on auth.role() see service_role
   PERFORM set_config('request.jwt.claim.role', 'service_role', true);
 
-  -- Basic 7-day trial window
+  -- Basic 14-day trial window
   trial_start := NOW();
-  trial_end := trial_start + INTERVAL '7 days';
+  trial_end := trial_start + INTERVAL '14 days';
 
   INSERT INTO subscriptions (
     user_id,

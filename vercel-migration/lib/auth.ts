@@ -61,7 +61,7 @@ export const authOptions: NextAuthOptions = {
         token.email = user.email
         token.name = user.name
       }
-      console.log('JWT Callback - Token:', token)
+      // fable D2: no registrar tokens JWT.
       return token
     },
     async session({ session, token }) {
@@ -71,7 +71,7 @@ export const authOptions: NextAuthOptions = {
         session.user.email = token.email as string
         session.user.name = token.name as string
       }
-      console.log('Session Callback - Session:', session)
+      // fable D2: no registrar sesiones completas.
       return session
     },
   },

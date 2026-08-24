@@ -45,7 +45,7 @@ export const DRIP_EMAILS: DripEmail[] = [
     subject: '¡Bienvenido a AgendaMedPro! Tu clínica más organizada empieza hoy 🎉',
     html: ({ name }) => wrapper(`
       <h2 style="color:#1e293b;margin-top:0;">¡Hola ${name}! 👋</h2>
-      <p style="color:#475569;line-height:1.7;">Ya tienes acceso a <strong>7 días gratis</strong> de AgendaMedPro. En los próximos días te mandaremos tips concretos para sacarle el máximo provecho.</p>
+      <p style="color:#475569;line-height:1.7;">Ya tienes acceso a <strong>14 días gratis</strong> de AgendaMedPro. En los próximos días te mandaremos tips concretos para sacarle el máximo provecho.</p>
       <p style="color:#475569;line-height:1.7;">Para empezar, te recomendamos completar estas 3 acciones rápidas:</p>
       <ol style="color:#475569;line-height:2;">
         <li>Configura tu perfil y datos del consultorio</li>

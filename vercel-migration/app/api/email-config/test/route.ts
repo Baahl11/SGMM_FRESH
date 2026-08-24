@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import emailService from '@/lib/email-service';
+import { sendWithUserEmailConfig } from '@/lib/email/user-config';
 
 export async function POST(request: NextRequest) {
   try {
@@ -43,14 +43,6 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Validate required SMTP fields
-    if (!config.smtp_host || !config.smtp_user || !config.smtp_password || !config.from_email) {
-      return NextResponse.json({ 
-        success: false,
-        error: 'Configuración incompleta. Por favor completa todos los campos SMTP requeridos (servidor, usuario, contraseña, email remitente).' 
-      }, { status: 400 });
-    }
-
     // Prepare test email
     const subject = '✅ Prueba de Email - AgendaMedPro';
     const html = `
@@ -84,25 +76,12 @@ export async function POST(request: NextRequest) {
     
     const text = `¡Configuración Exitosa! Este es un email de prueba de AgendaMedPro. Tu configuración SMTP está funcionando correctamente.`;
 
-    // Send test email
-    const smtpConfig = {
-      smtp_host: config.smtp_host,
-      smtp_port: config.smtp_port,
-      smtp_secure: config.smtp_secure,
-      smtp_user: config.smtp_user,
-      smtp_password: config.smtp_password,
-      from_email: config.from_email,
-      from_name: config.from_name,
-    };
-
-    const result = await emailService.sendWithFallback(
-      smtpConfig,
-      config.resend_api_key,
-      test_email,
+    const result = await sendWithUserEmailConfig(config, {
+      to: test_email,
       subject,
       html,
-      text
-    );
+      text,
+    });
 
     return NextResponse.json({
       success: true,

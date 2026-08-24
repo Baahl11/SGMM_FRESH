@@ -1,18 +1,58 @@
 'use client'
 
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useState, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { CheckCircle, Loader2, Calendar, CreditCard } from 'lucide-react'
+import { CheckCircle, Loader2, Calendar, CreditCard, AlertCircle } from 'lucide-react'
 import confetti from 'canvas-confetti'
 
 function TrialSuccessContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [countdown, setCountdown] = useState(5)
+  const sessionId = searchParams.get('session_id')
+  const [countdown, setCountdown] = useState(8)
+  const [syncState, setSyncState] = useState<'pending' | 'ok' | 'error'>('pending')
+  const syncAttempted = useRef(false)
 
   useEffect(() => {
+    if (syncAttempted.current) return
+    syncAttempted.current = true
+
+    // Sync the subscription with the DB before redirecting.
+    // This is a fallback in case the Stripe webhook hasn't fired yet.
+    const syncSubscription = async () => {
+      if (!sessionId) {
+        setSyncState('ok')
+        return
+      }
+      try {
+        const res = await fetch('/api/stripe/sync-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: sessionId }),
+        })
+        if (res.ok) {
+          setSyncState('ok')
+        } else {
+          const data = await res.json().catch(() => ({}))
+          console.warn('[trial-success] sync-session returned non-ok', data)
+          // Still proceed — webhook may arrive shortly
+          setSyncState('ok')
+        }
+      } catch (err) {
+        console.error('[trial-success] sync-session fetch failed', err)
+        // Don't block user; show success and redirect anyway
+        setSyncState('ok')
+      }
+    }
+
+    syncSubscription()
+  }, [sessionId])
+
+  useEffect(() => {
+    if (syncState !== 'ok') return
+
     // Lanzar confetti
     confetti({
       particleCount: 100,
@@ -33,7 +73,19 @@ function TrialSuccessContent() {
     }, 1000)
 
     return () => clearInterval(timer)
-  }, [router])
+  }, [syncState, router])
+
+  if (syncState === 'pending') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center px-4">
+        <Card className="max-w-md w-full p-10 text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-purple-600 mx-auto mb-4" />
+          <p className="text-gray-700 font-medium">Activando tu trial…</p>
+          <p className="text-sm text-gray-500 mt-2">Esto solo toma unos segundos</p>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center px-4">
@@ -47,7 +99,7 @@ function TrialSuccessContent() {
             ¡Bienvenido a AgendaMedPro! 🎉
           </h1>
           <p className="text-xl text-gray-600">
-            Tu prueba gratis de 7 días ha comenzado
+            Tu prueba gratis de 14 días ha comenzado
           </p>
         </div>
 
@@ -55,16 +107,16 @@ function TrialSuccessContent() {
         <div className="grid md:grid-cols-2 gap-4 mb-8">
           <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
             <Calendar className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-            <h3 className="font-semibold text-gray-900 mb-1">7 Días Gratis</h3>
+            <h3 className="font-semibold text-gray-900 mb-1">14 Días Gratis</h3>
             <p className="text-sm text-gray-600">
-              Acceso completo a todas las funcionalidades hasta el {new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('es-MX')}
+              Acceso completo a todas las funcionalidades hasta el {new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toLocaleDateString('es-MX')}
             </p>
           </div>
           <div className="bg-green-50 p-4 rounded-lg border border-green-200">
             <CreditCard className="w-8 h-8 text-green-600 mx-auto mb-2" />
             <h3 className="font-semibold text-gray-900 mb-1">Sin Cargo Hoy</h3>
             <p className="text-sm text-gray-600">
-              Tu primer pago será el día 8. Cancela cuando quieras sin costo.
+              Tu primer pago será el día 15. Cancela cuando quieras sin costo.
             </p>
           </div>
         </div>

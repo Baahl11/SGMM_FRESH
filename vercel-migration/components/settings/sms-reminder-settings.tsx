@@ -16,6 +16,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Info, MessageSquare, Clock, DollarSign, CheckCircle2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import {
   SmsReminderConfig,
   ReminderTiming,
@@ -27,9 +28,16 @@ import {
 interface SmsReminderSettingsProps {
   config: SmsReminderConfig;
   onConfigChange: (config: Partial<SmsReminderConfig>) => void;
+  appearance?: 'default' | 'glass';
 }
 
-export function SmsReminderSettings({ config, onConfigChange }: SmsReminderSettingsProps) {
+export function SmsReminderSettings({
+  config,
+  onConfigChange,
+  appearance = 'default',
+}: SmsReminderSettingsProps) {
+  const isGlass = appearance === 'glass';
+
   const toggleTiming = (timing: ReminderTiming) => {
     const timings = config.default_timings.includes(timing)
       ? config.default_timings.filter(t => t !== timing)
@@ -38,16 +46,24 @@ export function SmsReminderSettings({ config, onConfigChange }: SmsReminderSetti
   };
 
   const costEstimate = estimateMonthlyCost(20, config.default_timings.length, config.provider);
+  const mutedTextClass = isGlass ? 'text-white/70' : 'text-muted-foreground';
+  const secondaryTextClass = isGlass ? 'text-white/75' : 'text-blue-900';
+  const tertiaryTextClass = isGlass ? 'text-white/80' : 'text-blue-800';
 
   return (
     <div className="space-y-6">
-      <Card>
+      <Card
+        className={cn(
+          isGlass &&
+            'border-white/20 bg-white/[0.04] text-white shadow-[0_25px_90px_rgba(2,6,23,0.45)] backdrop-blur-xl'
+        )}
+      >
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <MessageSquare className="h-5 w-5" />
             Recordatorios por SMS
           </CardTitle>
-          <CardDescription>
+          <CardDescription className={cn(isGlass && 'text-white/70')}>
             Envía recordatorios automáticos de citas por mensaje de texto
           </CardDescription>
         </CardHeader>
@@ -56,7 +72,7 @@ export function SmsReminderSettings({ config, onConfigChange }: SmsReminderSetti
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <Label>Activar Recordatorios SMS</Label>
-              <p className="text-sm text-muted-foreground">
+                <p className={cn('text-sm', mutedTextClass)}>
                 Enviar mensajes automáticos a los pacientes
               </p>
             </div>
@@ -83,7 +99,10 @@ export function SmsReminderSettings({ config, onConfigChange }: SmsReminderSetti
                       <SelectItem key={key} value={key}>
                         <div className="flex items-center gap-2">
                           <span>{provider.name}</span>
-                          <Badge variant="secondary" className="text-xs">
+                          <Badge
+                            variant="secondary"
+                            className={cn('text-xs', isGlass && 'border-white/20 bg-white/10 text-white/80')}
+                          >
                             {provider.pricing}
                           </Badge>
                         </div>
@@ -91,7 +110,7 @@ export function SmsReminderSettings({ config, onConfigChange }: SmsReminderSetti
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground">
+                <p className={cn('text-xs', mutedTextClass)}>
                   {SMS_PROVIDERS[config.provider].features.join(' • ')}
                 </p>
               </div>
@@ -109,14 +128,20 @@ export function SmsReminderSettings({ config, onConfigChange }: SmsReminderSetti
                         variant={config.default_timings.includes(timing) ? 'default' : 'outline'}
                         size="sm"
                         onClick={() => toggleTiming(timing)}
-                        className="justify-start"
+                        className={cn(
+                          'justify-start',
+                          isGlass &&
+                            (config.default_timings.includes(timing)
+                              ? 'border-emerald-300/40 bg-emerald-500/20 text-emerald-100 hover:bg-emerald-500/25'
+                              : 'border-white/20 bg-white/5 text-white hover:bg-white/10')
+                        )}
                       >
                         <Clock className="h-4 w-4 mr-2" />
                         {TIMING_OPTIONS[timing].label}
                       </Button>
                     ))}
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className={cn('text-xs', mutedTextClass)}>
                   Selecciona cuándo enviar recordatorios automáticamente
                 </p>
               </div>
@@ -126,7 +151,7 @@ export function SmsReminderSettings({ config, onConfigChange }: SmsReminderSetti
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
                     <Label>Confirmación de Cita</Label>
-                    <p className="text-sm text-muted-foreground">
+                    <p className={cn('text-sm', mutedTextClass)}>
                       Enviar SMS al agendar la cita
                     </p>
                   </div>
@@ -139,7 +164,7 @@ export function SmsReminderSettings({ config, onConfigChange }: SmsReminderSetti
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
                     <Label>Incluir Nombre del Doctor</Label>
-                    <p className="text-sm text-muted-foreground">
+                    <p className={cn('text-sm', mutedTextClass)}>
                       Mostrar doctor en el mensaje
                     </p>
                   </div>
@@ -152,7 +177,7 @@ export function SmsReminderSettings({ config, onConfigChange }: SmsReminderSetti
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
                     <Label>Incluir Ubicación</Label>
-                    <p className="text-sm text-muted-foreground">
+                    <p className={cn('text-sm', mutedTextClass)}>
                       Mostrar dirección del consultorio
                     </p>
                   </div>
@@ -165,7 +190,7 @@ export function SmsReminderSettings({ config, onConfigChange }: SmsReminderSetti
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
                     <Label>Requiere Confirmación</Label>
-                    <p className="text-sm text-muted-foreground">
+                    <p className={cn('text-sm', mutedTextClass)}>
                       Paciente debe responder "SI" para confirmar
                     </p>
                   </div>
@@ -208,7 +233,7 @@ export function SmsReminderSettings({ config, onConfigChange }: SmsReminderSetti
                 </div>
 
                 {config.business_hours_only && (
-                  <div className="grid grid-cols-2 gap-4 pl-4 border-l-2 border-blue-200">
+                  <div className={cn('grid grid-cols-2 gap-4 pl-4 border-l-2', isGlass ? 'border-white/20' : 'border-blue-200')}>
                     <div className="space-y-2">
                       <Label htmlFor="quiet-start">No Enviar Desde</Label>
                       <Input
@@ -216,6 +241,7 @@ export function SmsReminderSettings({ config, onConfigChange }: SmsReminderSetti
                         type="time"
                         value={config.quiet_hours_start}
                         onChange={(e) => onConfigChange({ quiet_hours_start: e.target.value })}
+                        className={cn(isGlass && 'border-white/20 bg-white/5 text-white')}
                       />
                     </div>
                     <div className="space-y-2">
@@ -225,6 +251,7 @@ export function SmsReminderSettings({ config, onConfigChange }: SmsReminderSetti
                         type="time"
                         value={config.quiet_hours_end}
                         onChange={(e) => onConfigChange({ quiet_hours_end: e.target.value })}
+                        className={cn(isGlass && 'border-white/20 bg-white/5 text-white')}
                       />
                     </div>
                   </div>
@@ -237,39 +264,45 @@ export function SmsReminderSettings({ config, onConfigChange }: SmsReminderSetti
 
       {/* Cost Estimate */}
       {config.enabled && (
-        <Card className="border-green-200 bg-green-50">
+        <Card
+          className={cn(
+            isGlass
+              ? 'border-emerald-300/30 bg-emerald-500/12 text-emerald-50 backdrop-blur-xl'
+              : 'border-green-200 bg-green-50'
+          )}
+        >
           <CardHeader>
-            <CardTitle className="text-sm flex items-center gap-2 text-green-900">
+            <CardTitle className={cn('text-sm flex items-center gap-2', isGlass ? 'text-emerald-100' : 'text-green-900')}>
               <DollarSign className="h-4 w-4" />
               Estimación de Costos Mensuales
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <span className="text-green-700">Proveedor:</span>
-              <span className="font-medium text-green-900">
+              <span className={cn(isGlass ? 'text-emerald-100/80' : 'text-green-700')}>Proveedor:</span>
+              <span className={cn('font-medium', isGlass ? 'text-emerald-50' : 'text-green-900')}>
                 {SMS_PROVIDERS[config.provider].name}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-green-700">Recordatorios por cita:</span>
-              <span className="font-medium text-green-900">
+              <span className={cn(isGlass ? 'text-emerald-100/80' : 'text-green-700')}>Recordatorios por cita:</span>
+              <span className={cn('font-medium', isGlass ? 'text-emerald-50' : 'text-green-900')}>
                 {config.default_timings.length}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-green-700">Costo por cita:</span>
-              <span className="font-medium text-green-900">
+              <span className={cn(isGlass ? 'text-emerald-100/80' : 'text-green-700')}>Costo por cita:</span>
+              <span className={cn('font-medium', isGlass ? 'text-emerald-50' : 'text-green-900')}>
                 ${costEstimate.perAppointment.toFixed(4)} {costEstimate.currency}
               </span>
             </div>
-            <div className="flex justify-between pt-2 border-t border-green-200">
-              <span className="font-medium text-green-900">Estimado mensual (20 citas/día):</span>
-              <span className="font-bold text-green-900">
+            <div className={cn('flex justify-between pt-2 border-t', isGlass ? 'border-emerald-300/30' : 'border-green-200')}>
+              <span className={cn('font-medium', isGlass ? 'text-emerald-100' : 'text-green-900')}>Estimado mensual (20 citas/día):</span>
+              <span className={cn('font-bold', isGlass ? 'text-emerald-50' : 'text-green-900')}>
                 ${costEstimate.total.toFixed(2)} {costEstimate.currency}
               </span>
             </div>
-            <p className="text-xs text-green-700 pt-2">
+            <p className={cn('text-xs pt-2', isGlass ? 'text-emerald-100/80' : 'text-green-700')}>
               * Basado en tarifas estándar del proveedor. Costos reales pueden variar.
             </p>
           </CardContent>
@@ -277,11 +310,17 @@ export function SmsReminderSettings({ config, onConfigChange }: SmsReminderSetti
       )}
 
       {/* Info Box */}
-      <Card className="border-blue-200 bg-blue-50">
+      <Card
+        className={cn(
+          isGlass
+            ? 'border-cyan-300/30 bg-cyan-500/12 text-cyan-50 backdrop-blur-xl'
+            : 'border-blue-200 bg-blue-50'
+        )}
+      >
         <CardContent className="pt-6">
           <div className="flex gap-3">
-            <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
-            <div className="space-y-2 text-sm text-blue-900">
+            <Info className={cn('h-5 w-5 flex-shrink-0 mt-0.5', isGlass ? 'text-cyan-100' : 'text-blue-600')} />
+            <div className={cn('space-y-2 text-sm', secondaryTextClass)}>
               <p className="font-medium">Configuración de SMS</p>
               <ul className="space-y-1 ml-4 list-disc">
                 <li>Los recordatorios se envían automáticamente según los horarios configurados</li>
@@ -290,13 +329,13 @@ export function SmsReminderSettings({ config, onConfigChange }: SmsReminderSetti
                 <li>Los mensajes incluyen fecha, hora y doctor de la cita</li>
                 <li>Las confirmaciones se registran cuando el paciente responde</li>
               </ul>
-              <div className="mt-3 pt-3 border-t border-blue-200">
+              <div className={cn('mt-3 pt-3 border-t', isGlass ? 'border-cyan-300/30' : 'border-blue-200')}>
                 <p className="font-medium mb-1">🔑 Credenciales de Twilio</p>
-                <p className="text-blue-800">
+                <p className={tertiaryTextClass}>
                   Para enviar SMS, configura tus credenciales de Twilio en{' '}
                   <a 
                     href="/dashboard/settings/notifications" 
-                    className="underline font-semibold hover:text-blue-600"
+                    className={cn('underline font-semibold', isGlass ? 'hover:text-cyan-50' : 'hover:text-blue-600')}
                   >
                     Configuración → Notificaciones
                   </a>

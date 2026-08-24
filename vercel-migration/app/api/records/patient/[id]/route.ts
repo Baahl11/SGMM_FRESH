@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { getAuthUser } from '@/lib/auth-server'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(
@@ -7,6 +8,12 @@ export async function GET(
 ) {
   try {
     const supabase = await createClient()
+    // fable F1: verificación explícita de sesión (defensa en profundidad;
+    // antes la protección dependía únicamente de RLS).
+    const user = await getAuthUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     const { id: patientId } = await params
 
     if (!patientId) {
@@ -27,6 +34,7 @@ export async function GET(
         treatments(id, nombre)
       `)
       .eq('patient_id', patientId)
+      .eq('user_id', user.id) // fable F1
       .order('fecha', { ascending: false })
       .range(skip, skip + limit - 1)
 

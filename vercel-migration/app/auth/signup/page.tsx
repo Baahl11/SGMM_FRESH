@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Check, CreditCard, Sparkles } from 'lucide-react'
+import { Check, ShieldCheck, Sparkles } from 'lucide-react'
 import { SignupForm } from '@/components/auth/SignupForm'
 import { Badge } from '@/components/ui/badge'
 import { Suspense } from 'react'
@@ -14,12 +14,12 @@ const steps = [
     description: 'Registra tus datos para activar tu perfil en AgendaMedPro.'
   },
   {
-    title: 'Agrega tu tarjeta',
-    description: 'Validamos tu método de pago para habilitar la prueba de 7 días.'
+    title: 'Elige tu plan',
+    description: 'Prueba Pro o Enterprise con todas sus funciones durante 14 días.'
   },
   {
     title: 'Disfruta tu trial',
-    description: 'Explora todas las funciones premium. Cancela antes del día 8 si lo necesitas.'
+    description: 'Explora todas las funciones. Solo pagas si decides continuar después.'
   }
 ]
 
@@ -33,7 +33,7 @@ export default function SignupPage() {
       <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 py-16 sm:px-8 lg:flex-row lg:items-center lg:justify-between lg:gap-12">
         <div className="max-w-2xl">
           <Badge className="mb-6 rounded-full border border-white/20 bg-white/10 px-5 py-2 text-xs font-semibold uppercase tracking-[0.3em]">
-            Trial de 7 días con tarjeta requerida
+            Trial de 14 días sin tarjeta
           </Badge>
           <div className="flex items-center gap-3 text-emerald-200/80">
             <Sparkles className="h-6 w-6" />
@@ -43,7 +43,7 @@ export default function SignupPage() {
             Activa tu cuenta premium en minutos
           </h1>
           <p className="mt-4 text-lg text-white/70">
-            Registramos tus datos, vinculamos tu tarjeta y desbloqueamos el trial completo de 7 días. No se realiza ningún cobro hasta el día 8.
+            Crea tu cuenta, verifica tu correo y elige Pro o Enterprise. No necesitas tarjeta para comenzar.
           </p>
 
           <div className="mt-10 grid gap-5 sm:grid-cols-3">
@@ -62,8 +62,8 @@ export default function SignupPage() {
 
           <div className="mt-8 flex flex-wrap items-center gap-4 text-sm text-white/70">
             <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2">
-              <CreditCard className="h-4 w-4 text-emerald-300" />
-              Cobro automático solo si continúas después del trial
+              <ShieldCheck className="h-4 w-4 text-emerald-300" />
+              Sin cobros automáticos al terminar el trial
             </div>
             <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2">
               Cancelación en un clic desde tu panel
@@ -88,7 +88,7 @@ export default function SignupPage() {
             </Suspense>
 
             <div className="mt-6 rounded-2xl border border-emerald-400/20 bg-emerald-400/5 p-4 text-sm text-emerald-100">
-              Tu trial dura 7 días completos. Solicitamos tu tarjeta en el siguiente paso para garantizar acceso continuo.
+              Tu trial dura 14 días completos. Al terminar, tus datos se conservan y tú decides si continúas.
             </div>
             <p className="mt-4 text-sm text-white/60">
               También puedes registrarte con Google para acelerar el proceso.

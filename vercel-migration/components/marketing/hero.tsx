@@ -2,14 +2,13 @@
 
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { ArrowRight, MessageCircle } from 'lucide-react'
-import { trackSignupIntent, trackWhatsAppDemoClick } from '@/lib/analytics/funnel-events'
-import { WHATSAPP_DEMO_URL } from '@/lib/marketing/constants'
+import { ArrowRight } from 'lucide-react'
+import { trackSignupIntent } from '@/lib/analytics/funnel-events'
 
 const stats = [
-  { label: 'Reducción en inasistencias', value: '-78%' },
-  { label: 'Aumento en facturación anual', value: '+120%' },
-  { label: 'Más citas mensuales', value: '+35%' },
+  { label: 'No-shows menos en 90 días', value: '-78%' },
+  { label: 'Horas administrativas ahorradas', value: '18 h/sem' },
+  { label: 'Ingresos recuperados por agenda llena', value: '+32%' },
 ]
 
 const heroDeposits = [
@@ -20,23 +19,30 @@ const heroDeposits = [
 
 const heroMiniPanels = [
   {
-    title: 'Inventario inteligente',
-    detail: 'Medicamento lote B12',
-    metric: '12 unidades restantes',
-    badge: 'Alerta activada',
+    title: 'Expediente y seguimiento',
+    detail: 'Historia clínica + evolución',
+    metric: 'Ficha completa en 1 pantalla',
+    badge: 'Firma y consentimiento digital',
   },
   {
     title: 'Lista de espera automática',
-    detail: '3 pacientes esperando',
-    metric: 'Aviso enviado ahora',
-    badge: 'Sin intervención manual',
+    detail: '3 pacientes listos para ocupar hueco',
+    metric: 'Espacio ocupado en 14 min',
+    badge: 'Sin llamadas manuales',
   },
   {
-    title: 'Recordatorios automáticos',
-    detail: 'WhatsApp + SMS programados',
-    metric: '98% tasa de apertura',
-    badge: 'Plantillas aprobadas',
+    title: 'Cobro + facturación conectados',
+    detail: 'Anticipo, checkout y conciliación',
+    metric: '97% para tu clínica',
+    badge: 'Reporte por doctor y sucursal',
   },
+]
+
+const heroCapabilities = [
+  'Agenda multivista con bloqueo inteligente',
+  'WhatsApp Business y SMS con tus credenciales',
+  'Inventario por consumo en cada procedimiento',
+  'Reportes de facturación por doctor, sede y servicio',
 ]
 
 export function MarketingHero() {
@@ -52,38 +58,36 @@ export function MarketingHero() {
           className="space-y-10 lg:flex-1"
         >
           <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm text-white/80">
-            <span className="text-xs uppercase tracking-widest text-emerald-300">Nuevo</span>
-            Plataforma mexicana diseñada para clínicas estéticas, doctores, dentistas, fisioterapeutas, psicólogos
+            <span className="text-xs uppercase tracking-widest text-emerald-300">Sistema 360</span>
+            Plataforma mexicana para clínicas estéticas y consultorios que quieren crecer sin contratar más administración
           </div>
           <div>
             <p className="text-base font-semibold uppercase tracking-[0.4em] text-emerald-200/80">AgendaMedPro</p>
             <h1 className="mt-3 text-4xl font-semibold leading-tight text-white sm:text-5xl lg:text-[58px] lg:leading-[62px]">
-              Reduce inasistencias, organiza tu clínica y aumenta tus ingresos.
+              Convierte cada hueco de agenda en ingreso medible.
             </h1>
             <p className="mt-6 text-lg text-white/80 lg:text-xl">
-              Agenda de citas, recordatorios por WhatsApp, inventario automático y facturación en un solo sistema para consultorios y clínicas en México. Tus pacientes reservan y pagan online; tú te quedas con el 97%.
+              Agenda de citas, cobro de anticipos, expediente clínico, recordatorios por WhatsApp y control de inventario en una sola plataforma. Tus pacientes reservan y pagan online; tú mantienes operación ordenada y margen protegido.
             </p>
           </div>
           <div className="flex flex-col gap-4 sm:flex-row">
-            <Link href="/auth/signup" className="aura-cta aura-cta--primary" onClick={trackSignupIntent}>
-              Prueba gratis 7 días
+            <Link href="/select-trial-plan" className="aura-cta aura-cta--primary" onClick={trackSignupIntent}>
+              Prueba gratis 14 días
               <ArrowRight className="h-5 w-5 transition-transform" />
             </Link>
-            <a
-              href={WHATSAPP_DEMO_URL}
-              className="aura-cta"
-              rel="noreferrer"
-              target="_blank"
-              onClick={trackWhatsAppDemoClick}
-            >
-              <MessageCircle className="h-5 w-5" /> Agendar demo por WhatsApp
-            </a>
           </div>
           <div className="grid gap-4 sm:grid-cols-3">
             {stats.map((item) => (
               <div key={item.label} className="rounded-2xl border border-white/5 bg-white/5 px-4 py-3">
                 <p className="text-2xl font-semibold text-white">{item.value}</p>
                 <p className="text-sm text-white/60">{item.label}</p>
+              </div>
+            ))}
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {heroCapabilities.map((item) => (
+              <div key={item} className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-white/75">
+                {item}
               </div>
             ))}
           </div>

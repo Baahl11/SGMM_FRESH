@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import {
+  getDemoIntegrationPolicy,
+  logDemoAuditEvent,
+  resolveDemoModeConfig,
+} from '@/lib/demo-mode';
 
 /**
  * POST /api/whatsapp/send
@@ -21,6 +26,32 @@ export async function POST(request: NextRequest) {
 
     if (!to || !message) {
       return NextResponse.json({ error: 'Missing "to" or "message"' }, { status: 400 });
+    }
+
+    const demoConfig = await resolveDemoModeConfig(supabase, user.id);
+    const whatsappPolicy = getDemoIntegrationPolicy(demoConfig, 'whatsapp');
+
+    if (whatsappPolicy.shouldSimulate) {
+      const simulatedId = `demo_cloud_wa_${Date.now()}`;
+
+      await logDemoAuditEvent(supabase, user.id, {
+        eventType: 'whatsapp_cloud_message_simulated',
+        integration: 'whatsapp',
+        resourceType: 'cloud_message',
+        resourceId: simulatedId,
+        status: 'simulated',
+        payload: {
+          to,
+          message_preview: String(message).slice(0, 120),
+        },
+      });
+
+      return NextResponse.json({
+        success: true,
+        message_id: simulatedId,
+        status: 'sent',
+        demo_mode: true,
+      });
     }
 
     // Get user's WhatsApp Cloud API credentials

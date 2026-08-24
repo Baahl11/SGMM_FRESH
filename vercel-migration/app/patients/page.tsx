@@ -163,7 +163,7 @@ export default function PatientsPage() {
   const filterAndSortPatients = useCallback(async () => {
     if (!patients.length) return
 
-    let filtered = patients.filter(patient =>
+    const filtered = patients.filter(patient =>
       patient.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       patient.apellido?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       patient.telefono?.toLowerCase().includes(searchTerm.toLowerCase()) ||

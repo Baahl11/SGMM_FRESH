@@ -45,7 +45,7 @@ BEGIN
   PERFORM set_config('request.jwt.claim.role', 'service_role', true);
 
   trial_start := NOW();
-  trial_end := trial_start + INTERVAL '7 days';
+  trial_end := trial_start + INTERVAL '14 days';
 
   INSERT INTO subscriptions (
     user_id,

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, ArrowRight, Shield } from 'lucide-react'
-import { WHATSAPP_DEMO_URL } from '@/lib/marketing/constants'
+import { WHATSAPP_SALES_URL } from '@/lib/marketing/constants'
 import { trackCtaClick } from '@/lib/analytics/funnel-events'
 
 const STORAGE_KEY = 'exit_intent_shown'
@@ -86,7 +86,7 @@ export function ExitIntentPopup() {
             </h2>
             <p className="mb-6 text-slate-300">
               Prueba AgendaMedPro{' '}
-              <span className="font-semibold text-emerald-400">7 días gratis</span> y
+              <span className="font-semibold text-emerald-400">14 días gratis</span> y
               descubre cuánto tiempo y dinero estás perdiendo con inasistencias.
             </p>
 
@@ -118,11 +118,11 @@ export function ExitIntentPopup() {
                 <ArrowRight className="h-4 w-4" />
               </a>
               <a
-                href={WHATSAPP_DEMO_URL}
+                href={WHATSAPP_SALES_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => {
-                  trackCtaClick('exit_intent', 'whatsapp_demo')
+                  trackCtaClick('exit_intent', 'whatsapp_sales')
                   dismiss()
                 }}
                 className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/5 px-5 py-3 font-medium text-white transition-colors hover:bg-white/10"

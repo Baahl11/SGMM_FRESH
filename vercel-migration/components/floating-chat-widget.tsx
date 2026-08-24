@@ -1,12 +1,23 @@
 'use client';
 
 import { useState } from 'react';
-import { MessageCircle, X, Sparkles } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import { X, Sparkles } from 'lucide-react';
 import { AIChat } from './ai-chat';
 import { GlassPanel } from './ui/glass-panel';
 
 export function FloatingChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
+  const pathname = usePathname();
+
+  if (
+    pathname === '/prueba-gratis' ||
+    pathname === '/calculadora-inasistencias' ||
+    pathname.startsWith('/auth/') ||
+    pathname === '/select-trial-plan'
+  ) {
+    return null;
+  }
 
   return (
     <>

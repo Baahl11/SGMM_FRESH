@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/sheet";
 import { User, LogOut, Settings, MessageSquare, Menu, ChevronDown } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/notification-bell";
+import { clearAppCaches } from '@/lib/pwa/clear-caches' // fable C6
 
 const LogoMark = ({ className = "h-10 w-10" }: { className?: string }) => (
   <svg viewBox="0 0 64 64" className={className} aria-hidden="true">
@@ -105,6 +106,7 @@ export function MainNav() {
   }, [user]);
 
   const handleSignOut = async () => {
+    await clearAppCaches(); // fable C6
     await supabase.auth.signOut();
     router.push('/auth/signin');
   };

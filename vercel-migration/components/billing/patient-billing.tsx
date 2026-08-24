@@ -37,6 +37,7 @@ export default function PatientBilling({ patientId, patientName }: PatientBillin
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [facturamaConfigured, setFacturamaConfigured] = useState<boolean | null>(null);
+  const [isDemoMode, setIsDemoMode] = useState(false);
 
   useEffect(() => {
     checkFacturamaConfig();
@@ -48,6 +49,7 @@ export default function PatientBilling({ patientId, patientName }: PatientBillin
       if (response.ok) {
         const data = await response.json();
         setFacturamaConfigured(data.config?.is_configured || false);
+        setIsDemoMode(Boolean(data.demo_mode));
       }
     } catch (error) {
       console.error('Error checking Facturama config:', error);
@@ -76,6 +78,15 @@ export default function PatientBilling({ patientId, patientName }: PatientBillin
                 <ExternalLink className="ml-2 h-3 w-3" />
               </Button>
             </Link>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {isDemoMode && (
+        <Alert className="border border-cyan-400/40 bg-cyan-500/10 text-cyan-100">
+          <CheckCircle className="h-4 w-4" />
+          <AlertDescription className="text-sm">
+            Modo demo activo: Facturama está simulado para pruebas comerciales. Puedes generar CFDI demo sin credenciales reales.
           </AlertDescription>
         </Alert>
       )}

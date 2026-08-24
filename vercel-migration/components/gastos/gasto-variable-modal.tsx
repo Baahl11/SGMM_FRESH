@@ -15,6 +15,7 @@ import {
   Loader2,
   AlertCircle,
   CheckCircle,
+  Info,
   Wrench,
   ShoppingCart,
   Briefcase,
@@ -420,9 +421,19 @@ export default function GastoVariableModal({ isOpen, onClose, onSuccess, gasto }
                   className="h-4 w-4 rounded border-gray-300"
                 />
                 <Label htmlFor="es_deducible" className="cursor-pointer">
-                  Gasto deducible de impuestos
+                  Marcado deducible por usuario (referencia interna)
                 </Label>
               </div>
+            </div>
+
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+              <div className="mb-1 flex items-center gap-2 font-medium">
+                <Info className="h-4 w-4" />
+                Evaluación SAT automática
+              </div>
+              <p>
+                La clasificación final se calcula con criterios SAT/LISR (CFDI, RFC del proveedor y método de pago en montos mayores a $2,000).
+              </p>
             </div>
           </div>
           
@@ -446,7 +457,7 @@ export default function GastoVariableModal({ isOpen, onClose, onSuccess, gasto }
                 <Input
                   id="proveedor_rfc"
                   value={formData.proveedor_rfc}
-                  onChange={(e) => setFormData({ ...formData, proveedor_rfc: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, proveedor_rfc: e.target.value.toUpperCase() })}
                   placeholder="XAXX010101000"
                   maxLength={13}
                 />
@@ -505,7 +516,7 @@ export default function GastoVariableModal({ isOpen, onClose, onSuccess, gasto }
                   id="factura_numero"
                   value={formData.factura_numero}
                   onChange={(e) => setFormData({ ...formData, factura_numero: e.target.value })}
-                  placeholder="A-12345"
+                  placeholder="UUID o folio del comprobante"
                 />
               </div>
               

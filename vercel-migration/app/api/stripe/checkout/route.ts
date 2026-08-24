@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe, STRIPE_PRICES } from '@/lib/stripe/server'
 import { createClient, supabaseAdmin } from '@/lib/supabase/server'
+import {
+  getDemoIntegrationPolicy,
+  logDemoAuditEvent,
+  resolveDemoModeConfig,
+} from '@/lib/demo-mode'
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,15 +44,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validar que el priceId sea válido
-    const validPriceIds = Object.values(STRIPE_PRICES)
-    if (!validPriceIds.includes(priceId)) {
-      return NextResponse.json(
-        { error: 'priceId inválido' },
-        { status: 400 }
-      )
-    }
-
+    // Auditoría fable 2026-06-11 (H3/B1): `isSubscription` se usaba en el bloque
+    // de demo mode ANTES de su declaración (TDZ) — checkout demo roto y error de
+    // TypeScript oculto por ignoreBuildErrors. Se declara aquí, antes de
+    // cualquier uso, sin cambiar la lógica.
     const subscriptionPriceIds = new Set([
       STRIPE_PRICES.BASICO_MONTHLY,
       STRIPE_PRICES.BASICO_ANNUAL,
@@ -56,8 +56,73 @@ export async function POST(request: NextRequest) {
       STRIPE_PRICES.ENTERPRISE_MONTHLY,
       STRIPE_PRICES.ENTERPRISE_ANNUAL,
     ])
-
     const isSubscription = subscriptionPriceIds.has(priceId)
+
+    if (user) {
+      const demoConfig = await resolveDemoModeConfig(supabase, user.id)
+      const stripePolicy = getDemoIntegrationPolicy(demoConfig, 'stripe')
+
+      if (stripePolicy.shouldSimulate) {
+        const simulatedSessionId = `demo_cs_stripe_${Date.now()}`
+        const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+
+        if (isSubscription) {
+          const planTier =
+            priceId === STRIPE_PRICES.ENTERPRISE_MONTHLY ||
+            priceId === STRIPE_PRICES.ENTERPRISE_ANNUAL
+              ? 'enterprise'
+              : priceId === STRIPE_PRICES.PRO_MONTHLY || priceId === STRIPE_PRICES.PRO_ANNUAL
+                ? 'pro'
+                : 'pro'
+
+          const { error: demoSubscriptionError } = await supabase
+            .from('subscriptions')
+            .upsert(
+              {
+                user_id: user.id,
+                plan_tier: planTier,
+                status: 'active',
+                stripe_price_id: priceId,
+                stripe_customer_id: `demo_cus_${Date.now()}`,
+                stripe_subscription_id: `demo_sub_${Date.now()}`,
+              },
+              { onConflict: 'user_id' }
+            )
+
+          if (demoSubscriptionError) {
+            console.warn('[DemoMode] No se pudo crear suscripción simulada en stripe/checkout:', demoSubscriptionError)
+          }
+        }
+
+        await logDemoAuditEvent(supabaseAdmin, user.id, {
+          eventType: 'stripe_checkout_session_simulated',
+          integration: 'stripe',
+          resourceType: 'checkout_session',
+          resourceId: simulatedSessionId,
+          status: 'simulated',
+          payload: {
+            price_id: priceId,
+            referral_source: referralSource || 'direct',
+            seller_id: sellerId || null,
+            is_subscription: isSubscription,
+          },
+        })
+
+        return NextResponse.json({
+          url: `${origin}/dashboard?session_id=${simulatedSessionId}&demo=1`,
+          demo_mode: true,
+        })
+      }
+    }
+
+    // Validar que el priceId sea válido
+    const validPriceIds = Object.values(STRIPE_PRICES)
+    if (!validPriceIds.includes(priceId)) {
+      return NextResponse.json(
+        { error: 'priceId inválido' },
+        { status: 400 }
+      )
+    }
 
     // Determinar equipo de ventas basado en referral source
     const salesTeam = referralSource === 'distributor' || referralSource === 'dist' 
@@ -74,7 +139,7 @@ export async function POST(request: NextRequest) {
 
     // Solo usar Stripe Connect si es venta de distribuidora
     let stripeAccountId: string | null = null
-    let sessionOptions: any = {}
+    const sessionOptions: any = {}
 
     if (salesTeam === 'distributor') {
       // Obtener cuenta Connect de la distribuidora
@@ -185,7 +250,7 @@ export async function POST(request: NextRequest) {
       // Equipo interno (sin Connect ni application fee)
       if (isSubscription) {
         sessionConfig.subscription_data = {
-          trial_period_days: 7, // ← Trial de 7 días para equipo interno
+          trial_period_days: 14, // ← Trial de 14 días para equipo interno
           metadata: { 
             user_id: user?.id || 'guest',
             sales_team: salesTeam,

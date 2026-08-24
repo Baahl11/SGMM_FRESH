@@ -16,6 +16,7 @@ const features = [
       'Confirmación automática cuando el pago se aprueba',
     ],
     accent: 'Pagos online',
+    outcome: 'Resultado: menos cancelaciones de último minuto',
     icon: CircleDollarSign,
     media: {
       label: 'Pago confirmado',
@@ -33,6 +34,7 @@ const features = [
       'Historial completo de lotes, caducidades y proveedores',
     ],
     accent: 'Inventario inteligente',
+    outcome: 'Resultado: compras con anticipación, sin urgencias costosas',
     icon: CalendarRange,
     media: {
       label: 'Alerta de inventario',
@@ -50,6 +52,7 @@ const features = [
       'Plantillas personalizadas con el nombre del doctor y la clínica',
     ],
     accent: 'Automatización',
+    outcome: 'Resultado: más asistencia y menos tiempo operativo',
     icon: MessageSquare,
     media: {
       label: 'Mensaje enviado',
@@ -57,16 +60,17 @@ const features = [
     },
   },
   {
-    title: 'Agenda profesional sin dobles citas',
-    eyebrow: 'Vista día, semana y mes',
+    title: 'Agenda, expediente y operación en una sola vista',
+    eyebrow: 'Agenda + pacientes + reportes',
     description:
-      'Arrastra y suelta citas, bloquea horarios de comida, configura tiempos de preparación entre pacientes y evita que dos personas reserven el mismo horario. Todo con colores que te muestran qué citas están confirmadas, cuáles pendientes y cuáles canceladas.',
+      'Programa citas sin conflictos, consulta antecedentes del paciente y toma decisiones con reportes en tiempo real. Cada doctor y cada sede opera en el mismo sistema para que no pierdas contexto ni dinero por desorden.',
     bullets: [
-      'Vistas de día, semana y mes para organizar mejor',
-      'Bloqueo automático de slots para evitar dobles reservas',
-      'Tiempos de preparación entre citas configurables',
+      'Vistas de día, semana y mes con estados de cita claros',
+      'Ficha de paciente y seguimiento clínico desde la agenda',
+      'Reportes por doctor, tratamiento y sucursal para decidir rápido',
     ],
-    accent: 'Agenda profesional',
+    accent: 'Operación centralizada',
+    outcome: 'Resultado: control total del negocio sin hojas de cálculo',
     icon: Settings2,
     media: {
       label: 'Agenda en vivo',
@@ -107,6 +111,7 @@ export function FeatureNarrative() {
               <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1 text-sm text-white/70">
                 {feature.accent}
               </div>
+              <p className="mb-5 text-xs uppercase tracking-[0.25em] text-emerald-200/75">{feature.outcome}</p>
               <feature.icon className="mb-4 h-10 w-10 text-emerald-300" />
               <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-6 text-white">
                 <p className="text-xs uppercase tracking-[0.35em] text-white/40">{feature.media.label}</p>

@@ -1,0 +1,72 @@
+# ============================================================================
+# CI — AgendaMedPro (creado por auditoría fable 2026-06-11)
+# Jobs requeridos: typecheck, tests, lint-budget, build.
+# El reporte completo de ESLint es informativo (deuda histórica: ver OD-3 y
+# .lint-budget); el job lint-budget impide que la deuda CREZCA.
+# ============================================================================
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # OD-1: el postinstall de `supabase` (CLI) descarga un binario desde
+      # GitHub releases y rompe `npm ci` en redes restringidas. Hasta moverlo
+      # a una herramienta opcional, se instala sin scripts.
+      - name: Install (sin postinstall de supabase — OD-1)
+        run: npm ci --ignore-scripts
+
+      - name: Typecheck (requerido)
+        run: npm run typecheck
+
+      - name: Tests de regresión (requerido)
+        run: npm run test
+
+      - name: Presupuesto de lint (requerido — la deuda no puede crecer)
+        run: npm run lint:budget
+
+      - name: ESLint reporte completo (informativo)
+        run: npx eslint . || true
+
+      - name: Build (requerido)
+        env:
+          # Dummies SOLO para que el build evalúe los módulos route con
+          # clientes a nivel de módulo. El deploy real usa los secretos de
+          # Vercel. Ver .env.example para la lista completa.
+          NEXT_PUBLIC_SUPABASE_URL: https://dummy.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy-anon
+          SUPABASE_SERVICE_ROLE_KEY: dummy-service
+          NEXTAUTH_URL: http://localhost:3000
+          NEXTAUTH_SECRET: dummy-nextauth-secret
+          STRIPE_SECRET_KEY: sk_test_dummy
+          STRIPE_WEBHOOK_SECRET: whsec_dummy
+          STRIPE_WEBHOOK_SECRET_DEPOSITS: whsec_dummy
+          MERCADOPAGO_ACCESS_TOKEN: TEST-dummy
+          MERCADOPAGO_WEBHOOK_SECRET: dummy
+          ANTHROPIC_API_KEY: sk-ant-dummy
+          WHATSAPP_APP_SECRET: dummy
+          WHATSAPP_VERIFY_TOKEN: dummy
+          ENCRYPTION_MASTER_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+          MESSAGING_CIPHER_KEY: 0123456789abcdef0123456789abcdef
+          RESEND_API_KEY: re_dummy
+          GOOGLE_CLIENT_ID: dummy
+          GOOGLE_CLIENT_SECRET: dummy
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
+        run: npm run build

@@ -38,13 +38,13 @@ export default function ChartEmptyState({
       transition={{ duration: 0.45, ease: "easeOut" }}
       className="h-full"
     >
-      <div className="relative flex h-full w-full flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed border-indigo-200/80 bg-gradient-to-br from-white/80 via-indigo-50/60 to-purple-50/70 px-6 py-10 text-center">
+      <div className="relative flex h-full w-full flex-col items-center justify-center gap-4 rounded-2xl border border-white/20 bg-white/[0.05] px-6 py-10 text-center shadow-[0_22px_80px_rgba(2,6,23,0.45)] backdrop-blur-xl">
         <motion.div
-          className="pointer-events-none absolute inset-6 rounded-2xl bg-gradient-to-br from-indigo-400/10 via-purple-400/5 to-transparent blur-2xl"
+          className="pointer-events-none absolute inset-6 rounded-2xl bg-gradient-to-br from-indigo-400/20 via-purple-400/15 to-transparent blur-3xl"
           {...sparkAnimation}
         />
 
-        <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-purple-600 text-white shadow-lg shadow-indigo-500/20">
+        <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl border border-white/20 bg-gradient-to-br from-indigo-500/85 via-purple-500/85 to-fuchsia-500/85 text-white shadow-lg shadow-indigo-500/30">
           {icon ?? (
             <svg
               className="h-8 w-8"
@@ -63,8 +63,8 @@ export default function ChartEmptyState({
         </div>
 
         <div className="relative space-y-2">
-          <h4 className="text-lg font-semibold text-slate-900">{title}</h4>
-          <p className="max-w-xs text-sm text-slate-600/90">
+          <h4 className="text-lg font-semibold text-white">{title}</h4>
+          <p className="max-w-xs text-sm text-white/70">
             {description}
           </p>
         </div>

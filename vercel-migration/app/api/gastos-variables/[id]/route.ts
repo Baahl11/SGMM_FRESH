@@ -7,6 +7,7 @@
  */
 
 import { createClient } from '@/lib/supabase/server';
+import { isValidRFC } from '@/lib/types/facturama';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
@@ -95,6 +96,20 @@ export async function PUT(
 
     const id = params.id;
     const body = await request.json();
+
+    if (body.proveedor_rfc !== undefined) {
+      const proveedorRFC = body.proveedor_rfc ? String(body.proveedor_rfc).trim().toUpperCase() : null;
+
+      if (proveedorRFC && !isValidRFC(proveedorRFC)) {
+        return NextResponse.json(
+          { error: 'RFC de proveedor inválido' },
+          { status: 400 }
+        );
+      }
+
+      body.proveedor_rfc = proveedorRFC;
+    }
+
     // Verificar que el gasto existe y pertenece al usuario
     const { data: existingGasto, error: fetchError } = await supabase
       .from('variable_expenses')

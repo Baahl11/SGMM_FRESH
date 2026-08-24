@@ -5,10 +5,16 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import FacturamaClient, { buildInvoiceItems } from '@/lib/facturama/client';
-import { sendInvoiceEmail } from '@/lib/email/resend';
+import { sendWithUserEmailConfig } from '@/lib/email/user-config';
+import { signStoredObject } from '@/lib/storage/signed';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { FacturamaCreateInvoiceRequest, InvoiceGenerationResult } from '@/lib/types/facturama';
+import {
+  getDemoIntegrationPolicy,
+  logDemoAuditEvent,
+  resolveDemoModeConfig,
+} from '@/lib/demo-mode';
 
 export async function POST(request: Request) {
   try {
@@ -28,6 +34,137 @@ export async function POST(request: Request) {
         { error: 'Missing required fields: patient_id, fiscal_data_id, record_ids, forma_pago' },
         { status: 400 }
       );
+    }
+
+    const demoConfig = await resolveDemoModeConfig(supabase, user.id);
+    const facturamaPolicy = getDemoIntegrationPolicy(demoConfig, 'facturama');
+
+    if (facturamaPolicy.shouldSimulate) {
+      const { data: fiscalData, error: fiscalError } = await supabase
+        .from('patient_fiscal_data')
+        .select('*')
+        .eq('id', fiscal_data_id)
+        .single();
+
+      if (fiscalError || !fiscalData) {
+        return NextResponse.json({ error: 'Datos fiscales del paciente no encontrados' }, { status: 404 });
+      }
+
+      const { data: records, error: recordsError } = await supabase
+        .from('records')
+        .select('id, monto_pagado, treatment:treatments(nombre)')
+        .in('id', record_ids);
+
+      if (recordsError || !records || records.length === 0) {
+        return NextResponse.json({ error: 'Tratamientos no encontrados' }, { status: 404 });
+      }
+
+      const invoiceItems = records.map((record: any) => ({
+        id: record.id,
+        treatment_name: record.treatment?.nombre || 'Servicio médico',
+        price: Number(record.monto_pagado || 0),
+        cantidad: 1,
+      }));
+      const items = buildInvoiceItems(invoiceItems, true);
+      const subtotal = items.reduce((sum, item) => sum + item.Subtotal, 0);
+      const iva = items.reduce((sum, item) => {
+        const tax = item.Taxes?.find(t => t.Name === '002');
+        return sum + (tax?.Total || 0);
+      }, 0);
+      const total = subtotal + iva;
+
+      const now = Date.now();
+      const demoFacturamaId = `demo_facturama_${now}`;
+      const demoUuid = `DEMO-${now}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+      const demoSerie = 'D';
+      const demoFolio = String(now).slice(-6);
+      const demoAssetUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard/settings/facturacion?demo=1`;
+
+      const { data: invoice, error: invoiceError } = await supabase
+        .from('invoices')
+        .insert({
+          patient_id,
+          fiscal_data_id,
+          facturama_id: demoFacturamaId,
+          folio_number: demoFolio,
+          serie: demoSerie,
+          uuid: demoUuid,
+          fecha_emision: new Date().toISOString(),
+          fecha_timbrado: new Date().toISOString(),
+          subtotal,
+          iva,
+          total,
+          moneda: 'MXN',
+          tipo_comprobante: 'I',
+          forma_pago,
+          metodo_pago,
+          xml_url: demoAssetUrl,
+          pdf_url: demoAssetUrl,
+          status: 'issued',
+          notas: notas || '[DEMO] Factura simulada en modo demo',
+          created_by: user.id,
+          user_id: user.id, // fable C3: requerido por las nuevas políticas RLS por tenant
+        })
+        .select()
+        .single();
+
+      if (invoiceError || !invoice) {
+        console.error('Error saving simulated invoice:', invoiceError);
+        return NextResponse.json(
+          { error: 'Error al guardar factura simulada' },
+          { status: 500 }
+        );
+      }
+
+      const invoiceRecords = record_ids.map(record_id => {
+        const record = records.find(r => r.id === record_id);
+        return {
+          invoice_id: invoice.id,
+          record_id,
+          monto: Number(record?.monto_pagado || 0),
+        };
+      });
+
+      await supabase.from('invoice_records').insert(invoiceRecords);
+      await supabase
+        .from('records')
+        .update({ pendiente_facturar: false })
+        .in('id', record_ids);
+
+      if (send_email) {
+        await supabase
+          .from('invoices')
+          .update({ emailed_at: new Date().toISOString() })
+          .eq('id', invoice.id);
+      }
+
+      await logDemoAuditEvent(supabase, user.id, {
+        eventType: 'facturama_invoice_simulated',
+        integration: 'facturama',
+        resourceType: 'invoice',
+        resourceId: invoice.id,
+        status: 'simulated',
+        payload: {
+          patient_id,
+          fiscal_data_id,
+          record_ids,
+          total,
+          send_email,
+        },
+      });
+
+      const simulatedResult: InvoiceGenerationResult = {
+        success: true,
+        invoice_id: invoice.id,
+        xml_url: invoice.xml_url || demoAssetUrl,
+        pdf_url: invoice.pdf_url || demoAssetUrl,
+        uuid: demoUuid,
+      };
+
+      return NextResponse.json({
+        ...simulatedResult,
+        demo_mode: true,
+      });
     }
 
     // 1. Get Facturama configuration for this user
@@ -66,7 +203,7 @@ export async function POST(request: Request) {
     // 3. Get treatment records
     const { data: records, error: recordsError } = await supabase
       .from('records')
-      .select('id, treatment_name, price, cantidad')
+      .select('id, monto_pagado, treatment:treatments(nombre)')
       .in('id', record_ids);
 
     if (recordsError || !records || records.length === 0) {
@@ -74,7 +211,13 @@ export async function POST(request: Request) {
     }
 
     // 4. Build invoice items
-    const items = buildInvoiceItems(records, true); // Include IVA
+    const invoiceItems = records.map((record: any) => ({
+      id: record.id,
+      treatment_name: record.treatment?.nombre || 'Servicio médico',
+      price: Number(record.monto_pagado || 0),
+      cantidad: 1,
+    }));
+    const items = buildInvoiceItems(invoiceItems, true); // Include IVA
 
     // Calculate totals
     const subtotal = items.reduce((sum, item) => sum + item.Subtotal, 0);
@@ -142,10 +285,9 @@ export async function POST(request: Request) {
         });
 
       if (!xmlError && xmlUpload) {
-        const { data: xmlPublicUrl } = supabaseAdmin.storage
-          .from('invoices')
-          .getPublicUrl(`${user.id}/${xmlFileName}`);
-        xmlUrl = xmlPublicUrl.publicUrl;
+        // fable C4: el bucket `invoices` es privado; se guarda la RUTA del
+        // objeto y las lecturas generan signed URLs (lib/storage/signed.ts).
+        xmlUrl = `${user.id}/${xmlFileName}`;
       }
 
       // Upload PDF to Supabase Storage
@@ -158,10 +300,7 @@ export async function POST(request: Request) {
         });
 
       if (!pdfError && pdfUpload) {
-        const { data: pdfPublicUrl } = supabaseAdmin.storage
-          .from('invoices')
-          .getPublicUrl(`${user.id}/${pdfFileName}`);
-        pdfUrl = pdfPublicUrl.publicUrl;
+        pdfUrl = `${user.id}/${pdfFileName}`; // fable C4
       }
     } catch (downloadError) {
       console.error('Error downloading/uploading files:', downloadError);
@@ -192,6 +331,7 @@ export async function POST(request: Request) {
         status: 'issued',
         notas,
         created_by: user.id,
+        user_id: user.id, // fable C3: requerido por las nuevas políticas RLS por tenant
       })
       .select()
       .single();
@@ -210,7 +350,7 @@ export async function POST(request: Request) {
       return {
         invoice_id: invoice.id,
         record_id,
-        monto: record?.price || 0,
+        monto: Number(record?.monto_pagado || 0),
       };
     });
 
@@ -244,35 +384,66 @@ export async function POST(request: Request) {
 
         const recipientEmail = fiscalData.email_facturacion || patient?.email;
 
-        if (recipientEmail && xmlUrl && pdfUrl) {
+        const { data: emailConfig } = await supabase
+          .from('email_config')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (recipientEmail && emailConfig?.email_enabled) {
+          const [xmlSignedForEmail, pdfSignedForEmail] = await Promise.all([
+            signStoredObject(supabaseAdmin, 'invoices', xmlUrl),
+            signStoredObject(supabaseAdmin, 'invoices', pdfUrl),
+          ]);
+
+          if (!xmlSignedForEmail || !pdfSignedForEmail) {
+            throw new Error('No se pudieron preparar los archivos de la factura');
+          }
+
+          const [xmlResponse, pdfResponse] = await Promise.all([
+            fetch(xmlSignedForEmail),
+            fetch(pdfSignedForEmail),
+          ]);
+
+          if (!xmlResponse.ok || !pdfResponse.ok) {
+            throw new Error('No se pudieron descargar los archivos de la factura');
+          }
+
+          const [xmlBuffer, pdfBuffer] = await Promise.all([
+            xmlResponse.arrayBuffer(),
+            pdfResponse.arrayBuffer(),
+          ]);
           const patientName = `${patient?.nombre || ''} ${patient?.apellido || ''}`.trim() || 'Cliente';
           const invoiceDate = format(new Date(), 'dd/MM/yyyy', { locale: es });
           const totalFormatted = new Intl.NumberFormat('es-MX', {
             style: 'currency',
             currency: 'MXN',
           }).format(total);
+          const invoiceNumber = `${invoice.serie}-${invoice.folio_number}`;
 
-          const emailResult = await sendInvoiceEmail({
+          await sendWithUserEmailConfig(emailConfig, {
             to: recipientEmail,
-            patientName,
-            invoiceNumber: `${invoice.serie}-${invoice.folio_number}`,
-            invoiceDate,
-            total: totalFormatted,
-            xmlUrl,
-            pdfUrl,
-            clinicName: config.emisor_razon_social,
-            clinicEmail: config.emisor_email,
+            subject: `Factura electrónica ${invoiceNumber} - ${config.emisor_razon_social}`,
+            html: `<p>Hola ${patientName},</p><p>Adjuntamos tu factura electrónica ${invoiceNumber}, emitida el ${invoiceDate}, por un total de <strong>${totalFormatted}</strong>.</p><p>Atentamente,<br>${config.emisor_razon_social}</p>`,
+            text: `Hola ${patientName}. Adjuntamos tu factura electrónica ${invoiceNumber}, emitida el ${invoiceDate}, por un total de ${totalFormatted}.`,
+            attachments: [
+              {
+                filename: `Factura_${invoiceNumber}.xml`,
+                content: Buffer.from(xmlBuffer),
+                contentType: 'application/xml',
+              },
+              {
+                filename: `Factura_${invoiceNumber}.pdf`,
+                content: Buffer.from(pdfBuffer),
+                contentType: 'application/pdf',
+              },
+            ],
           });
 
-          if (emailResult.success) {
-            // Update invoice with emailed_at timestamp
-            await supabaseAdmin
-              .from('invoices')
-              .update({ emailed_at: new Date().toISOString() })
-              .eq('id', invoice.id);
-          } else {
-            console.error('[Invoice Generation] Error sending email:', emailResult.error);
-          }
+          await supabaseAdmin
+            .from('invoices')
+            .update({ emailed_at: new Date().toISOString() })
+            .eq('id', invoice.id);
         }
       } catch (emailError) {
         console.error('[Invoice Generation] Error sending email:', emailError);
@@ -283,8 +454,9 @@ export async function POST(request: Request) {
     const result: InvoiceGenerationResult = {
       success: true,
       invoice_id: invoice.id,
-      xml_url: xmlUrl,
-      pdf_url: pdfUrl,
+      // fable C4: la respuesta entrega signed URLs (1h); la BD guarda rutas.
+      xml_url: (await signStoredObject(supabaseAdmin, 'invoices', xmlUrl)) ?? undefined,
+      pdf_url: (await signStoredObject(supabaseAdmin, 'invoices', pdfUrl)) ?? undefined,
       uuid: facturamaResponse.Complement.TaxStamp.Uuid,
     };
 
@@ -337,7 +509,17 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Error fetching invoices' }, { status: 500 });
     }
 
-    return NextResponse.json({ invoices });
+    // fable C4: firmar xml_url/pdf_url en lectura. Funciona tanto para filas
+    // nuevas (ruta) como históricas (URL pública completa del bucket).
+    const signedInvoices = await Promise.all(
+      (invoices ?? []).map(async (inv) => ({
+        ...inv,
+        xml_url: await signStoredObject(supabaseAdmin, 'invoices', inv.xml_url),
+        pdf_url: await signStoredObject(supabaseAdmin, 'invoices', inv.pdf_url),
+      }))
+    );
+
+    return NextResponse.json({ invoices: signedInvoices });
   } catch (error) {
     console.error('Error in GET /api/invoices:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

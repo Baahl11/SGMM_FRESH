@@ -1,20 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Check, Sparkles, Zap, Crown, Loader2, Hourglass } from "lucide-react";
+import { Check, Zap, Crown, Loader2 } from "lucide-react";
 import { getPriceId, BillingCycle, PlanName } from "@/lib/stripe/client";
 
 type RecurringBilling = Extract<BillingCycle, "monthly" | "annual">;
 
 type StandardPlan = {
   name: string;
-  planId: Exclude<PlanName, "lifetime">;
+  planId: Extract<PlanName, "pro" | "enterprise">;
   description: string;
   monthlyPrice: number;
   annualPrice: number;
-  icon: typeof Sparkles;
+  icon: typeof Zap;
   gradient: string;
   features: string[];
   cta: string;
@@ -31,30 +31,6 @@ const currencyFormatter = new Intl.NumberFormat("es-MX", {
 
 const plans: readonly StandardPlan[] = [
   {
-    name: "Básico",
-    planId: "basico",
-    description: "Perfecto para consultorios pequeños",
-    monthlyPrice: 599,
-    annualPrice: 5990,
-    icon: Sparkles,
-    gradient: "from-blue-500 to-cyan-500",
-    features: [
-      "1 doctor",
-      "1 consultorio",
-      "200 citas/mes",
-      "20 items de inventario",
-      "10 tipos de tratamientos",
-      "Agenda con 4 vistas",
-      "Gestión de pacientes",
-      "Horarios automáticos",
-      "Reportes básicos",
-      "Soporte por email"
-    ],
-    cta: "Comenzar prueba gratis",
-    popular: false,
-    isContact: false
-  },
-  {
     name: "Pro",
     planId: "pro",
     description: "Para clínicas en crecimiento",
@@ -68,7 +44,7 @@ const plans: readonly StandardPlan[] = [
       "Citas ilimitadas",
       "Inventario ilimitado",
       "Tratamientos ilimitados",
-      "Todo del plan Básico",
+      "Agenda multivista",
       "Bundles y paquetes",
       "Reportes avanzados",
       "Control de gastos fijos",
@@ -99,68 +75,16 @@ const plans: readonly StandardPlan[] = [
       "SLA 99.9% uptime",
       "Soporte 24/7"
     ],
-    cta: "Contactar ventas",
+    cta: "Comenzar prueba gratis",
     popular: false,
-    isContact: true,
-    whatsappContact: "https://wa.me/521234567890?text=Hola,%20quiero%20información%20del%20plan%20Enterprise"
+    isContact: false
   }
 ];
-
-const lifetimeOffer = {
-  price: 19990,
-  oldPrice: 24999,
-  // Ahorro comparado con Plan Pro anual durante 5 años: $14,990/año × 5 años = $74,950
-  yearlyProCost: 14990, // Costo anual del plan Pro
-  fiveYearSavings: 54960, // (14990 × 5) - 19990 = 54,960
-  included: [
-    "Todas las funcionalidades del plan Pro",
-    "Actualizaciones de por vida sin costo adicional",
-    "Soporte prioritario vía WhatsApp",
-    "Acceso anticipado a nuevas funcionalidades"
-  ]
-};
-
-const LIFETIME_PROMO_END = process.env.NEXT_PUBLIC_LIFETIME_PROMO_END || "2025-12-08T05:59:59.000Z";
-
-function getTimeLeft(targetDate: Date) {
-  const total = targetDate.getTime() - Date.now();
-
-  if (total <= 0) {
-    return { total, days: 0, hours: 0, minutes: 0, seconds: 0 };
-  }
-
-  const days = Math.floor(total / (1000 * 60 * 60 * 24));
-  const hours = Math.floor((total / (1000 * 60 * 60)) % 24);
-  const minutes = Math.floor((total / (1000 * 60)) % 60);
-  const seconds = Math.floor((total / 1000) % 60);
-
-  return { total, days, hours, minutes, seconds };
-}
 
 export function PricingSection() {
   const router = useRouter();
   const [billingCycle, setBillingCycle] = useState<RecurringBilling>("monthly");
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
-  const promoEndDate = useMemo(() => new Date(LIFETIME_PROMO_END), []);
-  const [timeLeft, setTimeLeft] = useState({ total: 1, days: 0, hours: 0, minutes: 0, seconds: 0 });
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-    setTimeLeft(getTimeLeft(promoEndDate));
-
-    if (promoEndDate.getTime() <= Date.now()) {
-      return;
-    }
-
-    const interval = setInterval(() => {
-      setTimeLeft(getTimeLeft(promoEndDate));
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [promoEndDate]);
-
-  const isPromoActive = timeLeft.total > 0;
 
   const handleCheckout = async (planId: PlanName, cycle: BillingCycle) => {
     try {
@@ -210,7 +134,7 @@ export function PricingSection() {
         <div className="text-center max-w-3xl mx-auto mb-16">
           <div className="inline-flex items-center justify-center px-4 py-1.5 mb-6 text-sm font-medium bg-blue-500/10 text-blue-300 rounded-full border border-blue-500/20">
             <span className="w-2 h-2 bg-blue-400 rounded-full mr-2 animate-pulse" />
-            7 días gratis, cancela cuando quieras
+            14 días gratis, cancela cuando quieras
           </div>
 
           <h2 className="text-4xl lg:text-5xl font-bold text-white mb-6">
@@ -229,105 +153,7 @@ export function PricingSection() {
           </div>
         </div>
 
-        {isPromoActive && (
-          <div className="mb-12">
-            <div className="relative overflow-hidden rounded-3xl border border-amber-500/40 bg-gradient-to-br from-amber-900/40 via-slate-900 to-slate-900 p-8 md:p-12 shadow-xl shadow-amber-500/20">
-              <div className="absolute inset-0 pointer-events-none opacity-20" aria-hidden>
-                <div className="absolute right-16 -top-8 w-48 h-48 bg-amber-400 blur-3xl" />
-                <div className="absolute left-1/3 bottom-0 w-64 h-64 bg-orange-500 blur-3xl" />
-              </div>
-
-              <div className="relative grid md:grid-cols-[1.2fr,0.8fr] gap-8 items-center">
-                <div>
-                  <div className="inline-flex items-center gap-2 rounded-full bg-amber-500/15 px-4 py-1.5 text-amber-200 border border-amber-500/30 text-sm font-semibold">
-                    <Hourglass className="w-4 h-4" />
-                    Promoción por tiempo limitado
-                  </div>
-                  <h3 className="mt-4 text-3xl md:text-4xl font-bold text-white">
-                    Licencia Lifetime
-                    <span className="block text-amber-300 text-lg md:text-xl font-semibold mt-2">
-                      Paga una sola vez, usa AgendaMedPro para siempre
-                    </span>
-                  </h3>
-                  <p className="mt-5 text-slate-200 max-w-2xl">
-                    Ideal para clínicas consolidadas que buscan ROI inmediato. Incluye todas las funcionalidades del plan Pro, actualizaciones de por vida y soporte preferencial.
-                  </p>
-
-                  <div className="mt-6 space-y-3">
-                    <div className="flex flex-wrap items-end gap-4 text-white">
-                      <div>
-                        <span className="text-sm text-slate-300 line-through">{currencyFormatter.format(lifetimeOffer.oldPrice)}</span>
-                        <div className="text-4xl md:text-5xl font-black">{currencyFormatter.format(lifetimeOffer.price)}</div>
-                        <span className="text-sm text-slate-400">Pago único • Sin renovaciones</span>
-                      </div>
-                    </div>
-                    
-                    <div className="bg-green-500/15 border border-green-500/30 rounded-lg p-4">
-                      <div className="text-green-300 font-bold text-lg mb-1">
-                        🎉 Ahorra {currencyFormatter.format(lifetimeOffer.fiveYearSavings)} en 5 años
-                      </div>
-                      <p className="text-green-200 text-sm">
-                        vs. pagar {currencyFormatter.format(lifetimeOffer.yearlyProCost)}/año del plan Pro
-                        <span className="block text-xs text-green-300 mt-1">
-                          = {currencyFormatter.format(lifetimeOffer.yearlyProCost * 5)} en 5 años - {currencyFormatter.format(lifetimeOffer.price)} = {currencyFormatter.format(lifetimeOffer.fiveYearSavings)} de ahorro
-                        </span>
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white/10 rounded-2xl p-6 border border-white/20 backdrop-blur">
-                  <h4 className="text-lg font-semibold text-white mb-4">Incluye:</h4>
-                  <ul className="space-y-3 text-slate-200 text-sm">
-                    {lifetimeOffer.included.map((feature) => (
-                      <li key={feature} className="flex items-start gap-3">
-                        <Check className="w-4 h-4 mt-0.5 text-amber-300" />
-                        <span>{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  <div className="mt-6">
-                    <Button
-                      className="w-full bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold"
-                      size="lg"
-                      onClick={() => handleCheckout("lifetime", "once")}
-                      disabled={loadingPlan === "lifetime-once"}
-                    >
-                      {loadingPlan === "lifetime-once" ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Procesando...
-                        </>
-                      ) : (
-                        "Obtener licencia lifetime"
-                      )}
-                    </Button>
-                  </div>
-
-                  <div className="mt-4 text-center text-xs text-slate-400">
-                    Renovamos el precio el {promoEndDate.toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" })}
-                  </div>
-                </div>
-              </div>
-
-              <div className="relative mt-8 flex flex-wrap items-center gap-6 text-sm text-amber-100">
-                <div className="flex items-center gap-2">
-                  <Hourglass className="w-4 h-4" />
-                  <span>Tiempo restante:</span>
-                </div>
-                <div className="flex items-center gap-4 text-lg font-semibold" suppressHydrationWarning>
-                  <span suppressHydrationWarning>{String(timeLeft.days).padStart(2, "0")}d</span>
-                  <span suppressHydrationWarning>{String(timeLeft.hours).padStart(2, "0")}h</span>
-                  <span suppressHydrationWarning>{String(timeLeft.minutes).padStart(2, "0")}m</span>
-                  <span suppressHydrationWarning>{String(timeLeft.seconds).padStart(2, "0")}s</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="grid md:grid-cols-3 gap-8 lg:gap-6">
+        <div className="grid md:grid-cols-2 gap-8 lg:gap-6">
           {plans.map((plan) => {
             const Icon = plan.icon;
             const monthlySavings = plan.monthlyPrice * 12 - plan.annualPrice;

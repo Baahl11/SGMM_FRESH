@@ -17,8 +17,8 @@ const contactActions = [
     href: WHATSAPP_SALES_URL,
   },
   {
-    label: 'Agendar demo ejecutiva',
-    detail: 'Sesión de 30 minutos con Customer Success',
+    label: 'Soporte e implementación',
+    detail: 'Acompañamiento técnico y operativo para tu clínica',
     href: '/soporte',
   },
 ]

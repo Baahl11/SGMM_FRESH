@@ -82,7 +82,7 @@ BEGIN
     'trialing',
     'price_basico_default',
     NOW(),
-    NOW() + INTERVAL '7 days'
+    NOW() + INTERVAL '14 days'
   WHERE NOT EXISTS (
     SELECT 1 FROM subscriptions WHERE user_id = NEW.id
   );

@@ -16,6 +16,10 @@ function question(query: string): Promise<string> {
   });
 }
 
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 async function main() {
   console.log('🚀 Configurador de SMTP para Invitaciones de Equipo\n');
   console.log('Este script configurará tu correo personal para enviar invitaciones.\n');
@@ -55,7 +59,7 @@ async function main() {
 
   const providerChoice = await question('Opción (1-3): ');
 
-  let smtpConfig = {
+  const smtpConfig = {
     smtp_host: '',
     smtp_port: 587,
     smtp_secure: false,
@@ -200,8 +204,8 @@ async function main() {
       console.log('\n✅ Email de prueba enviado exitosamente!');
       console.log(`   Provider: ${result.provider}`);
       console.log(`   Message ID: ${result.messageId}`);
-    } catch (emailError: any) {
-      console.error('\n❌ Error al enviar email de prueba:', emailError.message);
+    } catch (emailError: unknown) {
+      console.error('\n❌ Error al enviar email de prueba:', getErrorMessage(emailError));
       console.error('\nVerifica:');
       console.error('  1. Que la contraseña de aplicación sea correcta');
       console.error('  2. Que la verificación en 2 pasos esté activada');

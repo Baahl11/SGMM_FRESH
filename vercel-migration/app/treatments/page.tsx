@@ -58,6 +58,8 @@ export default function TreatmentsPage() {
   // Filter states
   const [selectedCategory, setSelectedCategory] = useState<TreatmentCategory | 'all'>('all');
   const [searchTags, setSearchTags] = useState<string>('');
+  const [quickSearch, setQuickSearch] = useState('');
+  const [sortBy, setSortBy] = useState<'margin-desc' | 'price-desc' | 'price-asc' | 'name-asc'>('margin-desc');
 
   const categoryOptions = useMemo(
     () => [
@@ -107,6 +109,41 @@ export default function TreatmentsPage() {
       premiumCount
     };
   }, [treatments]);
+
+  const visibleTreatments = useMemo(() => {
+    const normalizedQuery = quickSearch.trim().toLowerCase();
+
+    const filtered = treatments.filter((treatment) => {
+      if (!normalizedQuery) {
+        return true;
+      }
+
+      const tagsText = Array.isArray(treatment.tags) ? treatment.tags.join(' ') : '';
+      const searchable = `${treatment.nombre} ${treatment.descripcion ?? ''} ${tagsText}`.toLowerCase();
+      return searchable.includes(normalizedQuery);
+    });
+
+    return [...filtered].sort((a, b) => {
+      const priceA = a.precio ?? a.precio_base ?? 0;
+      const priceB = b.precio ?? b.precio_base ?? 0;
+      const costA = a.costo_unitario ?? 0;
+      const costB = b.costo_unitario ?? 0;
+      const marginA = priceA > 0 ? (priceA - costA) / priceA : -1;
+      const marginB = priceB > 0 ? (priceB - costB) / priceB : -1;
+
+      switch (sortBy) {
+        case 'price-desc':
+          return priceB - priceA;
+        case 'price-asc':
+          return priceA - priceB;
+        case 'name-asc':
+          return a.nombre.localeCompare(b.nombre, 'es');
+        case 'margin-desc':
+        default:
+          return marginB - marginA;
+      }
+    });
+  }, [treatments, quickSearch, sortBy]);
 
   useEffect(() => {
     const getUser = async () => {
@@ -290,6 +327,7 @@ export default function TreatmentsPage() {
               onClick={() => {
                 setSelectedCategory('all');
                 setSearchTags('');
+                setQuickSearch('');
               }}
               className="ml-auto text-sm font-semibold text-emerald-200 transition hover:text-emerald-100"
             >
@@ -305,6 +343,15 @@ export default function TreatmentsPage() {
                   value={searchTags}
                   onChange={(e) => setSearchTags(e.target.value)}
                   placeholder="toxina, premium, sucursal..."
+                  className="mt-2 h-12 rounded-full border-white/15 bg-white/5 text-white placeholder:text-white/40 shadow-[0_20px_45px_rgba(2,6,23,0.45)]"
+                />
+              </div>
+              <div className="md:w-1/2">
+                <p className="text-xs uppercase tracking-[0.3em] text-white/60">Búsqueda rápida en pantalla</p>
+                <Input
+                  value={quickSearch}
+                  onChange={(e) => setQuickSearch(e.target.value)}
+                  placeholder="Nombre, descripción o tag..."
                   className="mt-2 h-12 rounded-full border-white/15 bg-white/5 text-white placeholder:text-white/40 shadow-[0_20px_45px_rgba(2,6,23,0.45)]"
                 />
               </div>
@@ -335,8 +382,59 @@ export default function TreatmentsPage() {
                 </div>
               </div>
             </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-xs uppercase tracking-[0.3em] text-white/60">Ordenar por</p>
+              <button
+                type="button"
+                onClick={() => setSortBy('margin-desc')}
+                className={cn(
+                  'glass-chip border px-4 py-1.5 text-sm font-semibold',
+                  sortBy === 'margin-desc'
+                    ? 'border-white/80 bg-white/20 text-white'
+                    : 'border-white/15 text-white/70 hover:text-white'
+                )}
+              >
+                Margen
+              </button>
+              <button
+                type="button"
+                onClick={() => setSortBy('price-desc')}
+                className={cn(
+                  'glass-chip border px-4 py-1.5 text-sm font-semibold',
+                  sortBy === 'price-desc'
+                    ? 'border-white/80 bg-white/20 text-white'
+                    : 'border-white/15 text-white/70 hover:text-white'
+                )}
+              >
+                Precio alto
+              </button>
+              <button
+                type="button"
+                onClick={() => setSortBy('price-asc')}
+                className={cn(
+                  'glass-chip border px-4 py-1.5 text-sm font-semibold',
+                  sortBy === 'price-asc'
+                    ? 'border-white/80 bg-white/20 text-white'
+                    : 'border-white/15 text-white/70 hover:text-white'
+                )}
+              >
+                Precio bajo
+              </button>
+              <button
+                type="button"
+                onClick={() => setSortBy('name-asc')}
+                className={cn(
+                  'glass-chip border px-4 py-1.5 text-sm font-semibold',
+                  sortBy === 'name-asc'
+                    ? 'border-white/80 bg-white/20 text-white'
+                    : 'border-white/15 text-white/70 hover:text-white'
+                )}
+              >
+                Nombre A-Z
+              </button>
+            </div>
             <div className="rounded-full border border-white/10 bg-white/5 px-5 py-2 text-sm text-white/70">
-              Mostrando {treatments.length} tratamientos con filtros activos
+              Mostrando {visibleTreatments.length} tratamientos con filtros activos
             </div>
           </div>
         </GlassPanel>
@@ -349,7 +447,7 @@ export default function TreatmentsPage() {
 
         {!error && (
           <>
-            {treatments.length === 0 ? (
+            {visibleTreatments.length === 0 ? (
               <GlassPanel className="flex flex-col items-center gap-4 px-6 py-16 text-center text-white/70">
                 <Stethoscope className="h-12 w-12 text-white/60" />
                 <div>
@@ -362,6 +460,7 @@ export default function TreatmentsPage() {
                   onClick={() => {
                     setSelectedCategory('all');
                     setSearchTags('');
+                    setQuickSearch('');
                   }}
                   className="aura-cta aura-cta--primary"
                 >
@@ -370,7 +469,7 @@ export default function TreatmentsPage() {
               </GlassPanel>
             ) : (
               <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-3">
-                {treatments.map((treatment) => {
+                {visibleTreatments.map((treatment) => {
                   const price = treatment.precio ?? treatment.precio_base ?? 0;
                   const cost = treatment.costo_unitario ?? 0;
                   const profit = price - cost;
@@ -416,9 +515,9 @@ export default function TreatmentsPage() {
                             <TrendingUp className="h-3.5 w-3.5" />
                             Margen
                           </div>
-                          <p className="mt-1 text-2xl font-semibold text-emerald-100">
+                          <p className="mt-1 break-words text-xl font-semibold leading-tight text-emerald-100 sm:text-2xl">
                             {formatCurrency(profit)}
-                            <span className="ml-2 text-sm font-normal text-emerald-200">({margin.toFixed(1)}%)</span>
+                            <span className="ml-0 block text-xs font-normal text-emerald-200 sm:ml-2 sm:inline sm:text-sm">({margin.toFixed(1)}%)</span>
                           </p>
                         </div>
                       </div>

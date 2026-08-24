@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createClient } from '@supabase/supabase-js';
+import {
+  getDemoIntegrationPolicy,
+  logDemoAuditEvent,
+  resolveDemoModeConfig,
+} from '@/lib/demo-mode';
 
 const GOOGLE_CALENDAR_API = 'https://www.googleapis.com/calendar/v3';
 
@@ -71,6 +76,39 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
+    const demoConfig = await resolveDemoModeConfig(supabase, user.id);
+    const calendarPolicy = getDemoIntegrationPolicy(demoConfig, 'google_calendar');
+
+    if (calendarPolicy.shouldSimulate) {
+      const { data: appointments } = await supabase
+        .from('appointments')
+        .select('id, fecha_hora, duracion_minutos, notas')
+        .eq('user_id', user.id)
+        .gte('fecha_hora', new Date().toISOString())
+        .order('fecha_hora', { ascending: true })
+        .limit(20);
+
+      const events = (appointments || []).map((appointment: any) => {
+        const start = new Date(appointment.fecha_hora);
+        const end = new Date(start.getTime() + (Number(appointment.duracion_minutos) || 30) * 60 * 1000);
+
+        return {
+          id: `demo_gc_evt_${appointment.id}`,
+          summary: 'Cita Demo AgendaMedPro',
+          description: appointment.notas || 'Evento simulado en demo mode',
+          start: { dateTime: start.toISOString(), timeZone: 'America/Mexico_City' },
+          end: { dateTime: end.toISOString(), timeZone: 'America/Mexico_City' },
+          status: 'confirmed',
+          agendamedproId: String(appointment.id),
+        };
+      });
+
+      return NextResponse.json({
+        events,
+        demo_mode: true,
+      });
+    }
+
     const accessToken = await getValidAccessToken(user.id);
     if (!accessToken) {
       return NextResponse.json({ error: 'No conectado a Google Calendar' }, { status: 401 });
@@ -138,16 +176,64 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
-    const accessToken = await getValidAccessToken(user.id);
-    if (!accessToken) {
-      return NextResponse.json({ error: 'No conectado a Google Calendar' }, { status: 401 });
-    }
+    const demoConfig = await resolveDemoModeConfig(supabase, user.id);
+    const calendarPolicy = getDemoIntegrationPolicy(demoConfig, 'google_calendar');
 
     const body = await request.json();
     const { summary, description, startDateTime, endDateTime, appointmentId } = body;
 
     if (!summary || !startDateTime || !endDateTime) {
       return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 });
+    }
+
+    if (calendarPolicy.shouldSimulate) {
+      const simulatedEventId = `demo_gc_evt_${Date.now()}`;
+
+      if (appointmentId) {
+        await getServiceClient()
+          .from('google_calendar_sync')
+          .upsert(
+            {
+              user_id: user.id,
+              appointment_id: appointmentId,
+              google_event_id: simulatedEventId,
+              last_synced_at: new Date().toISOString(),
+            },
+            { onConflict: 'appointment_id,user_id' }
+          );
+      }
+
+      await logDemoAuditEvent(supabase, user.id, {
+        eventType: 'google_calendar_event_create_simulated',
+        integration: 'google_calendar',
+        resourceType: 'event',
+        resourceId: simulatedEventId,
+        status: 'simulated',
+        payload: {
+          summary,
+          appointment_id: appointmentId || null,
+        },
+      });
+
+      return NextResponse.json({
+        event: {
+          id: simulatedEventId,
+          summary,
+          description,
+          start: { dateTime: startDateTime, timeZone: 'America/Mexico_City' },
+          end: { dateTime: endDateTime, timeZone: 'America/Mexico_City' },
+          status: 'confirmed',
+          extendedProperties: appointmentId
+            ? { private: { agendamedpro_id: String(appointmentId) } }
+            : undefined,
+        },
+        demo_mode: true,
+      });
+    }
+
+    const accessToken = await getValidAccessToken(user.id);
+    if (!accessToken) {
+      return NextResponse.json({ error: 'No conectado a Google Calendar' }, { status: 401 });
     }
 
     const serviceClient = getServiceClient();
@@ -217,16 +303,37 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
-    const accessToken = await getValidAccessToken(user.id);
-    if (!accessToken) {
-      return NextResponse.json({ error: 'No conectado a Google Calendar' }, { status: 401 });
-    }
+    const demoConfig = await resolveDemoModeConfig(supabase, user.id);
+    const calendarPolicy = getDemoIntegrationPolicy(demoConfig, 'google_calendar');
 
     const searchParams = request.nextUrl.searchParams;
     const eventId = searchParams.get('eventId');
 
     if (!eventId) {
       return NextResponse.json({ error: 'eventId requerido' }, { status: 400 });
+    }
+
+    if (calendarPolicy.shouldSimulate) {
+      await getServiceClient()
+        .from('google_calendar_sync')
+        .delete()
+        .eq('google_event_id', eventId)
+        .eq('user_id', user.id);
+
+      await logDemoAuditEvent(supabase, user.id, {
+        eventType: 'google_calendar_event_delete_simulated',
+        integration: 'google_calendar',
+        resourceType: 'event',
+        resourceId: eventId,
+        status: 'simulated',
+      });
+
+      return NextResponse.json({ success: true, demo_mode: true });
+    }
+
+    const accessToken = await getValidAccessToken(user.id);
+    if (!accessToken) {
+      return NextResponse.json({ error: 'No conectado a Google Calendar' }, { status: 401 });
     }
 
     const serviceClient = getServiceClient();

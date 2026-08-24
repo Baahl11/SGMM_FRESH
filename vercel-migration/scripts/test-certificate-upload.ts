@@ -25,6 +25,10 @@ if (!supabaseUrl || !supabaseKey) {
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+interface StoragePolicy {
+  definition?: string;
+}
+
 async function main() {
   console.log('🧪 Testing Certificate Upload System\n');
 
@@ -63,8 +67,9 @@ async function main() {
     });
 
     if (response.data && response.data.length > 0) {
-      const certPolicies = response.data.filter((p: any) => 
-        p.definition?.includes('facturama-certificates')
+      const policies = response.data as unknown as StoragePolicy[];
+      const certPolicies = policies.filter((policy) =>
+        policy.definition?.includes('facturama-certificates')
       );
       console.log(`✅ Found ${certPolicies.length} policies for facturama-certificates`);
     } else {

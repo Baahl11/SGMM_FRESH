@@ -46,17 +46,12 @@ export async function GET(request: NextRequest) {
       .select(`
         id,
         user_id,
-        plan,
-        trial_end_date,
-        users!inner(
-          id,
-          email,
-          raw_user_meta_data
-        )
+        plan_tier,
+        trial_end
       `)
       .eq('status', 'trialing')
-      .gte('trial_end_date', targetDate.toISOString())
-      .lt('trial_end_date', nextDay.toISOString());
+      .gte('trial_end', targetDate.toISOString())
+      .lt('trial_end', nextDay.toISOString());
 
     if (trialsError) {
       console.error('❌ Error fetching trials:', trialsError);
@@ -74,22 +69,30 @@ export async function GET(request: NextRequest) {
     const results = [];
     for (const trial of expiringTrials) {
       try {
-        const user = trial.users as any;
-        const userName = user.raw_user_meta_data?.full_name || user.email?.split('@')[0] || 'Usuario';
-        const planName = trial.plan === 'pro' ? 'Profesional' : 'Básico';
+        const { data: user } = await supabaseAdmin
+          .from('users')
+          .select('email, name')
+          .eq('id', trial.user_id)
+          .maybeSingle();
+
+        if (!user?.email) {
+          throw new Error('No se encontro email para el usuario');
+        }
+        const userName = user.name || user.email?.split('@')[0] || 'Usuario';
+        const planName = trial.plan_tier === 'enterprise' ? 'Enterprise' : 'Pro';
         const emailResult = await emailService.sendTrialExpirationReminder(
           user.email,
           userName,
           planName,
           2, // days remaining
-          trial.trial_end_date
+          trial.trial_end
         );
 
         results.push({
           user_id: trial.user_id,
           email: user.email,
           success: emailResult.success,
-          plan: trial.plan
+          plan: trial.plan_tier
         });
         // Add small delay to avoid rate limiting
         await new Promise(resolve => setTimeout(resolve, 500));

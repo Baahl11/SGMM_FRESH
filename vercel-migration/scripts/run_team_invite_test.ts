@@ -5,6 +5,20 @@ import { config as loadEnv } from 'dotenv';
 const envPath = path.resolve(process.cwd(), '.env.production');
 loadEnv({ path: envPath });
 
+function getProviderResponseBody(error: unknown): unknown {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'response' in error &&
+    typeof error.response === 'object' &&
+    error.response !== null &&
+    'body' in error.response
+  ) {
+    return error.response.body;
+  }
+  return undefined;
+}
+
 async function main() {
   const [{ supabaseAdmin }, { ROLE_PERMISSIONS }, { generateTeamInvitationEmail }, { emailService }] = await Promise.all([
     import('@/lib/supabase/server'),
@@ -89,9 +103,10 @@ async function main() {
 
   const sendResult = await emailService
     .sendCustomEmail(invitedEmail, emailTemplate.subject, emailTemplate.html, true)
-    .catch((sendError: any) => {
-      if (sendError?.response?.body) {
-        console.error('❗ Provider response body:', sendError.response.body);
+    .catch((sendError: unknown) => {
+      const responseBody = getProviderResponseBody(sendError);
+      if (responseBody) {
+        console.error('❗ Provider response body:', responseBody);
       }
       throw sendError;
     });

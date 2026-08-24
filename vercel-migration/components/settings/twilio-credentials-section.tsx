@@ -31,13 +31,17 @@ export function TwilioCredentialsSection() {
       const response = await fetch('/api/user/sms-credentials');
       if (response.ok) {
         const data = await response.json();
-        if (data.credentials) {
+        const credentialsPayload = data.credentials || data.credentials_masked;
+
+        if (credentialsPayload) {
           setCredentials({
-            account_sid: data.credentials.account_sid || '',
-            auth_token: data.credentials.auth_token || '',
-            phone_number: data.credentials.phone_number || ''
+            account_sid: credentialsPayload.account_sid || '',
+            auth_token: credentialsPayload.auth_token || '',
+            phone_number: credentialsPayload.phone_number || ''
           });
-          setIsConfigured(!!(data.credentials.account_sid && data.credentials.auth_token));
+          setIsConfigured(Boolean(data.has_credentials || (credentialsPayload.account_sid && credentialsPayload.auth_token)));
+        } else {
+          setIsConfigured(Boolean(data.has_credentials));
         }
       }
     } catch (error) {
@@ -108,6 +112,15 @@ export function TwilioCredentialsSection() {
         Activa recordatorios por SMS conectando tu propia cuenta de Twilio. Utilizamos tus credenciales encriptadas y solo se emplean para enviar mensajes automatizados.
       </p>
 
+      <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-4 text-sm text-emerald-100">
+        <p className="font-semibold">Pasos rapidos en esta pantalla</p>
+        <ol className="mt-2 list-decimal space-y-1 pl-5 text-emerald-50/90">
+          <li>Pega Account SID, Auth Token y Numero Twilio.</li>
+          <li>Verifica formato del numero con codigo de pais (ej. +52...).</li>
+          <li>Haz clic en Guardar credenciales.</li>
+        </ol>
+      </div>
+
       <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/80">
         <div className="flex items-start gap-3">
           <AlertCircle className="mt-0.5 h-4 w-4 text-sky-200" />
@@ -132,11 +145,13 @@ export function TwilioCredentialsSection() {
             value={credentials.account_sid}
             onChange={(e) => setCredentials((prev) => ({ ...prev, account_sid: e.target.value }))}
             placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            title="Identificador de cuenta Twilio; normalmente empieza con AC"
             className={`${inputClass} mt-2`}
           />
           <p className="mt-1 text-xs text-white/60">
             Disponible en <a href="https://console.twilio.com" target="_blank" rel="noopener noreferrer" className="text-emerald-200 underline inline-flex items-center gap-1">Twilio Console <ExternalLink className="h-3 w-3" /></a>
           </p>
+          <p className="mt-1 text-xs text-white/50">Tip: si no inicia con AC, probablemente copiaste un valor incorrecto.</p>
         </div>
 
         <div>
@@ -147,6 +162,7 @@ export function TwilioCredentialsSection() {
               value={credentials.auth_token}
               onChange={(e) => setCredentials((prev) => ({ ...prev, auth_token: e.target.value }))}
               placeholder="••••••••••••••••••••••••••••••••"
+              title="Clave privada de Twilio. No la compartas"
               className={`${inputClass} pr-12`}
             />
             <button
@@ -167,6 +183,7 @@ export function TwilioCredentialsSection() {
             value={credentials.phone_number}
             onChange={(e) => setCredentials((prev) => ({ ...prev, phone_number: e.target.value }))}
             placeholder="+521234567890"
+            title="Numero de envio comprado en Twilio; debe incluir codigo de pais"
             className={`${inputClass} mt-2`}
           />
           <p className="mt-1 text-xs text-white/60">Incluye el código de país, ej. +52 para México.</p>

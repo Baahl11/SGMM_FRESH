@@ -146,7 +146,7 @@ export default async function Image() {
             fontWeight: '600',
           }}
         >
-          Prueba Gratis 7 Días
+          Prueba Gratis 14 Días
         </div>
       </div>
     ),

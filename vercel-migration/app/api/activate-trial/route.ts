@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr'
+import { trialEndDate } from '@/lib/config/trial'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -66,18 +67,18 @@ export async function POST(request: NextRequest) {
       .eq('user_id', user.id)
       .single()
 
-    // Calculate trial end date (7 days from now)
-    const trialEndDate = new Date()
-    trialEndDate.setDate(trialEndDate.getDate() + 7)
+    // Auditoría fable 2026-06-11 (H1): antes 7 días aquí vs 14 en el resto del
+    // producto (Stripe, UI, emails, migraciones). Fuente única: lib/config/trial.ts.
+    const trialEnd = trialEndDate()
 
     const subscriptionData = {
       user_id: user.id,
       status: 'trialing',
       plan: planTier,
       billing_cycle: billingCycle,
-      trial_end_date: trialEndDate.toISOString(),
+      trial_end_date: trialEnd.toISOString(),
       current_period_start: new Date().toISOString(),
-      current_period_end: trialEndDate.toISOString(),
+      current_period_end: trialEnd.toISOString(),
     }
 
     if (existingSubscription) {
@@ -112,7 +113,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: 'Trial activado exitosamente',
-      trial_end_date: trialEndDate.toISOString(),
+      trial_end_date: trialEnd.toISOString(),
     })
   } catch (error: any) {
     console.error('Error activating trial:', error)

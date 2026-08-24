@@ -11,7 +11,7 @@ export function OrganizationSchema() {
       '@type': 'Offer',
       price: '0',
       priceCurrency: 'MXN',
-      description: 'Prueba gratis por 7 días',
+      description: 'Prueba gratis por 14 días',
     },
     aggregateRating: {
       '@type': 'AggregateRating',
@@ -113,7 +113,7 @@ export function FAQSchema() {
         name: '¿Cuánto cuesta AgendaMedPro?',
         acceptedAnswer: {
           '@type': 'Answer',
-          text: 'AgendaMedPro ofrece una prueba gratuita de 7 días. Después, los planes comienzan desde $499 MXN al mes con todas las funcionalidades incluidas.',
+          text: 'AgendaMedPro ofrece una prueba gratuita de 14 días. Después, los planes comienzan desde $499 MXN al mes con todas las funcionalidades incluidas.',
         },
       },
       {
