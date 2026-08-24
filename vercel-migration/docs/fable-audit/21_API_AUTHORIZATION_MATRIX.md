@@ -189,7 +189,7 @@ Leyenda: Auth = sesión verificada · Tenant = filtra `user_id` · Admin = servi
 | `/api/whatstemplates/[id]/approve` | POST | ✅ | ✅ | — | — | — | — | - |
 | `/api/whatstemplates/[id]/reject` | POST | ✅ | ✅ | — | — | — | — | - |
 | `/api/whatstemplates/[id]/submit` | POST | ✅ | ✅ | — | — | — | — | - |
-| `/api/whatsvalidate-config` | POST | — | — | — | — | — | — | - |
+| `/api/whatsvalidate-config` | POST | ✅ | — | — | — | — | — | - |
 
 ## Tabla 2 — Rutas sin auth/firma/cron detectados
 
@@ -218,7 +218,7 @@ Leyenda: Auth = sesión verificada · Tenant = filtra `user_id` · Admin = servi
 | `/api/records/[id]` | DELETE,GET,PUT | Endurecida en esta auditoría (F1): guard de sesión + filtro user_id añadidos |
 | `/api/records/patient/[id]` | GET | Endurecida (F1) |
 | `/api/records/with-names` | GET | Endurecida (F1) |
-| `/api/whatsvalidate-config` | POST | ⚠️ REVISAR EN STAGING: sin patrón de auth detectado — confirmar diseño o falso negativo |
+| `/api/whatsvalidate-config` | POST | CORREGIDO 2026-08-24 (Recepción IA fase 0): ahora exige `getAuthUser()` + rate limit por usuario — ver `tests/whatsapp-validate-config-auth.test.ts` |
 
 ---
 Falsos negativos posibles si una ruta autentica con un helper no listado; toda fila ⚠️ de la Tabla 2 entra al checklist de staging del doc 17. Regenerable con el mismo script (docs/fable-audit/tools/gen_auth_matrix.py).

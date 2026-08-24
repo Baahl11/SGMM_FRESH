@@ -1,11 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getAuthUser } from '@/lib/auth-server';
+import { checkRateLimit, rateLimitHeaders } from '@/lib/security/rate-limit';
 
 /**
  * POST /api/whatsapp/validate-config
- * Validates WhatsApp API credentials by making a test request to Meta Graph API
+ * Valida credenciales de WhatsApp API haciendo una petición de prueba a la Graph API de Meta.
+ * Requiere sesión (fable/reception-ai fase 0, P0): antes era pública y servía como
+ * proxy/oráculo no autenticado hacia la Graph API de Meta.
  */
 export async function POST(request: NextRequest) {
   try {
+    const user = await getAuthUser();
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
+    }
+
+    const rate = checkRateLimit(`whatsapp-validate-config:user:${user.id}`, {
+      limit: 5,
+      windowMs: 60_000,
+    });
+    if (!rate.allowed) {
+      return NextResponse.json(
+        { success: false, error: 'Demasiados intentos. Espera un momento e intenta de nuevo.' },
+        { status: 429, headers: rateLimitHeaders(rate) }
+      );
+    }
+
     const body = await request.json();
     const { phone_number_id, access_token } = body;
 
@@ -28,7 +48,7 @@ export async function POST(request: NextRequest) {
 
     // Test connection to Meta Graph API
     const url = `https://graph.facebook.com/v18.0/${phone_number_id}`;
-    
+
     const response = await fetch(url, {
       method: 'GET',
       headers: {
@@ -38,13 +58,11 @@ export async function POST(request: NextRequest) {
 
     if (!response.ok) {
       const error = await response.json();
-      
-      // Parse common errors
+
       let errorMessage = 'Error desconocido';
       if (error.error?.message) {
         errorMessage = error.error.message;
-        
-        // Translate common errors to Spanish
+
         if (errorMessage.includes('Invalid OAuth access token')) {
           errorMessage = 'Token de acceso inválido. Verifica que sea un token permanente.';
         } else if (errorMessage.includes('Invalid parameter')) {
@@ -65,7 +83,6 @@ export async function POST(request: NextRequest) {
 
     const data = await response.json();
 
-    // Successful validation
     return NextResponse.json({
       success: true,
       phone_number: data.display_phone_number,
