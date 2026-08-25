@@ -188,6 +188,26 @@ describe('POST /api/messaging/whatsapp/send (Fase 1: usa MetaWhatsAppAdapter)', 
     expect(res.status).toBe(400)
   })
 
+  it('responde 400 (no 429) si faltan credenciales Y ya se alcanzo el limite diario -- preserva la precedencia de la ruta original', async () => {
+    supabaseOverrides = {
+      messaging_config: {
+        data: {
+          ...MESSAGING_CONFIG_ROW,
+          whatsapp_access_token: null,
+          current_daily_usage: 1000,
+        },
+        error: null,
+      },
+    }
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+
+    const { POST } = await import('@/app/api/messaging/whatsapp/send/route')
+    const res = await POST(postRequest({ to_phone: '5215500000000', message_body: 'hola' }) as never)
+
+    expect(res.status).toBe(400)
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
   it('propaga un error de Graph API como fallo 400 con el mensaje sanitizado', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue({
       ok: false,

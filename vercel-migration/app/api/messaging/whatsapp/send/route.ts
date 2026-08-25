@@ -136,18 +136,18 @@ export async function POST(request: Request) {
       );
     }
 
-    if (config.current_daily_usage >= config.daily_message_limit) {
-      return NextResponse.json(
-        { error: `Has alcanzado el límite diario de ${config.daily_message_limit} mensajes` },
-        { status: 429 }
-      );
-    }
-
     const credentials = await getWhatsAppCredentials(supabase, user.id);
     if (!credentials) {
       return NextResponse.json(
         { error: 'WhatsApp no está habilitado o configurado' },
         { status: 400 }
+      );
+    }
+
+    if (config.current_daily_usage >= config.daily_message_limit) {
+      return NextResponse.json(
+        { error: `Has alcanzado el límite diario de ${config.daily_message_limit} mensajes` },
+        { status: 429 }
       );
     }
 
