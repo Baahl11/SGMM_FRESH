@@ -21,6 +21,7 @@ interface ProcessingResult {
   processed: number;
   succeeded: number;
   failed: number;
+  skipped: number;
   errors: string[];
 }
 
@@ -39,6 +40,7 @@ export class MessagingWorker {
       processed: 0,
       succeeded: 0,
       failed: 0,
+      skipped: 0,
       errors: [],
     };
 
@@ -64,9 +66,13 @@ export class MessagingWorker {
       // Process each job
       for (const job of jobs) {
         try {
-          await this.processJob(job as MessagingJob);
-          result.processed++;
-          result.succeeded++;
+          const outcome = await this.processJob(job as MessagingJob);
+          if (outcome === 'skipped') {
+            result.skipped++;
+          } else {
+            result.processed++;
+            result.succeeded++;
+          }
         } catch (error: any) {
           result.processed++;
           result.failed++;
@@ -83,17 +89,32 @@ export class MessagingWorker {
   }
 
   /**
+   * Reclama un job de forma atomica: solo pasa a 'processing' si sigue
+   * 'pending'. Devuelve false si otro worker ya lo tomo primero.
+   */
+  private async claimJob(jobId: string): Promise<boolean> {
+    const { data, error } = await supabase
+      .from('messaging_jobs')
+      .update({ status: 'processing', updated_at: new Date().toISOString() })
+      .eq('id', jobId)
+      .eq('status', 'pending')
+      .select();
+
+    if (error) {
+      throw new Error(`Failed to claim job ${jobId}: ${error.message}`);
+    }
+
+    return Boolean(data && data.length > 0);
+  }
+
+  /**
    * Process a single messaging job
    */
-  private async processJob(job: MessagingJob): Promise<void> {
-    // Mark job as processing
-    await supabase
-      .from('messaging_jobs')
-      .update({ 
-        status: 'processing',
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', job.id);
+  private async processJob(job: MessagingJob): Promise<'processed' | 'skipped'> {
+    const claimed = await this.claimJob(job.id);
+    if (!claimed) {
+      return 'skipped';
+    }
 
     try {
       // Get the message
@@ -168,6 +189,8 @@ export class MessagingWorker {
             updated_at: new Date().toISOString(),
           })
           .eq('id', job.id);
+
+        return 'processed';
       } else {
         throw new Error(sendResult.error || 'Unknown send error');
       }
