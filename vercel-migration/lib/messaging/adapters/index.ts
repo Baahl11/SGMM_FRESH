@@ -6,8 +6,9 @@ import type { MessagingAdapter } from '../types';
 import { TwilioAdapter, type TwilioCredentials } from './twilio';
 import { MessageBirdAdapter, type MessageBirdCredentials } from './messagebird';
 import { PlivoAdapter, type PlivoCredentials } from './plivo';
+import { MetaWhatsAppAdapter, type MetaWhatsAppCredentials } from './meta-whatsapp';
 
-export type SupportedProvider = 'twilio' | 'messagebird' | 'plivo';
+export type SupportedProvider = 'twilio' | 'messagebird' | 'plivo' | 'meta_whatsapp';
 
 export function createAdapter(
   provider: SupportedProvider,
@@ -20,10 +21,12 @@ export function createAdapter(
       return new MessageBirdAdapter(credentials as MessageBirdCredentials);
     case 'plivo':
       return new PlivoAdapter(credentials as PlivoCredentials);
+    case 'meta_whatsapp':
+      return new MetaWhatsAppAdapter(credentials as MetaWhatsAppCredentials);
     default:
       throw new Error(`Unsupported provider: ${provider}`);
   }
 }
 
-export { TwilioAdapter, MessageBirdAdapter, PlivoAdapter };
-export type { TwilioCredentials, MessageBirdCredentials, PlivoCredentials };
+export { TwilioAdapter, MessageBirdAdapter, PlivoAdapter, MetaWhatsAppAdapter };
+export type { TwilioCredentials, MessageBirdCredentials, PlivoCredentials, MetaWhatsAppCredentials };
