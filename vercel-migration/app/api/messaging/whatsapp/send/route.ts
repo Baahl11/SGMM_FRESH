@@ -6,6 +6,8 @@ import {
   logDemoAuditEvent,
   resolveDemoModeConfig,
 } from '@/lib/demo-mode';
+import { MetaWhatsAppAdapter } from '@/lib/messaging/adapters/meta-whatsapp';
+import { getWhatsAppCredentials } from '@/lib/messaging/provider-service';
 
 /**
  * POST /api/messaging/whatsapp/send
@@ -111,10 +113,12 @@ export async function POST(request: Request) {
       });
     }
 
-    // Get user's WhatsApp configuration
+    // Get user's WhatsApp configuration (limites y estado siguen viniendo
+    // de messaging_config sin cambios; las credenciales de envio ahora
+    // pasan por el facade de Fase 1)
     const { data: config, error: configError } = await supabase
       .from('messaging_config')
-      .select('*')
+      .select('whatsapp_enabled, current_daily_usage, daily_message_limit')
       .eq('user_id', user.id)
       .maybeSingle();
 
@@ -125,19 +129,25 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check if WhatsApp is enabled and configured
-    if (!config.whatsapp_enabled || !config.whatsapp_access_token) {
+    if (!config.whatsapp_enabled) {
       return NextResponse.json(
         { error: 'WhatsApp no está habilitado o configurado' },
         { status: 400 }
       );
     }
 
-    // Check daily limit
     if (config.current_daily_usage >= config.daily_message_limit) {
       return NextResponse.json(
         { error: `Has alcanzado el límite diario de ${config.daily_message_limit} mensajes` },
         { status: 429 }
+      );
+    }
+
+    const credentials = await getWhatsAppCredentials(supabase, user.id);
+    if (!credentials) {
+      return NextResponse.json(
+        { error: 'WhatsApp no está habilitado o configurado' },
+        { status: 400 }
       );
     }
 
@@ -167,33 +177,12 @@ export async function POST(request: Request) {
       );
     }
 
-    // Send message via WhatsApp Business API
-    const whatsappApiUrl = `https://graph.facebook.com/v18.0/${config.whatsapp_phone_number_id}/messages`;
-
-    const messagePayload: any = {
-      messaging_product: 'whatsapp',
-      to: formattedPhone,
-    };
-
-    // Use template or text message
-    if (template_name) {
-      messagePayload.type = 'template';
-      messagePayload.template = {
-        name: template_name,
-        language: {
-          code: 'es_MX',
-        },
-      };
-    } else {
-      messagePayload.type = 'text';
-      messagePayload.text = {
-        body: message_body,
-      };
-    }
-
+    // Send message via the messaging adapter (Fase 1: consolidacion de mensajeria)
     let metaMessageId: string | undefined;
+    let dryRun = false;
 
     if (process.env.WHATSAPP_DRY_RUN === 'true') {
+      dryRun = true;
       metaMessageId = `dryrun_${Date.now()}`;
       console.log('[WhatsApp Send] 🧪 WHATSAPP_DRY_RUN activo, no se envía a Meta:', {
         userId: user.id,
@@ -203,27 +192,20 @@ export async function POST(request: Request) {
         metaMessageId,
       });
     } else {
-      const whatsappResponse = await fetch(whatsappApiUrl, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${config.whatsapp_access_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(messagePayload),
-      });
+      const adapter = new MetaWhatsAppAdapter(credentials);
+      const sendResult = template_name
+        ? await adapter.sendTemplate({ to: formattedPhone, templateName: template_name })
+        : await adapter.sendText({ to: formattedPhone, message: message_body });
 
-      const whatsappData = await whatsappResponse.json();
+      if (!sendResult.success) {
+        console.error('WhatsApp API error:', sendResult.rawResponse);
 
-      if (!whatsappResponse.ok) {
-        console.error('WhatsApp API error:', whatsappData);
-
-        // Update message status to failed
         await supabase
           .from('whatsapp_messages')
           .update({
             status: 'failed',
-            error_code: whatsappData.error?.code || 'unknown',
-            error_message: whatsappData.error?.message || 'Error desconocido',
+            error_code: (sendResult.rawResponse as any)?.error?.code || 'unknown',
+            error_message: sendResult.error || 'Error desconocido',
             failed_at: new Date().toISOString(),
           })
           .eq('id', messageRecord.id);
@@ -231,15 +213,14 @@ export async function POST(request: Request) {
         return NextResponse.json(
           {
             error: 'Error al enviar mensaje',
-            details: whatsappData.error?.message || 'Error de WhatsApp API',
+            details: sendResult.error || 'Error de WhatsApp API',
             success: false,
           },
           { status: 400 }
         );
       }
 
-      // Message sent successfully
-      metaMessageId = whatsappData.messages?.[0]?.id;
+      metaMessageId = sendResult.messageId;
     }
 
     // Update message status to sent
@@ -259,7 +240,7 @@ export async function POST(request: Request) {
       success: true,
       message_id: messageRecord.id,
       meta_message_id: metaMessageId,
-      dry_run: process.env.WHATSAPP_DRY_RUN === 'true',
+      dry_run: dryRun,
       demo_mode: false,
       message: 'Mensaje enviado exitosamente',
     });
