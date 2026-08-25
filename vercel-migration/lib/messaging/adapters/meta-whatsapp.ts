@@ -2,11 +2,11 @@ import type { MessagingAdapter, SendMessageRequest, SendMessageResult, ProviderC
 
 export const GRAPH_API_VERSION = 'v18.0';
 
-export interface MetaWhatsAppCredentials extends ProviderCredentials {
+export type MetaWhatsAppCredentials = ProviderCredentials & {
   phone_number_id: string;
   access_token: string;
   business_account_id?: string;
-}
+};
 
 export interface SendTemplateRequest {
   to: string;
@@ -98,6 +98,7 @@ export class MetaWhatsAppAdapter implements MessagingAdapter {
     if (typeof status === 'number' && RETRYABLE_STATUS_CODES.has(status)) {
       return 'retryable';
     }
+    // Defaults to 'non_retryable' for success results (no status) or when status is not available
     return 'non_retryable';
   }
 
