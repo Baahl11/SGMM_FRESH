@@ -1,14 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import { MessageSquare, ArrowRight, CheckCircle, ExternalLink, AlertCircle, ArrowLeft, Sparkles } from 'lucide-react';
 import { GlassPanel } from '@/components/ui/glass-panel';
 import Link from 'next/link';
+import { mapWhatsAppSettingsFromApi } from './settings-mapper';
 
 export default function WhatsAppMetaSettings() {
-  const supabase = createClient();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showWizard, setShowWizard] = useState(false);
@@ -19,7 +18,8 @@ export default function WhatsAppMetaSettings() {
     enabled: false,
     phoneNumberId: '',
     businessAccountId: '',
-    accessToken: ''
+    accessToken: '',
+    hasAccessToken: false
   });
 
   const totalSteps = 4;
@@ -30,30 +30,15 @@ export default function WhatsAppMetaSettings() {
 
   const loadSettings = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const response = await fetch('/api/user/whatsapp-settings');
+      if (!response.ok) throw new Error('Error al cargar configuración');
+      const data = await response.json();
 
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .select('whatsapp_enabled, whatsapp_phone_number_id, whatsapp_business_account_id, whatsapp_access_token')
-        .eq('user_id', user.id)
-        .maybeSingle();
+      const mapped = mapWhatsAppSettingsFromApi(data);
+      setSettings(mapped);
 
-      if (error) throw error;
-
-      if (data) {
-        setSettings({
-          enabled: data.whatsapp_enabled || false,
-          phoneNumberId: data.whatsapp_phone_number_id || '',
-          businessAccountId: data.whatsapp_business_account_id || '',
-          accessToken: data.whatsapp_access_token || ''
-        });
-        
-        // Si no tiene configuración, mostrar wizard automáticamente
-        if (!data.whatsapp_enabled || !data.whatsapp_phone_number_id) {
-          setShowWizard(true);
-        }
-      } else {
+      // Si no tiene configuración, mostrar wizard automáticamente
+      if (!mapped.enabled || !mapped.phoneNumberId) {
         setShowWizard(true);
       }
     } catch (error) {
@@ -595,7 +580,7 @@ export default function WhatsAppMetaSettings() {
             <div>
               <p className="text-xs text-white/60 mb-1">Access Token</p>
               <code className="block rounded bg-black/30 px-3 py-2 text-sm text-purple-300 truncate">
-                {settings.accessToken ? settings.accessToken.substring(0, 20) + '...' : 'No configurado'}
+                {settings.hasAccessToken ? '•••••••••••••••• (configurado)' : 'No configurado'}
               </code>
             </div>
           </div>
