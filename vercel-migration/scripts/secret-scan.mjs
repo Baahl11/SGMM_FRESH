@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // Escaneo homegrown de secretos (Recepción IA Fase 0, 2026-08-24).
 // No usa un binario externo (gitleaks/truffleHog) a propósito: instalar un
 // binario en npm ci ya rompió CI en redes restringidas (ver OD-1 en
