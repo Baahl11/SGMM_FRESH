@@ -5,9 +5,11 @@ import { MetaWhatsAppAdapter, GRAPH_API_VERSION } from '@/lib/messaging/adapters
 // Fase 1 (consolidacion de mensajeria): adaptador nuevo para WhatsApp via
 // Meta Cloud API. Implementa MessagingAdapter (send/validateCredentials/
 // getProviderName) para que createAdapter()/MessagingWorker lo reconozcan
-// sin cambios, mas metodos propios (sendTemplate, validateConfiguration,
-// classifyError) que la ruta piloto (Task 3) llama directamente. Sin
-// credenciales reales de Meta -- todo con fetch mockeado.
+// sin cambios, mas metodos propios. De esos metodos propios, la ruta piloto
+// (Task 3) solo llama sendText()/sendTemplate(); validateConfiguration() y
+// classifyError() no tienen consumidor en produccion todavia (quedan
+// reservados para el cableado de Fase 2) y aqui se prueban de forma directa.
+// Sin credenciales reales de Meta -- todo con fetch mockeado.
 
 function mockFetchOnce(status: number, body: unknown) {
   return vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
@@ -94,6 +96,31 @@ describe('MetaWhatsAppAdapter', () => {
     const result = await adapter.send({ to: '5215500000000', message: 'hola' })
 
     expect(adapter.classifyError(result)).toBe('non_retryable')
+  })
+
+  it('un fallo de red (fetch que lanza) no produce httpStatus y se clasifica como retryable', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error('network down'))
+    const adapter = new MetaWhatsAppAdapter(credentials)
+
+    const result = await adapter.send({ to: '5215500000000', message: 'hola' })
+
+    expect(result.success).toBe(false)
+    expect(result.httpStatus).toBeUndefined()
+    expect(result.rawResponse).toBeUndefined()
+    expect(result.error).toBe('network down')
+    expect(adapter.classifyError(result)).toBe('retryable')
+  })
+
+  it('un error de Graph API expone httpStatus y deja rawResponse como el body crudo', async () => {
+    mockFetchOnce(400, { status: 'sent', error: { message: 'Invalid parameter', code: 100 } })
+    const adapter = new MetaWhatsAppAdapter(credentials)
+
+    const result = await adapter.send({ to: '5215500000000', message: 'hola' })
+
+    expect(result.httpStatus).toBe(400)
+    // rawResponse es el body tal cual: un campo `status` propio de Meta ya no
+    // queda pisado por el codigo HTTP (ese vive ahora en httpStatus).
+    expect(result.rawResponse).toEqual({ status: 'sent', error: { message: 'Invalid parameter', code: 100 } })
   })
 
   it('validateConfiguration() exitoso retorna nombre verificado y numero', async () => {

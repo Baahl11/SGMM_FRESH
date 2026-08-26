@@ -9,12 +9,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const getAuthUserMock = vi.fn()
 
-function makeChain(result: { data: unknown; error: unknown }) {
+// UPDATEs observados durante un test, para poder afirmar tanto que la ruta
+// marca la fila como 'failed' cuando Meta rechaza, como que NO la toca cuando
+// el fallo fue de red (el adaptador no devuelve httpStatus).
+let recordedUpdates: Array<{ table: string; patch: { status?: string } }> = []
+
+function makeChain(table: string, result: { data: unknown; error: unknown }) {
   const chain: any = {
     select: () => chain,
     eq: () => chain,
     insert: () => chain,
-    update: () => chain,
+    update: (patch: { status?: string }) => {
+      recordedUpdates.push({ table, patch })
+      return chain
+    },
     maybeSingle: async () => result,
     single: async () => result,
   }
@@ -38,7 +46,7 @@ function makeSupabase(overrides: Record<string, { data: unknown; error: unknown 
     ...overrides,
   }
   return {
-    from: (table: string) => makeChain(tables[table] ?? { data: null, error: null }),
+    from: (table: string) => makeChain(table, tables[table] ?? { data: null, error: null }),
     rpc: async () => ({ data: null, error: null }),
   }
 }
@@ -74,6 +82,7 @@ describe('POST /api/messaging/whatsapp/send (Fase 1: usa MetaWhatsAppAdapter)', 
     getAuthUserMock.mockReset()
     getAuthUserMock.mockResolvedValue({ id: 'user-1', email: 'doc@example.com' })
     supabaseOverrides = {}
+    recordedUpdates = []
     vi.resetModules()
   })
 
@@ -223,5 +232,77 @@ describe('POST /api/messaging/whatsapp/send (Fase 1: usa MetaWhatsAppAdapter)', 
     expect(res.status).toBe(400)
     expect(body.success).toBe(false)
     expect(body.details).toBe('Invalid OAuth access token')
+    // Meta si respondio: la fila si se marca 'failed'.
+    expect(
+      recordedUpdates.some((u) => u.table === 'whatsapp_messages' && u.patch.status === 'failed')
+    ).toBe(true)
+  })
+
+  it('un fallo de red (sin respuesta HTTP) responde 500 y no marca la fila como failed', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error('network down'))
+
+    const { POST } = await import('@/app/api/messaging/whatsapp/send/route')
+    const res = await POST(postRequest({ to_phone: '5215500000000', message_body: 'hola' }) as never)
+    const body = await res.json()
+
+    expect(res.status).toBe(500)
+    expect(body).toEqual({ error: 'Error interno del servidor', success: false })
+    // Comportamiento previo a Fase 1: el fetch lanzaba y la fila quedaba
+    // 'pending'; un 400 seria mentir al llamador ("no reintentes").
+    expect(recordedUpdates.filter((u) => u.table === 'whatsapp_messages')).toHaveLength(0)
+  })
+
+  it('responde 403 si el paciente revoco el consentimiento, sin llamar a Meta', async () => {
+    supabaseOverrides = {
+      patient_whatsapp_consent: {
+        data: { has_consented: true, opted_out: true },
+        error: null,
+      },
+    }
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+
+    const { POST } = await import('@/app/api/messaging/whatsapp/send/route')
+    const res = await POST(
+      postRequest({ to_phone: '5215500000000', message_body: 'hola', patient_id: 'pac-1' }) as never
+    )
+    const body = await res.json()
+
+    expect(res.status).toBe(403)
+    expect(body.error).toBe(
+      'El paciente no ha dado consentimiento para recibir mensajes de WhatsApp'
+    )
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
+  it('en demo mode simula el envio (demo_mode: true) sin llamar a Meta', async () => {
+    supabaseOverrides = {
+      demo_mode_config: {
+        data: {
+          user_id: 'user-1',
+          is_demo_account: true,
+          audit_label: 'demo',
+          seed_profile: null,
+          // shouldSimulate = !(enabled === true && mock === false) => true
+          integrations: { whatsapp: { enabled: true, mock: true } },
+          demo_expires_at: null,
+        },
+        error: null,
+      },
+    }
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+
+    const { POST } = await import('@/app/api/messaging/whatsapp/send/route')
+    const res = await POST(postRequest({ to_phone: '5215500000000', message_body: 'hola' }) as never)
+    const body = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(body).toEqual({
+      success: true,
+      message_id: 'msg-1',
+      meta_message_id: expect.stringMatching(/^demo_wa_\d+$/),
+      demo_mode: true,
+      message: 'Mensaje simulado exitosamente (demo mode)',
+    })
+    expect(fetchSpy).not.toHaveBeenCalled()
   })
 })

@@ -2,6 +2,12 @@ import type { MessagingAdapter, SendMessageRequest, SendMessageResult, ProviderC
 
 export const GRAPH_API_VERSION = 'v18.0';
 
+// Interseccion (no `extends ProviderCredentials`, como sus adaptadores
+// hermanos TwilioCredentials/PlivoCredentials/MessageBirdCredentials): con
+// `extends`, la propiedad opcional `business_account_id?: string` es
+// incompatible con la index signature `{ [key: string]: string }` de
+// ProviderCredentials (`string | undefined` no asigna a `string`) y el build
+// falla. No convertir a `extends` en una futura limpieza.
 export type MetaWhatsAppCredentials = ProviderCredentials & {
   phone_number_id: string;
   access_token: string;
@@ -93,12 +99,20 @@ export class MetaWhatsAppAdapter implements MessagingAdapter {
     }
   }
 
+  /**
+   * Clasifica un resultado FALLIDO de envio. Pensado para resultados con
+   * `success: false`; llamarlo sobre un resultado exitoso no tiene sentido
+   * semantico (un exito tampoco lleva httpStatus).
+   */
   classifyError(result: SendMessageResult): MetaErrorClass {
-    const status = (result.rawResponse as { status?: number } | undefined)?.status;
-    if (typeof status === 'number' && RETRYABLE_STATUS_CODES.has(status)) {
+    // Sin httpStatus no hubo respuesta HTTP: fallo de red/transporte, que es
+    // reintentable por definicion.
+    if (result.httpStatus === undefined) {
       return 'retryable';
     }
-    // Defaults to 'non_retryable' for success results (no status) or when status is not available
+    if (RETRYABLE_STATUS_CODES.has(result.httpStatus)) {
+      return 'retryable';
+    }
     return 'non_retryable';
   }
 
@@ -121,7 +135,8 @@ export class MetaWhatsAppAdapter implements MessagingAdapter {
           success: false,
           error: data.error?.message || `HTTP ${response.status}: ${response.statusText}`,
           provider: this.getProviderName(),
-          rawResponse: { ...data, status: response.status },
+          rawResponse: data,
+          httpStatus: response.status,
         };
       }
 
@@ -132,6 +147,10 @@ export class MetaWhatsAppAdapter implements MessagingAdapter {
         rawResponse: data,
       };
     } catch (error: any) {
+      // Fallo de red/transporte (DNS, conexion cerrada, timeout) o body no
+      // parseable: nunca hubo respuesta HTTP utilizable. Se omiten
+      // deliberadamente `httpStatus` y `rawResponse`; esa ausencia es la
+      // senal de "no hubo respuesta" que consumen classifyError() y la ruta.
       return {
         success: false,
         error: error.message || 'Unknown error',

@@ -9,6 +9,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // sobre el mismo job solo dejan ganar a una.
 
 let jobStatus = 'pending'
+// Filas que devuelve el SELECT inicial de processJobs(). Vacio por defecto:
+// los tests que solo ejercitan claimJob() nunca lo tocan.
+let pendingJobs: Array<Record<string, unknown>> = []
 
 function makeSupabase() {
   return {
@@ -17,6 +20,16 @@ function makeSupabase() {
         throw new Error(`Tabla inesperada en este test: ${table}`)
       }
       return {
+        // SELECT '*' .eq('status','pending').lte('run_at',..).order(..).limit(n)
+        select: () => ({
+          eq: () => ({
+            lte: () => ({
+              order: () => ({
+                limit: async () => ({ data: pendingJobs, error: null }),
+              }),
+            }),
+          }),
+        }),
         update: (patch: { status?: string }) => ({
           eq: (_col1: string, _id: string) => ({
             eq: (_col2: string, expectedStatus: string) => ({
@@ -42,6 +55,7 @@ vi.mock('@supabase/supabase-js', () => ({
 describe('MessagingWorker.claimJob (claim atomico)', () => {
   beforeEach(() => {
     jobStatus = 'pending'
+    pendingJobs = []
     process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co'
     process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-key'
   })
@@ -67,5 +81,23 @@ describe('MessagingWorker.claimJob (claim atomico)', () => {
     const claimed = await worker.claimJob('job-1')
 
     expect(claimed).toBe(false)
+  })
+
+  it('processJobs(): un job perdido en el claim cuenta como skipped, no como failed', async () => {
+    // El SELECT inicial ve el job como 'pending', pero para cuando corre el
+    // UPDATE del claim otro worker ya lo tomo: claimJob() devuelve false.
+    pendingJobs = [{ id: 'job-1', message_id: 'msg-1', attempts: 0 }]
+    jobStatus = 'processing'
+
+    const { MessagingWorker } = await import('@/lib/workers/messaging-worker')
+    const worker = new MessagingWorker()
+
+    const result = await worker.processJobs()
+
+    expect(result.skipped).toBe(1)
+    expect(result.failed).toBe(0)
+    expect(result.succeeded).toBe(0)
+    expect(result.processed).toBe(0)
+    expect(result.errors).toEqual([])
   })
 })

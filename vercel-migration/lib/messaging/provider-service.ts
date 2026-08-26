@@ -30,17 +30,41 @@ async function getFromMessagingProviders(
   const cipherKey = process.env.MESSAGING_CIPHER_KEY;
   if (!cipherKey) return null;
 
-  const envelope =
-    typeof data.credentials_encrypted === 'string'
-      ? JSON.parse(data.credentials_encrypted)
-      : data.credentials_encrypted;
+  // Un envelope malformado (JSON.parse) o indescifrable (clave incorrecta,
+  // auth tag invalido, algoritmo legacy rechazado por lib/crypto/messaging)
+  // lanza. Sin este try/catch la excepcion escaparia de
+  // getWhatsAppCredentials() y el fallback legacy nunca correria: se degrada
+  // a null para que el llamador pueda seguir con messaging_config.
+  try {
+    const envelope =
+      typeof data.credentials_encrypted === 'string'
+        ? JSON.parse(data.credentials_encrypted)
+        : data.credentials_encrypted;
 
-  if (!isEncryptedSecretEnvelope(envelope)) return null;
+    if (!isEncryptedSecretEnvelope(envelope)) return null;
 
-  const decrypted = await decryptMessagingSecret<MetaWhatsAppCredentials>(envelope, cipherKey);
-  if (!decrypted?.phone_number_id || !decrypted?.access_token) return null;
+    const decrypted = await decryptMessagingSecret<MetaWhatsAppCredentials>(envelope, cipherKey);
+    if (!decrypted?.phone_number_id || !decrypted?.access_token) return null;
 
-  return decrypted;
+    return decrypted;
+  } catch (error) {
+    // Solo se registra el modo de falla, nunca el payload ni el secreto. El
+    // mensaje nativo de JSON.parse incluye un fragmento del texto de entrada
+    // (es decir, del envelope almacenado), asi que ese caso se reemplaza por
+    // una descripcion fija.
+    const reason =
+      error instanceof SyntaxError
+        ? 'credentials_encrypted no es JSON valido'
+        : error instanceof Error
+          ? error.message
+          : 'unknown error';
+
+    console.warn(
+      '[getWhatsAppCredentials] fallo al descifrar credenciales canonicas, usando fallback legacy:',
+      reason
+    );
+    return null;
+  }
 }
 
 async function getFromMessagingConfig(

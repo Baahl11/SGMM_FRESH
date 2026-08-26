@@ -197,6 +197,21 @@ export async function POST(request: Request) {
         ? await adapter.sendTemplate({ to: formattedPhone, templateName: template_name })
         : await adapter.sendText({ to: formattedPhone, message: message_body });
 
+      // Fallo de red/transporte: el adaptador no recibio ninguna respuesta
+      // HTTP (sin httpStatus). Se preserva el comportamiento previo a Fase 1,
+      // cuando el fetch lanzaba y caia al catch externo: 500 y la fila de
+      // whatsapp_messages queda intacta (sigue 'pending', no se marca
+      // 'failed'), porque un 400 le diria al llamador "no reintentes", lo cual
+      // es falso para una falla transitoria de red.
+      if (!sendResult.success && sendResult.httpStatus === undefined) {
+        console.error('WhatsApp transport error:', sendResult.error);
+
+        return NextResponse.json(
+          { error: 'Error interno del servidor', success: false },
+          { status: 500 }
+        );
+      }
+
       if (!sendResult.success) {
         console.error('WhatsApp API error:', sendResult.rawResponse);
 

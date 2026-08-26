@@ -50,3 +50,9 @@ __pycache__/
 
 # Other common ignores
 *.log
+
+# Artefactos locales de sesion/worktree (no son parte del proyecto):
+# toolchain de Node 22 descargado localmente y directorio de trabajo del
+# flujo de planeacion. Nunca deben commitearse.
+/.node22/
+/.superpowers/
