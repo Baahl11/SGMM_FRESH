@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { addDaysToDateString, clinicDateStringRangeUtc, dateStringInTimezone } from '@/lib/timezone';
 
 export const runtime = 'edge';
 
@@ -41,14 +42,14 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    // Obtener fecha de mañana
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+    // Obtener fecha de mañana (adenda V2.1, A-5: "mañana" en el calendario
+    // local de la clinica, no en el dia UTC del proceso)
+    const tomorrowStr = addDaysToDateString(dateStringInTimezone(new Date()), 1);
 
     console.log(`[TEST AGENT] 📅 Buscando citas para: ${tomorrowStr}`);
 
     // Buscar citas de mañana del usuario actual
+    const { startUtc: tomorrowStartUtc, endUtc: tomorrowEndUtc } = clinicDateStringRangeUtc(tomorrowStr);
     const { data: appointments, error } = await supabaseAdmin
       .from('appointments')
       .select(`
@@ -58,8 +59,8 @@ export async function POST(request: Request) {
         patient:patients(id, nombre, apellido, telefono)
       `)
       .eq('user_id', user.id)
-      .gte('fecha_hora', `${tomorrowStr}T00:00:00`)
-      .lte('fecha_hora', `${tomorrowStr}T23:59:59`)
+      .gte('fecha_hora', tomorrowStartUtc.toISOString())
+      .lt('fecha_hora', tomorrowEndUtc.toISOString())
       .in('estado', ['confirmada', 'programada']);
 
     if (error) {

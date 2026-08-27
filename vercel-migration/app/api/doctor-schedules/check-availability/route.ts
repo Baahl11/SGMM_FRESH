@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { diaSemanaClinica } from '@/lib/timezone';
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,7 +21,12 @@ export async function POST(request: NextRequest) {
 
     // Parse the appointment date
     const aptDate = new Date(appointment_date);
-    const dayOfWeek = aptDate.getDay(); // 0=Sunday, 6=Saturday
+    // Adenda V2.1, A-6: doctor_schedules.dia_semana usa la convencion
+    // 0=Lunes..6=Domingo (ver supabase/migrations/007_create_doctors_system.sql).
+    // Date.getDay() da 0=Domingo -- comparar eso contra dia_semana corria
+    // la validacion un dia completo. diaSemanaClinica() usa la convencion
+    // correcta y calcula sobre la fecha local de la clinica, no la del proceso.
+    const dayOfWeek = diaSemanaClinica(aptDate);
     const aptTime = aptDate.toTimeString().slice(0, 5); // HH:MM format
 
     // Fetch the doctor's schedule for this day of the week

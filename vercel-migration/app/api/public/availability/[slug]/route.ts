@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { addDays, format, parse, isWithinInterval, addMinutes } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { clinicDateStringRangeUtc } from '@/lib/timezone'
 
 /**
  * PUBLIC API: Get available time slots for a clinic
@@ -153,12 +154,15 @@ export async function GET(
       .eq('booking_date', dateParam)
       .in('status', ['pending', 'confirmed'])
 
+    // Adenda V2.1, A-5: rango en hora local de la clinica, no un string sin
+    // offset (Postgres lo interpretaria como UTC y correria la ventana 6h)
+    const { startUtc: appointmentsDayStartUtc, endUtc: appointmentsDayEndUtc } = clinicDateStringRangeUtc(dateParam)
     const { data: existingAppointments } = await supabase
       .from('appointments')
       .select('fecha_hora, duracion_minutos')
       .eq('user_id', profile.user_id)
-      .gte('fecha_hora', `${dateParam}T00:00:00`)
-      .lt('fecha_hora', `${dateParam}T23:59:59`)
+      .gte('fecha_hora', appointmentsDayStartUtc.toISOString())
+      .lt('fecha_hora', appointmentsDayEndUtc.toISOString())
       .in('estado', ['programada', 'confirmada', 'en_proceso'])
 
     // 9. Filter out occupied slots

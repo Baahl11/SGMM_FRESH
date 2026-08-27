@@ -13,6 +13,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import type { NotificationPreferences } from '@/lib/types/notifications';
+import { clinicDateStringRangeUtc, dateStringInTimezone } from '@/lib/timezone';
 
 // Verify cron secret for security
 const CRON_SECRET = process.env.CRON_SECRET || 'dev-secret-change-in-production';
@@ -46,15 +47,18 @@ async function wasReminderSentToday(
   reminderType: string,
   entityId: string
 ): Promise<boolean> {
-  const today = new Date().toISOString().split('T')[0];
-  
+  // Adenda V2.1, A-5: "hoy" en el calendario local de la clinica, no el
+  // dia UTC del proceso
+  const today = dateStringInTimezone(new Date());
+  const { startUtc: todayStartUtc } = clinicDateStringRangeUtc(today);
+
   const { data, error } = await supabaseAdmin
     .from('reminder_log')
     .select('id')
     .eq('user_id', userId)
     .eq('reminder_type', reminderType)
     .eq('related_entity_id', entityId)
-    .gte('sent_at', `${today}T00:00:00`)
+    .gte('sent_at', todayStartUtc.toISOString())
     .limit(1);
   
   if (error) {

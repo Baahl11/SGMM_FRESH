@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { addMinutes, parse, isWithinInterval } from 'date-fns';
+import { clinicDateStringRangeUtc } from './timezone';
 
 interface TimeSlot {
   start: Date;
@@ -88,13 +89,15 @@ export async function checkSlotConflict(
       }
     }
 
-    // Get existing appointments for this date
+    // Get existing appointments for this date (adenda V2.1, A-5: rango en
+    // hora local de la clinica, no un string sin offset interpretado como UTC)
+    const { startUtc: dayStartUtc, endUtc: dayEndUtc } = clinicDateStringRangeUtc(date);
     const { data: appointments } = await supabase
       .from('appointments')
       .select('id, fecha_hora, duracion_minutos, patient:patients(nombre, apellido)')
       .eq('user_id', userId)
-      .gte('fecha_hora', `${date}T00:00:00`)
-      .lt('fecha_hora', `${date}T23:59:59`)
+      .gte('fecha_hora', dayStartUtc.toISOString())
+      .lt('fecha_hora', dayEndUtc.toISOString())
       .in('estado', ['programada', 'confirmada', 'en_proceso']);
 
     // Check for appointment conflicts
@@ -170,13 +173,14 @@ export async function getOccupiedSlots(
       }
     }
 
-    // Get appointments
+    // Get appointments (adenda V2.1, A-5: rango en hora local de la clinica)
+    const { startUtc: occupiedDayStartUtc, endUtc: occupiedDayEndUtc } = clinicDateStringRangeUtc(date);
     const { data: appointments } = await supabase
       .from('appointments')
       .select('fecha_hora, duracion_minutos')
       .eq('user_id', userId)
-      .gte('fecha_hora', `${date}T00:00:00`)
-      .lt('fecha_hora', `${date}T23:59:59`)
+      .gte('fecha_hora', occupiedDayStartUtc.toISOString())
+      .lt('fecha_hora', occupiedDayEndUtc.toISOString())
       .in('estado', ['programada', 'confirmada', 'en_proceso']);
 
     if (appointments) {

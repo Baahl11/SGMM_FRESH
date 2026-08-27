@@ -1,5 +1,5 @@
 import { createAnthropic } from '@ai-sdk/anthropic';
-import { dateStringInTimezone, DEFAULT_CLINIC_TIMEZONE } from '@/lib/timezone';
+import { clinicDateStringRangeUtc, dateStringInTimezone, DEFAULT_CLINIC_TIMEZONE } from '@/lib/timezone';
 import { maskPhone, maskEmail } from '@/lib/log';
 import { generateText } from 'ai';
 import { createClient } from '@supabase/supabase-js';
@@ -292,8 +292,9 @@ export async function POST(req: Request) {
           }
           console.log('[AI DEBUG] Detectado fecha específica:', dateLabel, 'calculada:', targetDate);
         } else {
-          // Si pregunta por citas sin especificar, asumir hoy
-          targetDate = new Date().toISOString().split('T')[0];
+          // Si pregunta por citas sin especificar, asumir hoy (adenda V2.1,
+          // A-5: fecha local de la clínica, no el día UTC del proceso)
+          targetDate = dateStringInTimezone(new Date(), DEFAULT_CLINIC_TIMEZONE);
           dateLabel = 'hoy';
           console.log('[AI DEBUG] No se especificó fecha, asumiendo hoy:', targetDate);
         }
@@ -309,12 +310,16 @@ export async function POST(req: Request) {
           console.log('[AI DEBUG] No hay usuario autenticado para citas');
         } else {
         
+        // Adenda V2.1, A-5: targetDate ya es la fecha local de la clínica
+        // (dateStringInTimezone más arriba) -- envolverla con "Z" aquí la
+        // trataba como si fuera UTC y corría la ventana 6h en México.
+        const { startUtc: targetDateStartUtc, endUtc: targetDateEndUtc } = clinicDateStringRangeUtc(targetDate);
         const { data, error } = await supabase
           .from('appointments')
           .select('id, fecha_hora, duracion_minutos, estado, precio_acordado, patient:patients(nombre, apellido)')
           .eq('user_id', authenticatedUser.id)
-          .gte('fecha_hora', `${targetDate}T00:00:00.000Z`)
-          .lt('fecha_hora', `${targetDate}T23:59:59.999Z`)
+          .gte('fecha_hora', targetDateStartUtc.toISOString())
+          .lt('fecha_hora', targetDateEndUtc.toISOString())
           .order('fecha_hora');
         
         console.log('[AI DEBUG] Query result - Citas encontradas:', data?.length || 0, 'Error:', error);
@@ -357,13 +362,16 @@ export async function POST(req: Request) {
         if (!authenticatedUser) {
           console.log('[AI DEBUG] No hay usuario autenticado para estadísticas');
         } else {
-          const today = new Date().toISOString().split('T')[0];
+          // Adenda V2.1, A-5: "hoy" en el calendario local de la clinica,
+          // no el dia UTC del proceso
+          const today = dateStringInTimezone(new Date());
+          const { startUtc: todayStartUtc, endUtc: todayEndUtc } = clinicDateStringRangeUtc(today);
           const { data } = await supabase
             .from('appointments')
             .select('estado, precio_acordado')
             .eq('user_id', authenticatedUser.id)
-            .gte('fecha_hora', `${today}T00:00:00`)
-            .lte('fecha_hora', `${today}T23:59:59`);
+            .gte('fecha_hora', todayStartUtc.toISOString())
+            .lt('fecha_hora', todayEndUtc.toISOString());
         
           const stats = {
             total: data?.length || 0,

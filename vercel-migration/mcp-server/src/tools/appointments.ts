@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { supabase } from '../utils/supabase.js';
+import { clinicDateStringRangeUtc, dateStringInTimezone } from '../utils/timezone.js';
 
 // Schema de validación para get_appointments
 const getAppointmentsSchema = z.object({
@@ -37,8 +38,10 @@ export const appointmentTools = [
     handler: async (args: unknown) => {
       // Validar argumentos con Zod
       const validatedArgs = getAppointmentsSchema.parse(args);
-      const date = validatedArgs.date || new Date().toISOString().split('T')[0];
-      
+      // Adenda V2.1, A-5: fecha local de la clínica, no el día UTC del proceso
+      const date = validatedArgs.date || dateStringInTimezone(new Date());
+      const { startUtc, endUtc } = clinicDateStringRangeUtc(date);
+
       let query = supabase
         .from('appointments')
         .select(`
@@ -56,8 +59,8 @@ export const appointmentTools = [
             email
           )
         `)
-        .gte('start_time', `${date}T00:00:00`)
-        .lte('start_time', `${date}T23:59:59`)
+        .gte('start_time', startUtc.toISOString())
+        .lt('start_time', endUtc.toISOString())
         .order('start_time', { ascending: true });
       
       if (validatedArgs.status) {

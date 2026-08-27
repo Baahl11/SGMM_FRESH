@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { addDaysToDateString, clinicDateStringRangeUtc, dateStringInTimezone } from '@/lib/timezone';
 
 export const runtime = 'edge';
 
@@ -106,14 +107,14 @@ export async function GET(request: Request) {
 
     console.log('[AGENT] 🤖 Reminder Agent started...');
 
-    // 1. Obtener fecha de mañana
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+    // 1. Obtener fecha de mañana (adenda V2.1, A-5: "mañana" en el
+    // calendario local de la clinica, no en el dia UTC del proceso)
+    const tomorrowStr = addDaysToDateString(dateStringInTimezone(new Date()), 1);
 
     console.log(`[AGENT] 📅 Buscando citas para: ${tomorrowStr}`);
 
     // 2. Buscar todas las citas de mañana que estén confirmadas o pendientes
+    const { startUtc: tomorrowStartUtc, endUtc: tomorrowEndUtc } = clinicDateStringRangeUtc(tomorrowStr);
     const { data: appointments, error } = await supabase
       .from('appointments')
       .select(`
@@ -125,8 +126,8 @@ export async function GET(request: Request) {
         user_id,
         patient:patients(id, nombre, apellido, telefono, email)
       `)
-      .gte('fecha_hora', `${tomorrowStr}T00:00:00`)
-      .lte('fecha_hora', `${tomorrowStr}T23:59:59`)
+      .gte('fecha_hora', tomorrowStartUtc.toISOString())
+      .lt('fecha_hora', tomorrowEndUtc.toISOString())
       .in('estado', ['confirmada', 'programada']);
 
     if (error) {
