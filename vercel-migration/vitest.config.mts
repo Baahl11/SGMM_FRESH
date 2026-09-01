@@ -1,8 +1,9 @@
 import { defineConfig } from 'vitest/config'
 import path from 'node:path'
 
-// Auditoría fable 2026-06-11 (sección H del prompt): primera suite de
-// regresión del repo. 'server-only' lanza fuera de RSC, se stubea en tests.
+// Config en .mts (no .ts): vitest 4.1.8 carga el config .ts via require()
+// y revienta con std-env (ahora ESM-only). Ver commit de este cambio.
+// Auditoría fable 2026-06-11 (sección H): primera suite de regresión.
 export default defineConfig({
   resolve: {
     alias: {
